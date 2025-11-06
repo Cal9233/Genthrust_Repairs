@@ -1,12 +1,14 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useMsal, useIsAuthenticated } from "@azure/msal-react";
 import { loginRequest } from "./lib/msalConfig";
 import { excelService } from "./lib/excelService";
+import { shopService } from "./lib/shopService";
 import { Dashboard } from "./components/Dashboard";
 import { ROTable } from "./components/ROTable";
+import { ShopDirectory } from "./components/ShopDirectory";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
-import { LogOut, RefreshCw } from "lucide-react";
+import { LogOut, RefreshCw, ClipboardList, Store } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import logo from "./assets/GENLOGO.png";
 
@@ -14,10 +16,12 @@ function App() {
   const { instance, accounts } = useMsal();
   const isAuthenticated = useIsAuthenticated();
   const queryClient = useQueryClient();
+  const [currentView, setCurrentView] = useState<"repairs" | "shops">("repairs");
 
   useEffect(() => {
     if (isAuthenticated) {
       excelService.setMsalInstance(instance);
+      shopService.setMsalInstance(instance);
     }
   }, [isAuthenticated, instance]);
 
@@ -105,18 +109,54 @@ function App() {
               </Button>
             </div>
           </div>
+
+          {/* Navigation Tabs */}
+          <div className="flex gap-2 pb-3">
+            <Button
+              variant={currentView === "repairs" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setCurrentView("repairs")}
+              className={
+                currentView === "repairs"
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
+                  : "text-gray-600 hover:bg-gray-100"
+              }
+            >
+              <ClipboardList className="h-4 w-4 mr-2" />
+              Repair Orders
+            </Button>
+            <Button
+              variant={currentView === "shops" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setCurrentView("shops")}
+              className={
+                currentView === "shops"
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
+                  : "text-gray-600 hover:bg-gray-100"
+              }
+            >
+              <Store className="h-4 w-4 mr-2" />
+              Shop Directory
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
-          <Dashboard />
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              Repair Orders
-            </h2>
-            <ROTable />
-          </div>
+          {currentView === "repairs" ? (
+            <>
+              <Dashboard />
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                  Repair Orders
+                </h2>
+                <ROTable />
+              </div>
+            </>
+          ) : (
+            <ShopDirectory />
+          )}
         </div>
       </main>
 

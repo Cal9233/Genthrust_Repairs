@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { excelService } from "../lib/excelService";
 import type { DashboardStats } from "../types";
 import { toast } from "sonner";
+import { isDueToday, isOnTrack } from "../lib/businessRules";
 
 export function useROs() {
   return useQuery({
@@ -83,6 +84,10 @@ export function useDashboardStats() {
         shipping: ros.filter((ro) => ro.currentStatus.includes("SHIPPING"))
           .length,
         totalValue: ros.reduce((sum, ro) => sum + (ro.finalCost || 0), 0),
+        // New stats
+        dueToday: ros.filter((ro) => isDueToday(ro.nextDateToUpdate)).length,
+        overdue30Plus: ros.filter((ro) => ro.daysOverdue > 30).length,
+        onTrack: ros.filter((ro) => isOnTrack(ro.nextDateToUpdate)).length,
       };
 
       return stats;

@@ -7,6 +7,9 @@ import {
   CheckCircle,
   Wrench,
   Truck,
+  Calendar,
+  AlertOctagon,
+  TrendingUp,
 } from "lucide-react";
 
 export function Dashboard() {
@@ -83,6 +86,35 @@ export function Dashboard() {
       iconBg: "bg-cyan-100",
       iconColor: "text-cyan-600",
       borderColor: "border-cyan-200",
+    },
+    {
+      title: "Due Today",
+      value: stats.dueToday,
+      icon: Calendar,
+      bgColor: stats.dueToday > 0 ? "bg-orange-50" : "bg-gray-50",
+      iconBg: stats.dueToday > 0 ? "bg-orange-100" : "bg-gray-100",
+      iconColor: stats.dueToday > 0 ? "text-orange-600" : "text-gray-600",
+      borderColor: stats.dueToday > 0 ? "border-orange-200" : "border-gray-200",
+      alert: stats.dueToday > 0,
+    },
+    {
+      title: "Overdue 30+ Days",
+      value: stats.overdue30Plus,
+      icon: AlertOctagon,
+      bgColor: stats.overdue30Plus > 0 ? "bg-rose-50" : "bg-gray-50",
+      iconBg: stats.overdue30Plus > 0 ? "bg-rose-100" : "bg-gray-100",
+      iconColor: stats.overdue30Plus > 0 ? "text-rose-600" : "text-gray-600",
+      borderColor: stats.overdue30Plus > 0 ? "border-rose-200" : "border-gray-200",
+      alert: stats.overdue30Plus > 0,
+    },
+    {
+      title: "On Track",
+      value: stats.onTrack,
+      icon: TrendingUp,
+      bgColor: "bg-emerald-50",
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-600",
+      borderColor: "border-emerald-200",
     },
   ];
 

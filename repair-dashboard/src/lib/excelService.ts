@@ -1,6 +1,7 @@
 import type { IPublicClientApplication } from "@azure/msal-browser";
 import { loginRequest } from "./msalConfig";
 import type { RepairOrder } from "../types";
+import { calculateNextUpdateDate } from "./businessRules";
 
 const SITE_URL = import.meta.env.VITE_SHAREPOINT_SITE_URL;
 const FILE_NAME = import.meta.env.VITE_EXCEL_FILE_NAME;
@@ -295,7 +296,12 @@ class ExcelService {
     notes?: string
   ): Promise<void> {
     const fileId = await this.getFileId();
-    const today = new Date().toISOString();
+    const today = new Date();
+    const todayISO = today.toISOString();
+
+    // Calculate next update date based on new status
+    const nextUpdateDate = calculateNextUpdateDate(status, today);
+    const nextUpdateISO = nextUpdateDate ? nextUpdateDate.toISOString() : "";
 
     try {
       // Create a workbook session for this operation
@@ -313,11 +319,12 @@ class ExcelService {
 
       // Update specific columns
       currentValues[13] = status; // Current Status
-      currentValues[14] = today; // Status Date
+      currentValues[14] = todayISO; // Status Date
       if (notes) {
         currentValues[18] = notes; // Notes
       }
-      currentValues[19] = today; // Last Updated
+      currentValues[19] = todayISO; // Last Updated
+      currentValues[20] = nextUpdateISO; // Next Date to Update (auto-calculated)
 
       await this.callGraphAPI(
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
@@ -343,7 +350,13 @@ class ExcelService {
     shopReferenceNumber?: string;
   }): Promise<void> {
     const fileId = await this.getFileId();
-    const today = new Date().toISOString();
+    const today = new Date();
+    const todayISO = today.toISOString();
+
+    // Calculate next update date based on initial status
+    const initialStatus = "TO SEND";
+    const nextUpdateDate = calculateNextUpdateDate(initialStatus, today);
+    const nextUpdateISO = nextUpdateDate ? nextUpdateDate.toISOString() : "";
 
     try {
       // Create a workbook session for this operation
@@ -352,7 +365,7 @@ class ExcelService {
       // Create row with all columns (22 columns total based on RepairOrder type)
       const newRow = [
         data.roNumber, // 0: RO Number
-        today, // 1: Date Made
+        todayISO, // 1: Date Made
         data.shopName, // 2: Shop Name
         data.partNumber, // 3: Part Number
         data.serialNumber, // 4: Serial Number
@@ -364,14 +377,14 @@ class ExcelService {
         data.terms || "", // 10: Terms
         data.shopReferenceNumber || "", // 11: Shop Reference Number
         "", // 12: Estimated Delivery Date (empty for now)
-        "TO SEND", // 13: Current Status
-        today, // 14: Current Status Date
+        initialStatus, // 13: Current Status
+        todayISO, // 14: Current Status Date
         "", // 15: GenThrust Status (empty for now)
         "", // 16: Shop Status (empty for now)
         "", // 17: Tracking Number (empty for now)
         "", // 18: Notes (empty for now)
-        today, // 19: Last Date Updated
-        "", // 20: Next Date to Update (empty for now)
+        todayISO, // 19: Last Date Updated
+        nextUpdateISO, // 20: Next Date to Update (auto-calculated)
         "", // 21: Checked (empty for now)
       ];
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useUpdateROStatus } from "../hooks/useROs";
 import type { RepairOrder } from "../types";
+import { calculateNextUpdateDate, formatDateForDisplay } from "../lib/businessRules";
+import { Calendar } from "lucide-react";
 
 interface UpdateStatusDialogProps {
   ro: RepairOrder;
@@ -43,6 +45,12 @@ export function UpdateStatusDialog({
   const [status, setStatus] = useState(ro.currentStatus);
   const [notes, setNotes] = useState("");
   const updateStatus = useUpdateROStatus();
+
+  // Calculate the next update date based on selected status
+  const calculatedNextUpdate = useMemo(() => {
+    const nextDate = calculateNextUpdateDate(status, new Date());
+    return nextDate;
+  }, [status]);
 
   const handleSubmit = () => {
     const rowIndex = parseInt(ro.id.replace("row-", ""));
@@ -90,6 +98,30 @@ export function UpdateStatusDialog({
               placeholder="Add any notes about this status change..."
               rows={3}
             />
+          </div>
+
+          {/* Auto-calculated next update date info */}
+          <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+            <div className="flex items-start gap-3">
+              <Calendar className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-blue-900">
+                  Auto-calculated Next Update
+                </p>
+                <p className="text-sm text-blue-700 mt-1">
+                  {calculatedNextUpdate ? (
+                    <>
+                      Next follow-up will be automatically set to{" "}
+                      <span className="font-semibold">
+                        {formatDateForDisplay(calculatedNextUpdate)}
+                      </span>
+                    </>
+                  ) : (
+                    "No follow-up needed - order complete"
+                  )}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 

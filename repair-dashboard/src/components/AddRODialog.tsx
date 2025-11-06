@@ -10,7 +10,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAddRepairOrder } from "../hooks/useROs";
+import { useShops } from "../hooks/useShops";
+import { ShopManagementDialog } from "./ShopManagementDialog";
+import { Plus, Store } from "lucide-react";
 
 interface AddRODialogProps {
   open: boolean;
@@ -29,8 +39,14 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
     terms: "",
     shopReferenceNumber: "",
   });
+  const [selectedShopId, setSelectedShopId] = useState<string>("");
+  const [showShopDialog, setShowShopDialog] = useState(false);
 
   const addRO = useAddRepairOrder();
+  const { data: shops = [], isLoading: shopsLoading } = useShops();
+
+  // Filter active shops only
+  const activeShops = shops.filter((shop) => shop.active);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,8 +93,24 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
     }));
   };
 
+  const handleShopSelect = (shopId: string) => {
+    setSelectedShopId(shopId);
+
+    if (shopId) {
+      const shop = shops.find((s) => s.id === shopId);
+      if (shop) {
+        setFormData((prev) => ({
+          ...prev,
+          shopName: shop.shopName,
+          terms: shop.defaultTerms,
+        }));
+      }
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-2 border-gray-200 shadow-xl">
         <DialogHeader className="border-b border-gray-200 pb-4">
           <DialogTitle className="text-2xl font-bold text-gray-900">
@@ -90,6 +122,52 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6 py-4 bg-gray-50 rounded-lg p-6">
+          {/* Shop Selection Section */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Store className="h-5 w-5 text-blue-600" />
+                <Label className="text-sm font-semibold text-blue-900">
+                  Select Shop (Auto-fill)
+                </Label>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowShopDialog(true)}
+                className="border-blue-300 text-blue-700 hover:bg-blue-100"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add New Shop
+              </Button>
+            </div>
+            <Select
+              value={selectedShopId}
+              onValueChange={handleShopSelect}
+              disabled={shopsLoading}
+            >
+              <SelectTrigger className="bg-white border-blue-200">
+                <SelectValue placeholder="Choose a shop to auto-fill details..." />
+              </SelectTrigger>
+              <SelectContent>
+                {activeShops.map((shop) => (
+                  <SelectItem key={shop.id} value={shop.id}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{shop.shopName}</span>
+                      <span className="text-xs text-gray-500">
+                        {shop.defaultTerms} • TAT: {shop.typicalTAT} days
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-blue-700">
+              Selecting a shop will auto-fill the shop name and payment terms below
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="roNumber" className="text-sm font-semibold text-gray-700">
@@ -250,6 +328,12 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
           </DialogFooter>
         </form>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      <ShopManagementDialog
+        open={showShopDialog}
+        onClose={() => setShowShopDialog(false)}
+      />
+    </>
   );
 }

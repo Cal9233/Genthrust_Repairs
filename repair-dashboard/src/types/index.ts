@@ -36,4 +36,19 @@ export interface DashboardStats {
   beingRepaired: number;
   shipping: number;
   totalValue: number;
+  dueToday: number;
+  overdue30Plus: number;
+  onTrack: number;
+}
+
+export interface Shop {
+  id: string; // Generated from row index
+  shopName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  defaultTerms: string; // "COD", "NET 30", etc.
+  typicalTAT: number; // days
+  notes: string;
+  active: boolean;
 }
