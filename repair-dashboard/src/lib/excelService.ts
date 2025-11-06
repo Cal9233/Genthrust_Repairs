@@ -8,6 +8,7 @@ const TABLE_NAME = import.meta.env.VITE_EXCEL_TABLE_NAME;
 
 class ExcelService {
   private msalInstance: IPublicClientApplication | null = null;
+  private driveId: string | null = null;
 
   setMsalInstance(instance: IPublicClientApplication) {
     this.msalInstance = instance;
@@ -38,6 +39,12 @@ class ExcelService {
   private async callGraphAPI(endpoint: string, method = "GET", body?: any) {
     const token = await this.getAccessToken();
 
+    console.log(`[Excel Service] Calling Graph API:`, {
+      endpoint,
+      method,
+      body,
+    });
+
     const options: RequestInit = {
       method,
       headers: {
@@ -52,8 +59,26 @@ class ExcelService {
 
     const response = await fetch(endpoint, options);
 
+    console.log(`[Excel Service] Response:`, {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+    });
+
     if (!response.ok) {
-      throw new Error(`Graph API error: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`[Excel Service] Error response body:`, errorText);
+
+      let errorDetails;
+      try {
+        errorDetails = JSON.parse(errorText);
+      } catch {
+        errorDetails = errorText;
+      }
+
+      throw new Error(
+        `Graph API error: ${response.status} ${response.statusText}\n${JSON.stringify(errorDetails, null, 2)}`
+      );
     }
 
     return response.json();
@@ -91,10 +116,21 @@ class ExcelService {
   }
 
   async getFileId(): Promise<string> {
+    console.log("[Excel Service] Configuration:", {
+      SITE_URL,
+      FILE_NAME,
+      TABLE_NAME,
+    });
+
     // Get site drive
-    const sitePath = new URL(SITE_URL).pathname;
+    const siteUrl = new URL(SITE_URL);
+    const hostname = siteUrl.hostname; // e.g., genthrustxvii.sharepoint.com
+    const sitePath = siteUrl.pathname; // e.g., /sites/PartsQuotationsWebsite
+
+    console.log("[Excel Service] Parsed URL:", { hostname, sitePath });
+
     const siteResponse = await this.callGraphAPI(
-      `https://graph.microsoft.com/v1.0/sites/root:${sitePath}`
+      `https://graph.microsoft.com/v1.0/sites/${hostname}:${sitePath}`
     );
 
     // Get drive
@@ -102,9 +138,13 @@ class ExcelService {
       `https://graph.microsoft.com/v1.0/sites/${siteResponse.id}/drive`
     );
 
+    // Cache the drive ID for later use
+    this.driveId = driveResponse.id;
+    console.log("[Excel Service] Cached drive ID:", this.driveId);
+
     // Search for file
     const searchResponse = await this.callGraphAPI(
-      `https://graph.microsoft.com/v1.0/drives/${driveResponse.id}/root/search(q='${FILE_NAME}')`
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/root/search(q='${FILE_NAME}')`
     );
 
     if (searchResponse.value.length === 0) {
@@ -114,12 +154,55 @@ class ExcelService {
     return searchResponse.value[0].id;
   }
 
+  async getFileInfo(): Promise<any> {
+    const fileId = await this.getFileId();
+
+    console.log("[Excel Service] Getting file info for fileId:", fileId);
+
+    const response = await this.callGraphAPI(
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}`
+    );
+
+    console.log("[Excel Service] File info:", {
+      name: response.name,
+      size: response.size,
+      fileExtension: response.name.split(".").pop(),
+      mimeType: response.file?.mimeType,
+      webUrl: response.webUrl,
+    });
+
+    return response;
+  }
+
+  async listTables(): Promise<any[]> {
+    const fileId = await this.getFileId();
+
+    console.log(
+      "[Excel Service] Listing all tables in workbook for fileId:",
+      fileId
+    );
+
+    const response = await this.callGraphAPI(
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables`
+    );
+
+    console.log("[Excel Service] Available tables:", response.value);
+    return response.value;
+  }
+
   async getRepairOrders(): Promise<RepairOrder[]> {
     const fileId = await this.getFileId();
 
+    // Check file info to verify it's a valid Excel file
+    await this.getFileInfo();
+
+    // First, list all available tables to help with debugging
+    await this.listTables();
+
     // Get table data
+    console.log(`[Excel Service] Attempting to read table: ${TABLE_NAME}`);
     const response = await this.callGraphAPI(
-      `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/tables/${TABLE_NAME}/rows`
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows`
     );
 
     const rows = response.value;
@@ -178,7 +261,7 @@ class ExcelService {
     const fileId = await this.getFileId();
 
     await this.callGraphAPI(
-      `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
       "PATCH",
       {
         values: [[value]], // Single cell update
@@ -196,7 +279,7 @@ class ExcelService {
 
     // Get current row data first
     const response = await this.callGraphAPI(
-      `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`
     );
 
     const currentValues = response.values[0];
@@ -210,7 +293,7 @@ class ExcelService {
     currentValues[19] = today; // Last Updated
 
     await this.callGraphAPI(
-      `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
       "PATCH",
       { values: [currentValues] }
     );

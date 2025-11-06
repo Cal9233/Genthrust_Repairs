@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { RODetailDialog } from "./RODetailDialog";
-import { Search, ArrowUpDown } from "lucide-react";
+import { Search, ArrowUpDown, AlertTriangle } from "lucide-react";
 import type { RepairOrder } from "../types";
 
 export function ROTable() {
@@ -64,11 +64,17 @@ export function ROTable() {
 
   const formatDate = (date: Date | null) => {
     if (!date) return "N/A";
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }).format(new Date(date));
+    try {
+      const dateObj = date instanceof Date ? date : new Date(date);
+      if (isNaN(dateObj.getTime())) return "N/A";
+      return new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }).format(dateObj);
+    } catch {
+      return "N/A";
+    }
   };
 
   const formatCurrency = (amount: number | null) => {
@@ -80,95 +86,124 @@ export function ROTable() {
   };
 
   if (isLoading) {
-    return <div className="p-8">Loading repair orders...</div>;
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading repair orders...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search ROs, shops, parts..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm font-medium text-gray-600 bg-gray-100 px-4 py-2 rounded-lg">
           {filteredAndSorted.length} of {ros?.length || 0} ROs
         </div>
       </div>
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSort("roNumber")}
-                  className="hover:bg-transparent"
-                >
-                  RO #
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead>Shop</TableHead>
-              <TableHead>Part</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSort("nextDateToUpdate")}
-                  className="hover:bg-transparent"
-                >
-                  Next Update
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead className="text-right">Cost</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAndSorted.map((ro) => (
-              <TableRow key={ro.id} className={ro.isOverdue ? "bg-red-50" : ""}>
-                <TableCell className="font-medium">{ro.roNumber}</TableCell>
-                <TableCell>{ro.shopName}</TableCell>
-                <TableCell>
-                  <div className="max-w-xs truncate">{ro.partDescription}</div>
-                </TableCell>
-                <TableCell>
-                  <StatusBadge
-                    status={ro.currentStatus}
-                    isOverdue={ro.isOverdue}
-                  />
-                </TableCell>
-                <TableCell>
-                  <div>{formatDate(ro.nextDateToUpdate)}</div>
-                  {ro.isOverdue && (
-                    <div className="text-xs text-red-600">
-                      {ro.daysOverdue} days overdue
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatCurrency(ro.finalCost)}
-                </TableCell>
-                <TableCell>
+      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50 hover:bg-gray-50">
+                <TableHead className="font-semibold text-gray-700">
                   <Button
                     variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedRO(ro)}
+                    onClick={() => handleSort("roNumber")}
+                    className="hover:bg-gray-100 font-semibold"
                   >
-                    View
+                    RO #
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
-                </TableCell>
+                </TableHead>
+                <TableHead className="font-semibold text-gray-700">
+                  Shop
+                </TableHead>
+                <TableHead className="font-semibold text-gray-700">
+                  Part
+                </TableHead>
+                <TableHead className="font-semibold text-gray-700">
+                  Status
+                </TableHead>
+                <TableHead className="font-semibold text-gray-700">
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSort("nextDateToUpdate")}
+                    className="hover:bg-gray-100 font-semibold"
+                  >
+                    Next Update
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead className="text-right font-semibold text-gray-700">
+                  Cost
+                </TableHead>
+                <TableHead className="font-semibold text-gray-700"></TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredAndSorted.map((ro) => (
+                <TableRow
+                  key={ro.id}
+                  className={`hover:bg-gray-50 transition-colors ${
+                    ro.isOverdue ? "bg-red-50 hover:bg-red-100" : ""
+                  }`}
+                >
+                  <TableCell className="font-semibold text-gray-900">
+                    {ro.roNumber}
+                  </TableCell>
+                  <TableCell className="text-gray-700">{ro.shopName}</TableCell>
+                  <TableCell>
+                    <div className="max-w-xs truncate text-gray-700">
+                      {ro.partDescription}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      status={ro.currentStatus}
+                      isOverdue={ro.isOverdue}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-gray-900">
+                      {formatDate(ro.nextDateToUpdate)}
+                    </div>
+                    {ro.isOverdue && (
+                      <div className="text-xs font-semibold text-red-600 flex items-center gap-1 mt-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {ro.daysOverdue} days overdue
+                      </div>
+                  )}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold text-gray-900">
+                    {formatCurrency(ro.finalCost)}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      size="sm"
+                      onClick={() => setSelectedRO(ro)}
+                      className="bg-blue-600 text-white hover:bg-blue-700 font-medium shadow-sm"
+                    >
+                      View Details
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {selectedRO && (
