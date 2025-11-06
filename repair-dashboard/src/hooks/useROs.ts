@@ -34,6 +34,33 @@ export function useUpdateROStatus() {
   });
 }
 
+export function useAddRepairOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      roNumber: string;
+      shopName: string;
+      partNumber: string;
+      serialNumber: string;
+      partDescription: string;
+      requiredWork: string;
+      estimatedCost?: number;
+      terms?: string;
+      shopReferenceNumber?: string;
+    }) => excelService.addRepairOrder(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ros"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      toast.success("Repair order created successfully");
+    },
+    onError: (error) => {
+      console.error("Create error:", error);
+      toast.error("Failed to create repair order");
+    },
+  });
+}
+
 export function useDashboardStats() {
   return useQuery({
     queryKey: ["dashboard-stats"],

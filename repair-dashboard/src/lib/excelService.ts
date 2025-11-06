@@ -298,6 +298,59 @@ class ExcelService {
       { values: [currentValues] }
     );
   }
+
+  async addRepairOrder(data: {
+    roNumber: string;
+    shopName: string;
+    partNumber: string;
+    serialNumber: string;
+    partDescription: string;
+    requiredWork: string;
+    estimatedCost?: number;
+    terms?: string;
+    shopReferenceNumber?: string;
+  }): Promise<void> {
+    const fileId = await this.getFileId();
+    const today = new Date().toISOString();
+
+    console.log("[Excel Service] Adding new repair order:", data);
+
+    // Create row with all columns (22 columns total based on RepairOrder type)
+    const newRow = [
+      data.roNumber, // 0: RO Number
+      today, // 1: Date Made
+      data.shopName, // 2: Shop Name
+      data.partNumber, // 3: Part Number
+      data.serialNumber, // 4: Serial Number
+      data.partDescription, // 5: Part Description
+      data.requiredWork, // 6: Required Work
+      "", // 7: Date Dropped Off (empty for now)
+      data.estimatedCost || "", // 8: Estimated Cost
+      "", // 9: Final Cost (empty for now)
+      data.terms || "", // 10: Terms
+      data.shopReferenceNumber || "", // 11: Shop Reference Number
+      "", // 12: Estimated Delivery Date (empty for now)
+      "TO SEND", // 13: Current Status
+      today, // 14: Current Status Date
+      "", // 15: GenThrust Status (empty for now)
+      "", // 16: Shop Status (empty for now)
+      "", // 17: Tracking Number (empty for now)
+      "", // 18: Notes (empty for now)
+      today, // 19: Last Date Updated
+      "", // 20: Next Date to Update (empty for now)
+      "", // 21: Checked (empty for now)
+    ];
+
+    await this.callGraphAPI(
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/add`,
+      "POST",
+      {
+        values: [newRow],
+      }
+    );
+
+    console.log("[Excel Service] New repair order added successfully");
+  }
 }
 
 export const excelService = new ExcelService();

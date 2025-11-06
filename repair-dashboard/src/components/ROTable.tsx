@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { RODetailDialog } from "./RODetailDialog";
-import { Search, ArrowUpDown, AlertTriangle } from "lucide-react";
+import { AddRODialog } from "./AddRODialog";
+import { Search, ArrowUpDown, AlertTriangle, Plus } from "lucide-react";
 import type { RepairOrder } from "../types";
 
 export function ROTable() {
@@ -21,6 +22,7 @@ export function ROTable() {
   const [sortColumn, setSortColumn] = useState<keyof RepairOrder>("roNumber");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedRO, setSelectedRO] = useState<RepairOrder | null>(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   const filteredAndSorted = useMemo(() => {
     if (!ros) return [];
@@ -108,8 +110,17 @@ export function ROTable() {
             className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
-        <div className="text-sm font-medium text-gray-600 bg-gray-100 px-4 py-2 rounded-lg">
-          {filteredAndSorted.length} of {ros?.length || 0} ROs
+        <div className="flex items-center gap-3">
+          <div className="text-sm font-medium text-gray-600 bg-gray-100 px-4 py-2 rounded-lg">
+            {filteredAndSorted.length} of {ros?.length || 0} ROs
+          </div>
+          <Button
+            onClick={() => setShowAddDialog(true)}
+            className="bg-green-600 hover:bg-green-700 text-white font-medium shadow-sm"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            New RO
+          </Button>
         </div>
       </div>
 
@@ -213,6 +224,11 @@ export function ROTable() {
           onClose={() => setSelectedRO(null)}
         />
       )}
+
+      <AddRODialog
+        open={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+      />
     </div>
   );
 }
