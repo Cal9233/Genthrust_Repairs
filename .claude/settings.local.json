@@ -10,7 +10,11 @@
       "Bash(npm run:*)",
       "Bash(cat:*)",
       "Bash(node:*)",
-      "Bash(npm:*)"
+      "Bash(npm:*)",
+      "Bash(mkdir -p repair-dashboard/docs)",
+      "Bash(npx shadcn@latest init -y)",
+      "Bash(npx shadcn@latest add button)",
+      "Bash(npx shadcn@latest add card badge input select table dialog textarea label)"
     ],
     "deny": [],
     "ask": []
