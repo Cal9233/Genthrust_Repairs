@@ -9,6 +9,8 @@ const TABLE_NAME = import.meta.env.VITE_EXCEL_TABLE_NAME;
 class ExcelService {
   private msalInstance: IPublicClientApplication | null = null;
   private driveId: string | null = null;
+  private fileId: string | null = null;
+  private sessionId: string | null = null;
 
   setMsalInstance(instance: IPublicClientApplication) {
     this.msalInstance = instance;
@@ -36,21 +38,22 @@ class ExcelService {
     }
   }
 
-  private async callGraphAPI(endpoint: string, method = "GET", body?: any) {
+  private async callGraphAPI(endpoint: string, method = "GET", body?: any, useSession = false) {
     const token = await this.getAccessToken();
 
-    console.log(`[Excel Service] Calling Graph API:`, {
-      endpoint,
-      method,
-      body,
-    });
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    // Add session header if using session mode
+    if (useSession && this.sessionId) {
+      headers["workbook-session-id"] = this.sessionId;
+    }
 
     const options: RequestInit = {
       method,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers,
     };
 
     if (body) {
@@ -59,16 +62,8 @@ class ExcelService {
 
     const response = await fetch(endpoint, options);
 
-    console.log(`[Excel Service] Response:`, {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok,
-    });
-
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[Excel Service] Error response body:`, errorText);
-
       let errorDetails;
       try {
         errorDetails = JSON.parse(errorText);
@@ -76,12 +71,62 @@ class ExcelService {
         errorDetails = errorText;
       }
 
+      console.error(`[Excel Service] ${method} ${endpoint} failed:`, errorDetails);
+
       throw new Error(
         `Graph API error: ${response.status} ${response.statusText}\n${JSON.stringify(errorDetails, null, 2)}`
       );
     }
 
-    return response.json();
+    // Handle empty responses (like 204 No Content from closeSession)
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
+      return null;
+    }
+
+    // Check if response has content before parsing JSON
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      return null;
+    }
+
+    return JSON.parse(text);
+  }
+
+  private async createSession(): Promise<string> {
+    if (!this.fileId) {
+      this.fileId = await this.getFileId();
+    }
+
+    const response = await this.callGraphAPI(
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${this.fileId}/workbook/createSession`,
+      "POST",
+      {
+        persistChanges: true,
+      }
+    );
+
+    this.sessionId = response.id;
+    return response.id;
+  }
+
+  private async closeSession(): Promise<void> {
+    if (!this.sessionId || !this.fileId) {
+      return;
+    }
+
+    try {
+      await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${this.fileId}/workbook/closeSession`,
+        "POST",
+        {},
+        true // use session
+      );
+      this.sessionId = null;
+    } catch (error) {
+      console.error("[Excel Service] Failed to close session:", error);
+      // Don't throw - just clear the session ID
+      this.sessionId = null;
+    }
   }
 
   private parseExcelDate(value: any): Date | null {
@@ -116,18 +161,15 @@ class ExcelService {
   }
 
   async getFileId(): Promise<string> {
-    console.log("[Excel Service] Configuration:", {
-      SITE_URL,
-      FILE_NAME,
-      TABLE_NAME,
-    });
+    // Return cached file ID if available
+    if (this.fileId) {
+      return this.fileId;
+    }
 
     // Get site drive
     const siteUrl = new URL(SITE_URL);
-    const hostname = siteUrl.hostname; // e.g., genthrustxvii.sharepoint.com
-    const sitePath = siteUrl.pathname; // e.g., /sites/PartsQuotationsWebsite
-
-    console.log("[Excel Service] Parsed URL:", { hostname, sitePath });
+    const hostname = siteUrl.hostname;
+    const sitePath = siteUrl.pathname;
 
     const siteResponse = await this.callGraphAPI(
       `https://graph.microsoft.com/v1.0/sites/${hostname}:${sitePath}`
@@ -140,7 +182,6 @@ class ExcelService {
 
     // Cache the drive ID for later use
     this.driveId = driveResponse.id;
-    console.log("[Excel Service] Cached drive ID:", this.driveId);
 
     // Search for file
     const searchResponse = await this.callGraphAPI(
@@ -151,25 +192,18 @@ class ExcelService {
       throw new Error(`File ${FILE_NAME} not found`);
     }
 
-    return searchResponse.value[0].id;
+    // Cache the file ID for later use
+    this.fileId = searchResponse.value[0].id;
+
+    return this.fileId;
   }
 
   async getFileInfo(): Promise<any> {
     const fileId = await this.getFileId();
 
-    console.log("[Excel Service] Getting file info for fileId:", fileId);
-
     const response = await this.callGraphAPI(
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}`
     );
-
-    console.log("[Excel Service] File info:", {
-      name: response.name,
-      size: response.size,
-      fileExtension: response.name.split(".").pop(),
-      mimeType: response.file?.mimeType,
-      webUrl: response.webUrl,
-    });
 
     return response;
   }
@@ -177,30 +211,16 @@ class ExcelService {
   async listTables(): Promise<any[]> {
     const fileId = await this.getFileId();
 
-    console.log(
-      "[Excel Service] Listing all tables in workbook for fileId:",
-      fileId
-    );
-
     const response = await this.callGraphAPI(
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables`
     );
 
-    console.log("[Excel Service] Available tables:", response.value);
     return response.value;
   }
 
   async getRepairOrders(): Promise<RepairOrder[]> {
     const fileId = await this.getFileId();
 
-    // Check file info to verify it's a valid Excel file
-    await this.getFileInfo();
-
-    // First, list all available tables to help with debugging
-    await this.listTables();
-
-    // Get table data
-    console.log(`[Excel Service] Attempting to read table: ${TABLE_NAME}`);
     const response = await this.callGraphAPI(
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows`
     );
@@ -277,26 +297,38 @@ class ExcelService {
     const fileId = await this.getFileId();
     const today = new Date().toISOString();
 
-    // Get current row data first
-    const response = await this.callGraphAPI(
-      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`
-    );
+    try {
+      // Create a workbook session for this operation
+      await this.createSession();
 
-    const currentValues = response.values[0];
+      // Get current row data first
+      const response = await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
+        "GET",
+        undefined,
+        true // use session
+      );
 
-    // Update specific columns
-    currentValues[13] = status; // Current Status
-    currentValues[14] = today; // Status Date
-    if (notes) {
-      currentValues[18] = notes; // Notes
+      const currentValues = response.values[0];
+
+      // Update specific columns
+      currentValues[13] = status; // Current Status
+      currentValues[14] = today; // Status Date
+      if (notes) {
+        currentValues[18] = notes; // Notes
+      }
+      currentValues[19] = today; // Last Updated
+
+      await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
+        "PATCH",
+        { values: [currentValues] },
+        true // use session
+      );
+    } finally {
+      // Always close the session, even if there was an error
+      await this.closeSession();
     }
-    currentValues[19] = today; // Last Updated
-
-    await this.callGraphAPI(
-      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
-      "PATCH",
-      { values: [currentValues] }
-    );
   }
 
   async addRepairOrder(data: {
@@ -313,43 +345,48 @@ class ExcelService {
     const fileId = await this.getFileId();
     const today = new Date().toISOString();
 
-    console.log("[Excel Service] Adding new repair order:", data);
+    try {
+      // Create a workbook session for this operation
+      await this.createSession();
 
-    // Create row with all columns (22 columns total based on RepairOrder type)
-    const newRow = [
-      data.roNumber, // 0: RO Number
-      today, // 1: Date Made
-      data.shopName, // 2: Shop Name
-      data.partNumber, // 3: Part Number
-      data.serialNumber, // 4: Serial Number
-      data.partDescription, // 5: Part Description
-      data.requiredWork, // 6: Required Work
-      "", // 7: Date Dropped Off (empty for now)
-      data.estimatedCost || "", // 8: Estimated Cost
-      "", // 9: Final Cost (empty for now)
-      data.terms || "", // 10: Terms
-      data.shopReferenceNumber || "", // 11: Shop Reference Number
-      "", // 12: Estimated Delivery Date (empty for now)
-      "TO SEND", // 13: Current Status
-      today, // 14: Current Status Date
-      "", // 15: GenThrust Status (empty for now)
-      "", // 16: Shop Status (empty for now)
-      "", // 17: Tracking Number (empty for now)
-      "", // 18: Notes (empty for now)
-      today, // 19: Last Date Updated
-      "", // 20: Next Date to Update (empty for now)
-      "", // 21: Checked (empty for now)
-    ];
+      // Create row with all columns (22 columns total based on RepairOrder type)
+      const newRow = [
+        data.roNumber, // 0: RO Number
+        today, // 1: Date Made
+        data.shopName, // 2: Shop Name
+        data.partNumber, // 3: Part Number
+        data.serialNumber, // 4: Serial Number
+        data.partDescription, // 5: Part Description
+        data.requiredWork, // 6: Required Work
+        "", // 7: Date Dropped Off (empty for now)
+        data.estimatedCost || "", // 8: Estimated Cost
+        "", // 9: Final Cost (empty for now)
+        data.terms || "", // 10: Terms
+        data.shopReferenceNumber || "", // 11: Shop Reference Number
+        "", // 12: Estimated Delivery Date (empty for now)
+        "TO SEND", // 13: Current Status
+        today, // 14: Current Status Date
+        "", // 15: GenThrust Status (empty for now)
+        "", // 16: Shop Status (empty for now)
+        "", // 17: Tracking Number (empty for now)
+        "", // 18: Notes (empty for now)
+        today, // 19: Last Date Updated
+        "", // 20: Next Date to Update (empty for now)
+        "", // 21: Checked (empty for now)
+      ];
 
-    await this.callGraphAPI(
-      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/add`,
-      "POST",
-      {
-        values: [newRow],
-      }
-    );
-
-    console.log("[Excel Service] New repair order added successfully");
+      await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/add`,
+        "POST",
+        {
+          values: [newRow],
+        },
+        true // use session
+      );
+    } finally {
+      // Always close the session, even if there was an error
+      await this.closeSession();
+    }
   }
 }
 

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
 import { LogOut, RefreshCw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import logo from "./assets/GENLOGO.png";
 
 function App() {
   const { instance, accounts } = useMsal();
@@ -41,20 +42,12 @@ function App() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-slate-50">
         <div className="max-w-md w-full space-y-8 p-10 bg-white rounded-2xl shadow-xl border border-gray-100">
           <div className="text-center">
-            <div className="mx-auto h-16 w-16 bg-blue-600 rounded-xl flex items-center justify-center mb-4">
-              <svg
-                className="h-10 w-10 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                />
-              </svg>
+            <div className="mx-auto mb-6 flex justify-center">
+              <img
+                src={logo}
+                alt="GenThrust Logo"
+                className="h-20 w-auto object-contain"
+              />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               GenThrust RO Tracker
@@ -79,25 +72,15 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-slate-50">
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+          <div className="flex justify-between items-center py-3">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                <svg
-                  className="h-6 w-6 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                  />
-                </svg>
-              </div>
+              <img
+                src={logo}
+                alt="GenThrust Logo"
+                className="h-12 w-auto object-contain"
+              />
               <h1 className="text-2xl font-bold text-gray-900">
-                GenThrust RO Tracker
+                RO Tracker
               </h1>
             </div>
             <div className="flex items-center gap-3">

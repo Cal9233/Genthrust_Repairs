@@ -79,15 +79,20 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">Create New Repair Order</DialogTitle>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-2 border-gray-200 shadow-xl">
+        <DialogHeader className="border-b border-gray-200 pb-4">
+          <DialogTitle className="text-2xl font-bold text-gray-900">
+            Create New Repair Order
+          </DialogTitle>
+          <p className="text-sm text-gray-600 mt-1">
+            Fill in the details below to create a new repair order
+          </p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6 py-4">
+        <form onSubmit={handleSubmit} className="space-y-6 py-4 bg-gray-50 rounded-lg p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="roNumber" className="text-sm font-semibold">
+              <Label htmlFor="roNumber" className="text-sm font-semibold text-gray-700">
                 RO Number <span className="text-red-600">*</span>
               </Label>
               <Input
@@ -97,12 +102,12 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
                 onChange={handleChange}
                 required
                 placeholder="e.g., RO-2024-001"
-                className="border-gray-300"
+                className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="shopName" className="text-sm font-semibold">
+              <Label htmlFor="shopName" className="text-sm font-semibold text-gray-700">
                 Shop Name <span className="text-red-600">*</span>
               </Label>
               <Input
@@ -112,12 +117,12 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
                 onChange={handleChange}
                 required
                 placeholder="Repair station name"
-                className="border-gray-300"
+                className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="partNumber" className="text-sm font-semibold">
+              <Label htmlFor="partNumber" className="text-sm font-semibold text-gray-700">
                 Part Number <span className="text-red-600">*</span>
               </Label>
               <Input
@@ -127,12 +132,12 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
                 onChange={handleChange}
                 required
                 placeholder="Part #"
-                className="border-gray-300"
+                className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="serialNumber" className="text-sm font-semibold">
+              <Label htmlFor="serialNumber" className="text-sm font-semibold text-gray-700">
                 Serial Number <span className="text-red-600">*</span>
               </Label>
               <Input
@@ -142,12 +147,12 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
                 onChange={handleChange}
                 required
                 placeholder="Serial #"
-                className="border-gray-300"
+                className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="partDescription" className="text-sm font-semibold">
+              <Label htmlFor="partDescription" className="text-sm font-semibold text-gray-700">
                 Part Description <span className="text-red-600">*</span>
               </Label>
               <Input
@@ -157,12 +162,12 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
                 onChange={handleChange}
                 required
                 placeholder="Description of the part"
-                className="border-gray-300"
+                className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="requiredWork" className="text-sm font-semibold">
+              <Label htmlFor="requiredWork" className="text-sm font-semibold text-gray-700">
                 Required Work <span className="text-red-600">*</span>
               </Label>
               <Textarea
@@ -173,12 +178,12 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
                 required
                 placeholder="Describe the work needed..."
                 rows={3}
-                className="border-gray-300"
+                className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="estimatedCost" className="text-sm font-semibold">
+              <Label htmlFor="estimatedCost" className="text-sm font-semibold text-gray-700">
                 Estimated Cost
               </Label>
               <Input
@@ -189,12 +194,12 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
                 value={formData.estimatedCost}
                 onChange={handleChange}
                 placeholder="0.00"
-                className="border-gray-300"
+                className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="terms" className="text-sm font-semibold">
+              <Label htmlFor="terms" className="text-sm font-semibold text-gray-700">
                 Terms
               </Label>
               <Input
@@ -203,14 +208,14 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
                 value={formData.terms}
                 onChange={handleChange}
                 placeholder="Payment terms"
-                className="border-gray-300"
+                className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
 
             <div className="space-y-2 md:col-span-2">
               <Label
                 htmlFor="shopReferenceNumber"
-                className="text-sm font-semibold"
+                className="text-sm font-semibold text-gray-700"
               >
                 Shop Reference Number
               </Label>
@@ -220,24 +225,25 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
                 value={formData.shopReferenceNumber}
                 onChange={handleChange}
                 placeholder="Shop's reference #"
-                className="border-gray-300"
+                className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
           </div>
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 border-t border-gray-200 pt-6 mt-6">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={addRO.isPending}
+              className="border-gray-300 hover:bg-gray-100"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={addRO.isPending}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-green-600 hover:bg-green-700 text-white font-medium shadow-sm"
             >
               {addRO.isPending ? "Creating..." : "Create Repair Order"}
             </Button>
