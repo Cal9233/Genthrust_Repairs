@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { shopService } from "../lib/shopService";
-import type { Shop } from "../types";
 import { toast } from "sonner";
 
 export function useShops() {

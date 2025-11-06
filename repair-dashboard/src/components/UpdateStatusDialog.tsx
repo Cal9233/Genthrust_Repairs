@@ -15,11 +15,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUpdateROStatus } from "../hooks/useROs";
 import type { RepairOrder } from "../types";
 import { calculateNextUpdateDate, formatDateForDisplay } from "../lib/businessRules";
-import { Calendar } from "lucide-react";
+import { Calendar, ArrowRight } from "lucide-react";
 
 interface UpdateStatusDialogProps {
   ro: RepairOrder;
@@ -44,6 +45,8 @@ export function UpdateStatusDialog({
 }: UpdateStatusDialogProps) {
   const [status, setStatus] = useState(ro.currentStatus);
   const [notes, setNotes] = useState("");
+  const [cost, setCost] = useState<string>("");
+  const [deliveryDate, setDeliveryDate] = useState<string>("");
   const updateStatus = useUpdateROStatus();
 
   // Calculate the next update date based on selected status
@@ -52,11 +55,26 @@ export function UpdateStatusDialog({
     return nextDate;
   }, [status]);
 
+  // Show cost field for quote-related statuses
+  const showCostField = status.includes("APPROVED") || status.includes("QUOTE");
+
+  // Show delivery date field for approved status
+  const showDeliveryDateField = status.includes("APPROVED");
+
   const handleSubmit = () => {
     const rowIndex = parseInt(ro.id.replace("row-", ""));
 
+    const costValue = cost ? parseFloat(cost.replace(/[^0-9.]/g, "")) : undefined;
+    const deliveryDateValue = deliveryDate ? new Date(deliveryDate) : undefined;
+
     updateStatus.mutate(
-      { rowIndex, status, notes },
+      {
+        rowIndex,
+        status,
+        notes,
+        cost: costValue,
+        deliveryDate: deliveryDateValue,
+      },
       {
         onSuccess: () => {
           onClose();
@@ -73,6 +91,15 @@ export function UpdateStatusDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Status transition indicator */}
+          {status !== ro.currentStatus && (
+            <div className="flex items-center gap-2 text-sm bg-gray-50 p-3 rounded-lg border">
+              <span className="font-medium">{ro.currentStatus}</span>
+              <ArrowRight className="h-4 w-4 text-gray-500" />
+              <span className="font-medium text-blue-600">{status}</span>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="status">New Status</Label>
             <Select value={status} onValueChange={setStatus}>
@@ -88,6 +115,36 @@ export function UpdateStatusDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Conditional cost field */}
+          {showCostField && (
+            <div className="space-y-2">
+              <Label htmlFor="cost">Cost (optional)</Label>
+              <Input
+                id="cost"
+                type="text"
+                value={cost}
+                onChange={(e) => setCost(e.target.value)}
+                placeholder="e.g., 1250.00"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the quote or final cost for this repair
+              </p>
+            </div>
+          )}
+
+          {/* Conditional delivery date field */}
+          {showDeliveryDateField && (
+            <div className="space-y-2">
+              <Label htmlFor="deliveryDate">Estimated Delivery Date (optional)</Label>
+              <Input
+                id="deliveryDate"
+                type="date"
+                value={deliveryDate}
+                onChange={(e) => setDeliveryDate(e.target.value)}
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes (optional)</Label>

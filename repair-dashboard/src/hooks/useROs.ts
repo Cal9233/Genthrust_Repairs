@@ -19,13 +19,18 @@ export function useUpdateROStatus() {
       rowIndex,
       status,
       notes,
+      cost,
+      deliveryDate,
     }: {
       rowIndex: number;
       status: string;
       notes?: string;
-    }) => excelService.updateROStatus(rowIndex, status, notes),
+      cost?: number;
+      deliveryDate?: Date;
+    }) => excelService.updateROStatus(rowIndex, status, notes, cost, deliveryDate),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast.success("Status updated successfully");
     },
     onError: (error) => {

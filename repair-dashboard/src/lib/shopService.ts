@@ -159,7 +159,7 @@ class ShopService {
     }
 
     this.fileId = searchResponse.value[0].id;
-    return this.fileId;
+    return this.fileId!;
   }
 
   async getShops(): Promise<Shop[]> {

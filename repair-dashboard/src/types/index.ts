@@ -1,3 +1,12 @@
+export interface StatusHistoryEntry {
+  status: string;
+  date: Date;
+  user: string; // from Azure AD auth
+  cost?: number; // if quote received
+  notes?: string;
+  deliveryDate?: Date; // if approved
+}
+
 export interface RepairOrder {
   id: string; // Generated from row index
   roNumber: string;
@@ -22,6 +31,7 @@ export interface RepairOrder {
   lastDateUpdated: Date | null;
   nextDateToUpdate: Date | null;
   checked: string;
+  statusHistory: StatusHistoryEntry[];
 
   // Computed
   daysOverdue: number;

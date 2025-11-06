@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { UpdateStatusDialog } from "./UpdateStatusDialog";
+import { StatusTimeline } from "./StatusTimeline";
 import type { RepairOrder } from "../types";
 
 interface RODetailDialogProps {
@@ -174,6 +175,12 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
                 </div>
               </div>
             )}
+
+            {/* Status History */}
+            <div>
+              <h3 className="font-semibold mb-3">Status History</h3>
+              <StatusTimeline history={ro.statusHistory} />
+            </div>
           </div>
         </DialogContent>
       </Dialog>

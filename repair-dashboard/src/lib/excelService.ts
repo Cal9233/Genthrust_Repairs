@@ -1,6 +1,6 @@
 import type { IPublicClientApplication } from "@azure/msal-browser";
 import { loginRequest } from "./msalConfig";
-import type { RepairOrder } from "../types";
+import type { RepairOrder, StatusHistoryEntry } from "../types";
 import { calculateNextUpdateDate } from "./businessRules";
 
 const SITE_URL = import.meta.env.VITE_SHAREPOINT_SITE_URL;
@@ -161,6 +161,59 @@ class ExcelService {
     return null;
   }
 
+  private parseNotesWithHistory(notesValue: string): { notes: string; statusHistory: StatusHistoryEntry[] } {
+    if (!notesValue || typeof notesValue !== "string") {
+      return { notes: "", statusHistory: [] };
+    }
+
+    // Format: "HISTORY:[json]|NOTES:user notes here"
+    const historyMatch = notesValue.match(/HISTORY:(\[.*?\])\|NOTES:(.*)/s);
+
+    if (historyMatch) {
+      try {
+        const historyJson = historyMatch[1];
+        const userNotes = historyMatch[2] || "";
+        const historyData = JSON.parse(historyJson);
+
+        // Convert date strings back to Date objects
+        const statusHistory = historyData.map((entry: any) => ({
+          ...entry,
+          date: new Date(entry.date),
+          deliveryDate: entry.deliveryDate ? new Date(entry.deliveryDate) : undefined,
+        }));
+
+        return { notes: userNotes, statusHistory };
+      } catch (error) {
+        console.error("[Excel Service] Failed to parse status history:", error);
+        return { notes: notesValue, statusHistory: [] };
+      }
+    }
+
+    // No history found, treat entire value as notes
+    return { notes: notesValue, statusHistory: [] };
+  }
+
+  private serializeNotesWithHistory(notes: string, statusHistory: StatusHistoryEntry[]): string {
+    if (!statusHistory || statusHistory.length === 0) {
+      return notes;
+    }
+
+    // Keep last 20 entries to avoid data bloat
+    const limitedHistory = statusHistory.slice(-20);
+
+    const historyJson = JSON.stringify(limitedHistory);
+    return `HISTORY:${historyJson}|NOTES:${notes}`;
+  }
+
+  private getCurrentUser(): string {
+    if (!this.msalInstance) {
+      return "Unknown User";
+    }
+
+    const account = this.msalInstance.getActiveAccount();
+    return account?.name || account?.username || "Unknown User";
+  }
+
   async getFileId(): Promise<string> {
     // Return cached file ID if available
     if (this.fileId) {
@@ -196,7 +249,7 @@ class ExcelService {
     // Cache the file ID for later use
     this.fileId = searchResponse.value[0].id;
 
-    return this.fileId;
+    return this.fileId!;
   }
 
   async getFileInfo(): Promise<any> {
@@ -244,6 +297,9 @@ class ExcelService {
         isOverdue = daysOverdue > 0;
       }
 
+      // Parse notes and status history
+      const { notes, statusHistory } = this.parseNotesWithHistory(values[18] || "");
+
       return {
         id: `row-${index}`,
         roNumber: values[0] || "",
@@ -264,10 +320,11 @@ class ExcelService {
         genThrustStatus: values[15] || "",
         shopStatus: values[16] || "",
         trackingNumber: values[17] || "",
-        notes: values[18] || "",
+        notes,
         lastDateUpdated: lastUpdated,
         nextDateToUpdate: nextUpdate,
         checked: values[21] || "",
+        statusHistory,
         daysOverdue,
         isOverdue,
       };
@@ -293,7 +350,9 @@ class ExcelService {
   async updateROStatus(
     rowIndex: number,
     status: string,
-    notes?: string
+    statusNotes?: string,
+    cost?: number,
+    deliveryDate?: Date
   ): Promise<void> {
     const fileId = await this.getFileId();
     const today = new Date();
@@ -302,6 +361,9 @@ class ExcelService {
     // Calculate next update date based on new status
     const nextUpdateDate = calculateNextUpdateDate(status, today);
     const nextUpdateISO = nextUpdateDate ? nextUpdateDate.toISOString() : "";
+
+    // Get current user
+    const currentUser = this.getCurrentUser();
 
     try {
       // Create a workbook session for this operation
@@ -317,12 +379,29 @@ class ExcelService {
 
       const currentValues = response.values[0];
 
+      // Parse existing notes and history
+      const { notes, statusHistory } = this.parseNotesWithHistory(currentValues[18] || "");
+
+      // Create new status history entry
+      const newHistoryEntry: StatusHistoryEntry = {
+        status,
+        date: today,
+        user: currentUser,
+        ...(cost !== undefined && { cost }),
+        ...(statusNotes && { notes: statusNotes }),
+        ...(deliveryDate && { deliveryDate }),
+      };
+
+      // Append to status history
+      const updatedHistory = [...statusHistory, newHistoryEntry];
+
+      // Serialize back to notes field
+      const serializedNotes = this.serializeNotesWithHistory(notes, updatedHistory);
+
       // Update specific columns
       currentValues[13] = status; // Current Status
       currentValues[14] = todayISO; // Status Date
-      if (notes) {
-        currentValues[18] = notes; // Notes
-      }
+      currentValues[18] = serializedNotes; // Notes with status history
       currentValues[19] = todayISO; // Last Updated
       currentValues[20] = nextUpdateISO; // Next Date to Update (auto-calculated)
 
@@ -358,6 +437,19 @@ class ExcelService {
     const nextUpdateDate = calculateNextUpdateDate(initialStatus, today);
     const nextUpdateISO = nextUpdateDate ? nextUpdateDate.toISOString() : "";
 
+    // Get current user
+    const currentUser = this.getCurrentUser();
+
+    // Initialize status history with first entry
+    const initialHistory: StatusHistoryEntry[] = [{
+      status: initialStatus,
+      date: today,
+      user: currentUser,
+      notes: "Repair order created",
+    }];
+
+    const serializedNotes = this.serializeNotesWithHistory("", initialHistory);
+
     try {
       // Create a workbook session for this operation
       await this.createSession();
@@ -382,7 +474,7 @@ class ExcelService {
         "", // 15: GenThrust Status (empty for now)
         "", // 16: Shop Status (empty for now)
         "", // 17: Tracking Number (empty for now)
-        "", // 18: Notes (empty for now)
+        serializedNotes, // 18: Notes with initial status history
         todayISO, // 19: Last Date Updated
         nextUpdateISO, // 20: Next Date to Update (auto-calculated)
         "", // 21: Checked (empty for now)
