@@ -15,7 +15,14 @@ export const msalConfig: Configuration = {
 };
 
 export const loginRequest: PopupRequest = {
-  scopes: ["User.Read", "Files.ReadWrite", "Sites.Read.All"],
+  scopes: [
+    "User.Read",
+    "Files.ReadWrite",
+    "Sites.Read.All",
+    "Tasks.ReadWrite",      // For Microsoft To Do reminders
+    "Calendars.ReadWrite",  // For Calendar reminders
+    // These scopes require user consent but NOT admin consent
+  ],
 };
 
 export const graphConfig = {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,17 +17,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAddRepairOrder } from "../hooks/useROs";
+import { useAddRepairOrder, useUpdateRepairOrder } from "../hooks/useROs";
 import { useShops } from "../hooks/useShops";
 import { ShopManagementDialog } from "./ShopManagementDialog";
 import { Plus, Store } from "lucide-react";
+import type { RepairOrder } from "../types";
 
 interface AddRODialogProps {
+  ro?: RepairOrder; // If provided, we're editing; otherwise, adding
   open: boolean;
   onClose: () => void;
 }
 
-export function AddRODialog({ open, onClose }: AddRODialogProps) {
+export function AddRODialog({ ro, open, onClose }: AddRODialogProps) {
+  const isEditing = !!ro;
+
   const [formData, setFormData] = useState({
     roNumber: "",
     shopName: "",
@@ -41,31 +45,98 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
   });
   const [selectedShopId, setSelectedShopId] = useState<string>("");
   const [showShopDialog, setShowShopDialog] = useState(false);
+  const [shopSearch, setShopSearch] = useState("");
 
   const addRO = useAddRepairOrder();
+  const updateRO = useUpdateRepairOrder();
   const { data: shops = [], isLoading: shopsLoading } = useShops();
 
-  // Filter active shops only
-  const activeShops = shops.filter((shop) => shop.active);
+  // Filter shops based on search
+  const filteredShops = shops.filter((shop) => {
+    if (!shopSearch) return true;
+    const query = shopSearch.toLowerCase();
+    return (
+      shop.shopName?.toLowerCase().includes(query) ||
+      shop.businessName?.toLowerCase().includes(query) ||
+      shop.customerNumber?.toString().toLowerCase().includes(query) ||
+      shop.city?.toLowerCase().includes(query) ||
+      shop.state?.toLowerCase().includes(query)
+    );
+  });
+
+  // Populate form when editing
+  useEffect(() => {
+    if (ro) {
+      console.log("[AddRODialog] Editing RO:", ro.roNumber);
+      setFormData({
+        roNumber: ro.roNumber,
+        shopName: ro.shopName,
+        partNumber: ro.partNumber,
+        serialNumber: ro.serialNumber,
+        partDescription: ro.partDescription,
+        requiredWork: ro.requiredWork,
+        estimatedCost: ro.estimatedCost?.toString() || "",
+        terms: ro.terms,
+        shopReferenceNumber: ro.shopReferenceNumber,
+      });
+    } else {
+      // Reset form for adding
+      console.log("[AddRODialog] Adding new RO");
+      setFormData({
+        roNumber: "",
+        shopName: "",
+        partNumber: "",
+        serialNumber: "",
+        partDescription: "",
+        requiredWork: "",
+        estimatedCost: "",
+        terms: "",
+        shopReferenceNumber: "",
+      });
+      setSelectedShopId("");
+      setShopSearch(""); // Clear shop search when resetting
+    }
+  }, [ro, open]);
+
+  // Log shops when they load
+  useEffect(() => {
+    console.log("[AddRODialog] Shops loaded:", shops.length, "shops");
+    if (shops.length > 0) {
+      console.log("[AddRODialog] Sample shop:", shops[0]);
+    }
+  }, [shops]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    addRO.mutate(
-      {
-        roNumber: formData.roNumber,
-        shopName: formData.shopName,
-        partNumber: formData.partNumber,
-        serialNumber: formData.serialNumber,
-        partDescription: formData.partDescription,
-        requiredWork: formData.requiredWork,
-        estimatedCost: formData.estimatedCost
-          ? parseFloat(formData.estimatedCost)
-          : undefined,
-        terms: formData.terms || undefined,
-        shopReferenceNumber: formData.shopReferenceNumber || undefined,
-      },
-      {
+    const data = {
+      roNumber: formData.roNumber,
+      shopName: formData.shopName,
+      partNumber: formData.partNumber,
+      serialNumber: formData.serialNumber,
+      partDescription: formData.partDescription,
+      requiredWork: formData.requiredWork,
+      estimatedCost: formData.estimatedCost
+        ? parseFloat(formData.estimatedCost)
+        : undefined,
+      terms: formData.terms || undefined,
+      shopReferenceNumber: formData.shopReferenceNumber || undefined,
+    };
+
+    if (isEditing && ro) {
+      // Edit existing RO
+      const rowIndex = parseInt(ro.id.replace("row-", ""));
+      updateRO.mutate(
+        { rowIndex, data },
+        {
+          onSuccess: () => {
+            onClose();
+          },
+        }
+      );
+    } else {
+      // Add new RO
+      addRO.mutate(data, {
         onSuccess: () => {
           setFormData({
             roNumber: "",
@@ -80,8 +151,8 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
           });
           onClose();
         },
-      }
-    );
+      });
+    }
   };
 
   const handleChange = (
@@ -94,11 +165,14 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
   };
 
   const handleShopSelect = (shopId: string) => {
+    console.log("[AddRODialog] Shop selected:", shopId);
     setSelectedShopId(shopId);
 
     if (shopId) {
       const shop = shops.find((s) => s.id === shopId);
+      console.log("[AddRODialog] Found shop:", shop);
       if (shop) {
+        console.log("[AddRODialog] Auto-filling - shopName:", shop.shopName, "terms:", shop.defaultTerms);
         setFormData((prev) => ({
           ...prev,
           shopName: shop.shopName,
@@ -111,19 +185,21 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-2 border-gray-200 shadow-xl">
-        <DialogHeader className="border-b border-gray-200 pb-4">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-gray-900">
-            Create New Repair Order
+            {isEditing ? `Edit Repair Order - ${ro?.roNumber}` : "Create New Repair Order"}
           </DialogTitle>
-          <p className="text-sm text-gray-600 mt-1">
-            Fill in the details below to create a new repair order
+          <p className="text-sm text-gray-600 mt-2">
+            {isEditing
+              ? "Update the repair order details below"
+              : "Fill in the details below to create a new repair order"}
           </p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6 py-4 bg-gray-50 rounded-lg p-6">
+        <form onSubmit={handleSubmit} className="space-y-6 py-4">
           {/* Shop Selection Section */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Store className="h-5 w-5 text-blue-600" />
@@ -142,33 +218,50 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
                 Add New Shop
               </Button>
             </div>
-            <Select
-              value={selectedShopId}
-              onValueChange={handleShopSelect}
-              disabled={shopsLoading}
-            >
-              <SelectTrigger className="bg-white border-blue-200">
-                <SelectValue placeholder="Choose a shop to auto-fill details..." />
-              </SelectTrigger>
-              <SelectContent>
-                {activeShops.map((shop) => (
-                  <SelectItem key={shop.id} value={shop.id}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{shop.shopName}</span>
-                      <span className="text-xs text-gray-500">
-                        {shop.defaultTerms} • TAT: {shop.typicalTAT} days
-                      </span>
+            <div className="space-y-2">
+              <Input
+                type="text"
+                placeholder="Search shops by name, customer #, location..."
+                value={shopSearch}
+                onChange={(e) => setShopSearch(e.target.value)}
+                className="bg-white border-blue-200"
+              />
+              <Select
+                value={selectedShopId}
+                onValueChange={handleShopSelect}
+                disabled={shopsLoading}
+              >
+                <SelectTrigger className="bg-white border-blue-200">
+                  <SelectValue placeholder="Choose a shop to auto-fill details..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px] overflow-y-auto">
+                  {filteredShops.length === 0 ? (
+                    <div className="p-4 text-sm text-gray-500 text-center">
+                      No shops found
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  ) : (
+                    filteredShops.map((shop) => (
+                      <SelectItem key={shop.id} value={shop.id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{shop.shopName}</span>
+                          <span className="text-xs text-gray-500">
+                            {shop.defaultTerms}
+                            {shop.city && shop.state ? ` • ${shop.city}, ${shop.state}` : ''}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
             <p className="text-xs text-blue-700">
               Selecting a shop will auto-fill the shop name and payment terms below
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Form Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="roNumber" className="text-sm font-semibold text-gray-700">
                 RO Number <span className="text-red-600">*</span>
@@ -308,22 +401,28 @@ export function AddRODialog({ open, onClose }: AddRODialogProps) {
             </div>
           </div>
 
-          <DialogFooter className="gap-2 border-t border-gray-200 pt-6 mt-6">
+          <DialogFooter className="gap-2 pt-6">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              disabled={addRO.isPending}
+              disabled={addRO.isPending || updateRO.isPending}
               className="border-gray-300 hover:bg-gray-100"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={addRO.isPending}
+              disabled={addRO.isPending || updateRO.isPending}
               className="bg-green-600 hover:bg-green-700 text-white font-medium shadow-sm"
             >
-              {addRO.isPending ? "Creating..." : "Create Repair Order"}
+              {addRO.isPending || updateRO.isPending
+                ? isEditing
+                  ? "Updating..."
+                  : "Creating..."
+                : isEditing
+                ? "Update Repair Order"
+                : "Create Repair Order"}
             </Button>
           </DialogFooter>
         </form>

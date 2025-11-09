@@ -3,14 +3,16 @@
  */
 
 /**
- * Calculate the next update date based on current status
+ * Calculate the next update date based on current status and payment terms
  * @param status - Current status of the repair order
  * @param statusDate - Date when status was set
+ * @param paymentTerms - Payment terms (e.g., "NET 30", "COD", etc.)
  * @returns Next date to update, or null if no follow-up needed
  */
 export function calculateNextUpdateDate(
   status: string,
-  statusDate: Date
+  statusDate: Date,
+  paymentTerms?: string
 ): Date | null {
   const normalizedStatus = status.toUpperCase().trim();
   const baseDate = new Date(statusDate);
@@ -41,8 +43,54 @@ export function calculateNextUpdateDate(
 
     case "PAID":
     case "PAID >>>>":
+      // Calculate payment due date based on terms
+      if (paymentTerms) {
+        const terms = paymentTerms.toUpperCase().trim();
+
+        // Extract number of days from NET terms
+        if (terms.includes("NET")) {
+          const match = terms.match(/NET\s*(\d+)/);
+          if (match) {
+            const days = parseInt(match[1]);
+            console.log(`[Business Rules] PAID status with ${terms}: payment due in ${days} days`);
+            return addDays(baseDate, days);
+          }
+        }
+
+        // COD, Prepaid, etc. - payment already handled
+        if (terms.includes("COD") || terms.includes("PREPAID") || terms.includes("C.O.D.")) {
+          console.log(`[Business Rules] PAID status with ${terms}: no follow-up needed`);
+          return null;
+        }
+
+        // Wire transfer - give 3 days to process
+        if (terms.includes("WIRE") || terms.includes("XFER")) {
+          console.log(`[Business Rules] PAID status with ${terms}: 3 days for wire processing`);
+          return addDays(baseDate, 3);
+        }
+
+        // Credit card - immediate
+        if (terms.includes("CREDIT CARD")) {
+          console.log(`[Business Rules] PAID status with ${terms}: no follow-up needed`);
+          return null;
+        }
+
+        // Default for PAID with unknown terms - 30 days
+        console.log(`[Business Rules] PAID status with unknown terms "${terms}": defaulting to 30 days`);
+        return addDays(baseDate, 30);
+      }
+
+      // No payment terms specified - assume complete
+      console.log(`[Business Rules] PAID status with no terms: no follow-up needed`);
+      return null;
+
+    case "PAYMENT SENT":
+      // Payment has been sent - order complete
+      console.log(`[Business Rules] PAYMENT SENT status: order complete`);
+      return null;
+
     case "BER":
-      // No follow-up needed - order complete
+      // Beyond economic repair - no follow-up needed
       return null;
 
     default:

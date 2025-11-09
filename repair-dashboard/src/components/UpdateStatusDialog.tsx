@@ -31,10 +31,11 @@ interface UpdateStatusDialogProps {
 const STATUS_OPTIONS = [
   "TO SEND",
   "WAITING QUOTE",
-  "APPROVED >>>>",
+  "APPROVED",
   "BEING REPAIRED",
   "SHIPPING",
-  "PAID >>>>",
+  "PAID",
+  "PAYMENT SENT",
   "BER",
 ];
 
@@ -49,11 +50,11 @@ export function UpdateStatusDialog({
   const [deliveryDate, setDeliveryDate] = useState<string>("");
   const updateStatus = useUpdateROStatus();
 
-  // Calculate the next update date based on selected status
+  // Calculate the next update date based on selected status and payment terms
   const calculatedNextUpdate = useMemo(() => {
-    const nextDate = calculateNextUpdateDate(status, new Date());
+    const nextDate = calculateNextUpdateDate(status, new Date(), ro.terms);
     return nextDate;
-  }, [status]);
+  }, [status, ro.terms]);
 
   // Show cost field for quote-related statuses
   const showCostField = status.includes("APPROVED") || status.includes("QUOTE");
@@ -85,25 +86,33 @@ export function UpdateStatusDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Update Status - RO #{ro.roNumber}</DialogTitle>
+      <DialogContent className="max-w-xl">
+        <DialogHeader className="border-b pb-4">
+          <DialogTitle className="text-2xl font-bold text-gray-900">
+            Update Status - RO #{ro.roNumber}
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-5 py-4">
           {/* Status transition indicator */}
           {status !== ro.currentStatus && (
-            <div className="flex items-center gap-2 text-sm bg-gray-50 p-3 rounded-lg border">
-              <span className="font-medium">{ro.currentStatus}</span>
-              <ArrowRight className="h-4 w-4 text-gray-500" />
-              <span className="font-medium text-blue-600">{status}</span>
+            <div className="flex items-center gap-3 text-sm bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+              <span className="font-semibold text-gray-700 px-3 py-1 bg-white rounded-md border border-gray-300">
+                {ro.currentStatus}
+              </span>
+              <ArrowRight className="h-5 w-5 text-blue-600" />
+              <span className="font-semibold text-blue-700 px-3 py-1 bg-blue-100 rounded-md border border-blue-300">
+                {status}
+              </span>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="status">New Status</Label>
+            <Label htmlFor="status" className="text-sm font-semibold text-gray-700">
+              New Status
+            </Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
+              <SelectTrigger className="h-11 border-gray-300">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -118,16 +127,19 @@ export function UpdateStatusDialog({
 
           {/* Conditional cost field */}
           {showCostField && (
-            <div className="space-y-2">
-              <Label htmlFor="cost">Cost (optional)</Label>
+            <div className="space-y-2 bg-orange-50 rounded-lg p-4 border border-orange-200">
+              <Label htmlFor="cost" className="text-sm font-semibold text-orange-900">
+                Cost (optional)
+              </Label>
               <Input
                 id="cost"
                 type="text"
                 value={cost}
                 onChange={(e) => setCost(e.target.value)}
                 placeholder="e.g., 1250.00"
+                className="h-11 border-orange-300 bg-white"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-orange-700">
                 Enter the quote or final cost for this repair
               </p>
             </div>
@@ -135,25 +147,31 @@ export function UpdateStatusDialog({
 
           {/* Conditional delivery date field */}
           {showDeliveryDateField && (
-            <div className="space-y-2">
-              <Label htmlFor="deliveryDate">Estimated Delivery Date (optional)</Label>
+            <div className="space-y-2 bg-green-50 rounded-lg p-4 border border-green-200">
+              <Label htmlFor="deliveryDate" className="text-sm font-semibold text-green-900">
+                Estimated Delivery Date (optional)
+              </Label>
               <Input
                 id="deliveryDate"
                 type="date"
                 value={deliveryDate}
                 onChange={(e) => setDeliveryDate(e.target.value)}
+                className="h-11 border-green-300 bg-white"
               />
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes (optional)</Label>
+            <Label htmlFor="notes" className="text-sm font-semibold text-gray-700">
+              Notes (optional)
+            </Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add any notes about this status change..."
               rows={3}
+              className="border-gray-300"
             />
           </div>
 
@@ -182,11 +200,19 @@ export function UpdateStatusDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="border-t pt-4 gap-2">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="border-gray-300 hover:bg-gray-50"
+          >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={updateStatus.isPending}>
+          <Button
+            onClick={handleSubmit}
+            disabled={updateStatus.isPending}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm px-6"
+          >
             {updateStatus.isPending ? "Updating..." : "Update Status"}
           </Button>
         </DialogFooter>

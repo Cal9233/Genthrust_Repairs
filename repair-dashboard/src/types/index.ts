@@ -53,12 +53,29 @@ export interface DashboardStats {
 
 export interface Shop {
   id: string; // Generated from row index
-  shopName: string;
-  contactName: string;
-  email: string;
+  customerNumber: string;
+  businessName: string;
+  addressLine1: string;
+  addressLine2: string;
+  addressLine3: string;
+  addressLine4: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
   phone: string;
-  defaultTerms: string; // "COD", "NET 30", etc.
-  typicalTAT: number; // days
-  notes: string;
-  active: boolean;
+  tollFree: string;
+  fax: string;
+  email: string;
+  website: string;
+  contact: string;
+  paymentTerms: string;
+  ilsCode: string;
+  lastSaleDate: Date | null;
+  ytdSales: number | null;
+
+  // Computed/legacy fields for backward compatibility
+  shopName: string; // alias for businessName
+  contactName: string; // alias for contact
+  defaultTerms: string; // alias for paymentTerms
 }

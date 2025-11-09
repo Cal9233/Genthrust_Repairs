@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,13 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { UpdateStatusDialog } from "./UpdateStatusDialog";
 import { StatusTimeline } from "./StatusTimeline";
+import { EmailComposerDialog } from "./EmailComposerDialog";
+import { useShops } from "../hooks/useShops";
+import { useUpdateROStatus } from "../hooks/useROs";
 import type { RepairOrder } from "../types";
+import { Mail, Bell, Calendar as CalendarIcon } from "lucide-react";
+import { reminderService } from "../lib/reminderService";
+import { toast } from "sonner";
 
 interface RODetailDialogProps {
   ro: RepairOrder;
@@ -19,14 +25,28 @@ interface RODetailDialogProps {
 
 export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
   const [showUpdateStatus, setShowUpdateStatus] = useState(false);
+  const [showEmailComposer, setShowEmailComposer] = useState(false);
+  const [isCreatingReminder, setIsCreatingReminder] = useState(false);
+
+  // Fetch shops to get shop details
+  const { data: shops } = useShops();
+  const updateStatus = useUpdateROStatus();
+
+  // Find the shop for this RO
+  const currentShop = useMemo(() => {
+    if (!shops) return null;
+    return shops.find((shop) => shop.shopName === ro.shopName) || null;
+  }, [shops, ro.shopName]);
 
   const formatDate = (date: Date | null) => {
     if (!date) return "N/A";
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) return "N/A";
     return new Intl.DateTimeFormat("en-US", {
       month: "long",
       day: "numeric",
       year: "numeric",
-    }).format(new Date(date));
+    }).format(dateObj);
   };
 
   const formatCurrency = (amount: number | null) => {
@@ -37,111 +57,195 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
     }).format(amount);
   };
 
+  // Handler to log email in status history
+  const handleLogEmail = (subject: string, templateName: string) => {
+    const rowIndex = parseInt(ro.id.replace("row-", ""));
+    const emailNote = `Email sent: ${subject} (Template: ${templateName})`;
+
+    // Update the RO to log the email in status history
+    updateStatus.mutate({
+      rowIndex,
+      status: ro.currentStatus, // Keep same status
+      notes: emailNote,
+    });
+  };
+
+  // Handler to create reminders
+  const handleCreateReminders = async () => {
+    if (!ro.nextDateToUpdate) {
+      toast.error("No follow-up date set for this RO");
+      return;
+    }
+
+    setIsCreatingReminder(true);
+
+    try {
+      const results = await reminderService.createReminders({
+        roNumber: ro.roNumber,
+        shopName: ro.shopName,
+        title: `Follow up - ${ro.currentStatus}`,
+        dueDate: new Date(ro.nextDateToUpdate),
+        notes: `Follow up on repair order for ${ro.partDescription}. Current status: ${ro.currentStatus}`,
+      });
+
+      if (results.todo && results.calendar) {
+        toast.success("Created reminders in To Do and Calendar!");
+      } else if (results.todo) {
+        toast.success("Created reminder in To Do (Calendar failed)");
+      } else if (results.calendar) {
+        toast.success("Created reminder in Calendar (To Do failed)");
+      } else {
+        toast.error("Failed to create reminders");
+      }
+    } catch (error) {
+      console.error("[RODetailDialog] Error creating reminders:", error);
+      toast.error("Failed to create reminders");
+    } finally {
+      setIsCreatingReminder(false);
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>RO #{ro.roNumber}</span>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="border-b pb-4">
+            <DialogTitle className="flex items-center justify-between text-2xl">
+              <span className="font-bold text-gray-900">RO #{ro.roNumber}</span>
               <StatusBadge status={ro.currentStatus} isOverdue={ro.isOverdue} />
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-6">
+          <div className="space-y-6 py-4">
             {/* Actions */}
-            <div className="flex gap-2">
-              <Button onClick={() => setShowUpdateStatus(true)}>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={() => setShowUpdateStatus(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+              >
                 Update Status
               </Button>
-              <Button variant="outline">Email Shop</Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowEmailComposer(true)}
+                className="gap-2 border-gray-300 hover:bg-gray-50"
+              >
+                <Mail className="h-4 w-4" />
+                Email Shop
+              </Button>
+              {ro.nextDateToUpdate && (
+                <Button
+                  variant="outline"
+                  onClick={handleCreateReminders}
+                  disabled={isCreatingReminder}
+                  className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+                >
+                  <Bell className="h-4 w-4" />
+                  <CalendarIcon className="h-4 w-4" />
+                  {isCreatingReminder ? "Creating..." : "Set Reminder"}
+                </Button>
+              )}
             </div>
 
             {/* Shop Info */}
-            <div>
-              <h3 className="font-semibold mb-2">Shop Information</h3>
-              <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <h3 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                <div className="h-1 w-8 bg-blue-600 rounded"></div>
+                Shop Information
+              </h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Shop:</span>{" "}
-                  <span className="font-medium">{ro.shopName}</span>
+                  <span className="text-blue-700 font-medium">Shop:</span>{" "}
+                  <span className="font-semibold text-gray-900">{ro.shopName}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Shop Ref:</span>{" "}
-                  {ro.shopReferenceNumber || "N/A"}
+                  <span className="text-blue-700 font-medium">Shop Ref:</span>{" "}
+                  <span className="text-gray-900">{ro.shopReferenceNumber || "N/A"}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Terms:</span>{" "}
-                  {ro.terms || "N/A"}
+                  <span className="text-blue-700 font-medium">Terms:</span>{" "}
+                  <span className="text-gray-900">{ro.terms || "N/A"}</span>
                 </div>
               </div>
             </div>
 
             {/* Part Info */}
-            <div>
-              <h3 className="font-semibold mb-2">Part Information</h3>
-              <div className="space-y-2 text-sm">
+            <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+              <h3 className="font-semibold text-purple-900 mb-3 flex items-center gap-2">
+                <div className="h-1 w-8 bg-purple-600 rounded"></div>
+                Part Information
+              </h3>
+              <div className="space-y-3 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Description:</span>{" "}
-                  <span className="font-medium">{ro.partDescription}</span>
+                  <span className="text-purple-700 font-medium">Description:</span>{" "}
+                  <span className="font-semibold text-gray-900">{ro.partDescription}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <span className="text-muted-foreground">Part #:</span>{" "}
-                    {ro.partNumber || "N/A"}
+                    <span className="text-purple-700 font-medium">Part #:</span>{" "}
+                    <span className="text-gray-900">{ro.partNumber || "N/A"}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Serial #:</span>{" "}
-                    {ro.serialNumber || "N/A"}
+                    <span className="text-purple-700 font-medium">Serial #:</span>{" "}
+                    <span className="text-gray-900">{ro.serialNumber || "N/A"}</span>
                   </div>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Required Work:</span>{" "}
-                  {ro.requiredWork || "N/A"}
+                  <span className="text-purple-700 font-medium">Required Work:</span>{" "}
+                  <span className="text-gray-900">{ro.requiredWork || "N/A"}</span>
                 </div>
               </div>
             </div>
 
             {/* Dates */}
-            <div>
-              <h3 className="font-semibold mb-2">Timeline</h3>
-              <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+              <h3 className="font-semibold text-green-900 mb-3 flex items-center gap-2">
+                <div className="h-1 w-8 bg-green-600 rounded"></div>
+                Timeline
+              </h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Date Made:</span>{" "}
-                  {formatDate(ro.dateMade)}
+                  <span className="text-green-700 font-medium">Date Made:</span>{" "}
+                  <span className="text-gray-900">{formatDate(ro.dateMade)}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Dropped Off:</span>{" "}
-                  {formatDate(ro.dateDroppedOff)}
+                  <span className="text-green-700 font-medium">Dropped Off:</span>{" "}
+                  <span className="text-gray-900">{formatDate(ro.dateDroppedOff)}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Est. Delivery:</span>{" "}
-                  {formatDate(ro.estimatedDeliveryDate)}
+                  <span className="text-green-700 font-medium">Est. Delivery:</span>{" "}
+                  <span className="text-gray-900">{formatDate(ro.estimatedDeliveryDate)}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Last Updated:</span>{" "}
-                  {formatDate(ro.lastDateUpdated)}
+                  <span className="text-green-700 font-medium">Last Updated:</span>{" "}
+                  <span className="text-gray-900">{formatDate(ro.lastDateUpdated)}</span>
                 </div>
                 <div
                   className={ro.isOverdue ? "text-red-600 font-semibold" : ""}
                 >
-                  <span className="text-muted-foreground">Next Update:</span>{" "}
-                  {formatDate(ro.nextDateToUpdate)}
-                  {ro.isOverdue && ` (${ro.daysOverdue} days overdue)`}
+                  <span className="text-green-700 font-medium">Next Update:</span>{" "}
+                  <span className={ro.isOverdue ? "text-red-600" : "text-gray-900"}>
+                    {formatDate(ro.nextDateToUpdate)}
+                    {ro.isOverdue && ` (${ro.daysOverdue} days overdue)`}
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* Costs */}
-            <div>
-              <h3 className="font-semibold mb-2">Costs</h3>
-              <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+              <h3 className="font-semibold text-orange-900 mb-3 flex items-center gap-2">
+                <div className="h-1 w-8 bg-orange-600 rounded"></div>
+                Costs
+              </h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Estimated:</span>{" "}
-                  {formatCurrency(ro.estimatedCost)}
+                  <span className="text-orange-700 font-medium">Estimated:</span>{" "}
+                  <span className="text-gray-900 font-semibold">{formatCurrency(ro.estimatedCost)}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Final:</span>{" "}
-                  <span className="font-medium">
+                  <span className="text-orange-700 font-medium">Final:</span>{" "}
+                  <span className="font-semibold text-gray-900">
                     {formatCurrency(ro.finalCost)}
                   </span>
                 </div>
@@ -150,15 +254,18 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
 
             {/* Tracking */}
             {ro.trackingNumber && (
-              <div>
-                <h3 className="font-semibold mb-2">Shipping</h3>
+              <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+                <h3 className="font-semibold text-indigo-900 mb-3 flex items-center gap-2">
+                  <div className="h-1 w-8 bg-indigo-600 rounded"></div>
+                  Shipping
+                </h3>
                 <div className="text-sm">
-                  <span className="text-muted-foreground">Tracking:</span>{" "}
+                  <span className="text-indigo-700 font-medium">Tracking:</span>{" "}
                   <a
                     href={`https://www.ups.com/track?tracknum=${ro.trackingNumber}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
+                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
                   >
                     {ro.trackingNumber}
                   </a>
@@ -168,17 +275,23 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
 
             {/* Notes */}
             {ro.notes && (
-              <div>
-                <h3 className="font-semibold mb-2">Notes</h3>
-                <div className="text-sm bg-muted p-3 rounded-md whitespace-pre-wrap">
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <div className="h-1 w-8 bg-gray-600 rounded"></div>
+                  Notes
+                </h3>
+                <div className="text-sm bg-white p-3 rounded-md whitespace-pre-wrap border border-gray-200 text-gray-700">
                   {ro.notes}
                 </div>
               </div>
             )}
 
             {/* Status History */}
-            <div>
-              <h3 className="font-semibold mb-3">Status History</h3>
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg p-4 border border-slate-200">
+              <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <div className="h-1 w-8 bg-slate-600 rounded"></div>
+                Status History
+              </h3>
               <StatusTimeline history={ro.statusHistory} />
             </div>
           </div>
@@ -190,6 +303,16 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
           ro={ro}
           open={showUpdateStatus}
           onClose={() => setShowUpdateStatus(false)}
+        />
+      )}
+
+      {showEmailComposer && (
+        <EmailComposerDialog
+          ro={ro}
+          shop={currentShop}
+          open={showEmailComposer}
+          onClose={() => setShowEmailComposer(false)}
+          onLogEmail={handleLogEmail}
         />
       )}
     </>

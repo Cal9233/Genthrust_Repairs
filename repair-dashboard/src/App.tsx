@@ -3,6 +3,7 @@ import { useMsal, useIsAuthenticated } from "@azure/msal-react";
 import { loginRequest } from "./lib/msalConfig";
 import { excelService } from "./lib/excelService";
 import { shopService } from "./lib/shopService";
+import { reminderService } from "./lib/reminderService";
 import { Dashboard } from "./components/Dashboard";
 import { ROTable } from "./components/ROTable";
 import { ShopDirectory } from "./components/ShopDirectory";
@@ -19,22 +20,50 @@ function App() {
   const [currentView, setCurrentView] = useState<"repairs" | "shops">("repairs");
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (instance) {
       excelService.setMsalInstance(instance);
       shopService.setMsalInstance(instance);
+      reminderService.setMsalInstance(instance);
+      console.log("[App] MSAL instance set for services");
     }
-  }, [isAuthenticated, instance]);
+  }, [instance]);
 
-  const handleLogin = () => {
-    instance.loginPopup(loginRequest).catch((e) => {
+  useEffect(() => {
+    console.log("[App] Authentication status:", isAuthenticated);
+  }, [isAuthenticated]);
+
+  const handleLogin = async () => {
+    try {
+      await instance.loginPopup(loginRequest);
+    } catch (e: any) {
       console.error("Login error:", e);
-    });
+
+      // If interaction is in progress, clear it and retry
+      if (e.errorCode === "interaction_in_progress") {
+        console.log("Clearing stuck authentication session...");
+        await instance.clearCache();
+        window.location.reload();
+      } else if (e.message?.includes("popup") || e.message?.includes("CORS")) {
+        // CORS/popup issues - try redirect flow instead
+        console.log("Popup blocked, using redirect flow...");
+        await instance.loginRedirect(loginRequest);
+      }
+    }
   };
 
-  const handleLogout = () => {
-    instance.logoutPopup().catch((e) => {
+  const handleLogout = async () => {
+    try {
+      // Clear any in-progress interactions first
+      await instance.clearCache();
+      await instance.logoutPopup();
+    } catch (e: any) {
       console.error("Logout error:", e);
-    });
+      // If logout fails, try clearing cache and reloading
+      if (e.errorCode === "interaction_in_progress") {
+        await instance.clearCache();
+        window.location.reload();
+      }
+    }
   };
 
   const handleRefresh = () => {
@@ -43,30 +72,71 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-slate-50">
-        <div className="max-w-md w-full space-y-8 p-10 bg-white rounded-2xl shadow-xl border border-gray-100">
-          <div className="text-center">
-            <div className="mx-auto mb-6 flex justify-center">
-              <img
-                src={logo}
-                alt="GenThrust Logo"
-                className="h-20 w-auto object-contain"
-              />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 relative overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse delay-700"></div>
+        </div>
+
+        {/* Login Card */}
+        <div className="relative max-w-md w-full mx-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+            {/* Decorative header bar */}
+            <div className="h-2 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600"></div>
+
+            <div className="p-10 space-y-8">
+              {/* Logo and Title */}
+              <div className="text-center space-y-6">
+                <div className="mx-auto flex justify-center">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-blue-100 rounded-full blur-xl opacity-50"></div>
+                    <img
+                      src={logo}
+                      alt="GenThrust Logo"
+                      className="relative h-24 w-auto object-contain"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                    GenThrust RO Tracker
+                  </h1>
+                  <p className="text-lg text-gray-600 font-medium">
+                    Track aircraft parts sent to repair stations
+                  </p>
+                </div>
+              </div>
+
+              {/* Sign In Button */}
+              <div className="space-y-4">
+                <Button
+                  onClick={handleLogin}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                  size="lg"
+                >
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 0H0V10H10V0Z" fill="currentColor"/>
+                    <path d="M21 0H11V10H21V0Z" fill="currentColor"/>
+                    <path d="M10 11H0V21H10V11Z" fill="currentColor"/>
+                    <path d="M21 11H11V21H21V11Z" fill="currentColor"/>
+                  </svg>
+                  Sign in with Microsoft
+                </Button>
+
+                <p className="text-xs text-center text-gray-500">
+                  Secure authentication powered by Microsoft Azure
+                </p>
+              </div>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              GenThrust RO Tracker
-            </h1>
-            <p className="text-base text-gray-600">
-              Track aircraft parts sent to repair stations
-            </p>
+
+            {/* Decorative footer gradient */}
+            <div className="h-1 bg-gradient-to-r from-indigo-600 via-blue-500 to-blue-600"></div>
           </div>
-          <Button
-            onClick={handleLogin}
-            className="w-full bg-blue-600 hover:bg-blue-700"
-            size="lg"
-          >
-            Sign in with Microsoft
-          </Button>
+
+          {/* Shadow effect underneath */}
+          <div className="absolute inset-x-0 -bottom-6 h-6 bg-gradient-to-b from-black/10 to-transparent blur-xl"></div>
         </div>
       </div>
     );

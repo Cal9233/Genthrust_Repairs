@@ -14,21 +14,32 @@ export function useAddShop() {
 
   return useMutation({
     mutationFn: (data: {
-      shopName: string;
-      contactName: string;
-      email: string;
-      phone: string;
-      defaultTerms: string;
-      typicalTAT: number;
-      notes?: string;
+      customerNumber?: string;
+      businessName: string;
+      addressLine1?: string;
+      addressLine2?: string;
+      addressLine3?: string;
+      addressLine4?: string;
+      city?: string;
+      state?: string;
+      zip?: string;
+      country?: string;
+      phone?: string;
+      tollFree?: string;
+      fax?: string;
+      email?: string;
+      website?: string;
+      contact?: string;
+      paymentTerms?: string;
+      ilsCode?: string;
     }) => shopService.addShop(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shops"] });
-      toast.success("Shop added successfully");
+      toast.success("Vendor added successfully");
     },
     onError: (error) => {
-      console.error("Add shop error:", error);
-      toast.error("Failed to add shop");
+      console.error("Add vendor error:", error);
+      toast.error("Failed to add vendor");
     },
   });
 }
@@ -43,23 +54,49 @@ export function useUpdateShop() {
     }: {
       rowIndex: number;
       data: {
-        shopName: string;
-        contactName: string;
-        email: string;
+        customerNumber: string;
+        businessName: string;
+        addressLine1: string;
+        addressLine2: string;
+        addressLine3: string;
+        addressLine4: string;
+        city: string;
+        state: string;
+        zip: string;
+        country: string;
         phone: string;
-        defaultTerms: string;
-        typicalTAT: number;
-        notes: string;
-        active: boolean;
+        tollFree: string;
+        fax: string;
+        email: string;
+        website: string;
+        contact: string;
+        paymentTerms: string;
+        ilsCode: string;
       };
     }) => shopService.updateShop(rowIndex, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shops"] });
-      toast.success("Shop updated successfully");
+      toast.success("Vendor updated successfully");
     },
     onError: (error) => {
-      console.error("Update shop error:", error);
-      toast.error("Failed to update shop");
+      console.error("Update vendor error:", error);
+      toast.error("Failed to update vendor");
+    },
+  });
+}
+
+export function useDeleteShop() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (rowIndex: number) => shopService.deleteShop(rowIndex),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["shops"] });
+      toast.success("Vendor deleted successfully");
+    },
+    onError: (error) => {
+      console.error("Delete vendor error:", error);
+      toast.error("Failed to delete vendor");
     },
   });
 }

@@ -14,7 +14,16 @@
       "Bash(mkdir -p repair-dashboard/docs)",
       "Bash(npx shadcn@latest init -y)",
       "Bash(npx shadcn@latest add button)",
-      "Bash(npx shadcn@latest add card badge input select table dialog textarea label)"
+      "Bash(npx shadcn@latest add card badge input select table dialog textarea label)",
+      "Bash(npx shadcn@latest add:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(timeout /t 2)",
+      "Bash(echo:*)",
+      "Bash(ShopDirectory.tsx)",
+      "Bash(ShopManagementDialog.tsx)"
     ],
     "deny": [],
     "ask": []

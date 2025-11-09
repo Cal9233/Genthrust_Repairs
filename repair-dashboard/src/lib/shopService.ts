@@ -3,8 +3,8 @@ import { loginRequest } from "./msalConfig";
 import type { Shop } from "../types";
 
 const SITE_URL = import.meta.env.VITE_SHAREPOINT_SITE_URL;
-const SHOP_FILE_NAME = "ShopDirectory.xlsx"; // Separate file for shop data
-const SHOP_TABLE_NAME = "ShopTable";
+const SHOP_FILE_NAME = import.meta.env.VITE_EXCEL_FILE_NAME; // Use same file as RO data
+const SHOP_TABLE_NAME = import.meta.env.VITE_SHOP_TABLE_NAME || "ShopTable"; // Different table/sheet in same workbook
 
 class ShopService {
   private msalInstance: IPublicClientApplication | null = null;
@@ -32,9 +32,27 @@ class ShopService {
         account,
       });
       return response.accessToken;
-    } catch (error) {
-      const response = await this.msalInstance.acquireTokenPopup(loginRequest);
-      return response.accessToken;
+    } catch (silentError) {
+      console.log("[Shop Service] Silent token acquisition failed, using popup");
+      try {
+        const response = await this.msalInstance.acquireTokenPopup({
+          ...loginRequest,
+          account,
+        });
+        return response.accessToken;
+      } catch (popupError: any) {
+        console.error("[Shop Service] Popup token acquisition failed:", popupError);
+        // If popup fails due to CORS/COOP, try redirect
+        if (popupError.message?.includes("popup") || popupError.message?.includes("CORS")) {
+          console.log("[Shop Service] Using redirect flow...");
+          await this.msalInstance.acquireTokenRedirect({
+            ...loginRequest,
+            account,
+          });
+          throw new Error("Redirecting for authentication...");
+        }
+        throw popupError;
+      }
     }
   }
 
@@ -162,8 +180,59 @@ class ShopService {
     return this.fileId!;
   }
 
+  private parseExcelDate(value: any): Date | null {
+    if (!value) return null;
+
+    // Excel serial date
+    if (typeof value === "number") {
+      const date = new Date((value - 25569) * 86400 * 1000);
+      return date;
+    }
+
+    // ISO string
+    if (typeof value === "string") {
+      return new Date(value);
+    }
+
+    return null;
+  }
+
+  private parseCurrency(value: any): number | null {
+    if (!value) return null;
+
+    if (typeof value === "number") return value;
+
+    if (typeof value === "string") {
+      const cleaned = value.replace(/[$,]/g, "");
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? null : parsed;
+    }
+
+    return null;
+  }
+
+  async listTables(): Promise<any[]> {
+    const fileId = await this.getFileId();
+
+    const response = await this.callGraphAPI(
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables`
+    );
+
+    console.log("[Shop Service] Available tables in workbook:", response.value);
+    return response.value;
+  }
+
   async getShops(): Promise<Shop[]> {
     const fileId = await this.getFileId();
+
+    // Debug: List available tables
+    try {
+      await this.listTables();
+    } catch (error) {
+      console.error("[Shop Service] Could not list tables:", error);
+    }
+
+    console.log(`[Shop Service] Attempting to fetch rows from table: ${SHOP_TABLE_NAME}`);
 
     const response = await this.callGraphAPI(
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${SHOP_TABLE_NAME}/rows`
@@ -174,28 +243,60 @@ class ShopService {
     return rows.map((row: any, index: number) => {
       const values = row.values[0];
 
+      const businessName = values[1] || "";
+      const contact = values[15] || "";
+      const paymentTerms = values[16] || "";
+
       return {
         id: `shop-${index}`,
-        shopName: values[0] || "",
-        contactName: values[1] || "",
-        email: values[2] || "",
-        phone: values[3] || "",
-        defaultTerms: values[4] || "",
-        typicalTAT: typeof values[5] === "number" ? values[5] : 0,
-        notes: values[6] || "",
-        active: values[7] === true || values[7] === "true" || values[7] === "TRUE",
+        customerNumber: values[0] || "",
+        businessName,
+        addressLine1: values[2] || "",
+        addressLine2: values[3] || "",
+        addressLine3: values[4] || "",
+        addressLine4: values[5] || "",
+        city: values[6] || "",
+        state: values[7] || "",
+        zip: values[8] || "",
+        country: values[9] || "",
+        phone: values[10] || "",
+        tollFree: values[11] || "",
+        fax: values[12] || "",
+        email: values[13] || "",
+        website: values[14] || "",
+        contact,
+        paymentTerms,
+        ilsCode: values[17] || "",
+        lastSaleDate: this.parseExcelDate(values[18]),
+        ytdSales: this.parseCurrency(values[19]),
+
+        // Backward compatibility aliases
+        shopName: businessName,
+        contactName: contact,
+        defaultTerms: paymentTerms,
       };
     });
   }
 
   async addShop(data: {
-    shopName: string;
-    contactName: string;
-    email: string;
-    phone: string;
-    defaultTerms: string;
-    typicalTAT: number;
-    notes?: string;
+    customerNumber?: string;
+    businessName: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    addressLine3?: string;
+    addressLine4?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    country?: string;
+    phone?: string;
+    tollFree?: string;
+    fax?: string;
+    email?: string;
+    website?: string;
+    contact?: string;
+    paymentTerms?: string;
+    ilsCode?: string;
   }): Promise<void> {
     const fileId = await this.getFileId();
 
@@ -203,14 +304,26 @@ class ShopService {
       await this.createSession();
 
       const newRow = [
-        data.shopName,
-        data.contactName,
-        data.email,
-        data.phone,
-        data.defaultTerms,
-        data.typicalTAT,
-        data.notes || "",
-        true, // active by default
+        data.customerNumber || "",
+        data.businessName,
+        data.addressLine1 || "",
+        data.addressLine2 || "",
+        data.addressLine3 || "",
+        data.addressLine4 || "",
+        data.city || "",
+        data.state || "",
+        data.zip || "",
+        data.country || "",
+        data.phone || "",
+        data.tollFree || "",
+        data.fax || "",
+        data.email || "",
+        data.website || "",
+        data.contact || "",
+        data.paymentTerms || "",
+        data.ilsCode || "",
+        "", // Last Sale Date (empty for new shops)
+        "", // YTD Sales (empty for new shops)
       ];
 
       await this.callGraphAPI(
@@ -229,14 +342,24 @@ class ShopService {
   async updateShop(
     rowIndex: number,
     data: {
-      shopName: string;
-      contactName: string;
-      email: string;
+      customerNumber: string;
+      businessName: string;
+      addressLine1: string;
+      addressLine2: string;
+      addressLine3: string;
+      addressLine4: string;
+      city: string;
+      state: string;
+      zip: string;
+      country: string;
       phone: string;
-      defaultTerms: string;
-      typicalTAT: number;
-      notes: string;
-      active: boolean;
+      tollFree: string;
+      fax: string;
+      email: string;
+      website: string;
+      contact: string;
+      paymentTerms: string;
+      ilsCode: string;
     }
   ): Promise<void> {
     const fileId = await this.getFileId();
@@ -244,21 +367,60 @@ class ShopService {
     try {
       await this.createSession();
 
+      // Get current row to preserve Last Sale Date and YTD Sales
+      const response = await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${SHOP_TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
+        "GET",
+        undefined,
+        true
+      );
+
+      const currentValues = response.values[0];
+
       const updatedRow = [
-        data.shopName,
-        data.contactName,
-        data.email,
+        data.customerNumber,
+        data.businessName,
+        data.addressLine1,
+        data.addressLine2,
+        data.addressLine3,
+        data.addressLine4,
+        data.city,
+        data.state,
+        data.zip,
+        data.country,
         data.phone,
-        data.defaultTerms,
-        data.typicalTAT,
-        data.notes,
-        data.active,
+        data.tollFree,
+        data.fax,
+        data.email,
+        data.website,
+        data.contact,
+        data.paymentTerms,
+        data.ilsCode,
+        currentValues[18] || "", // Preserve Last Sale Date
+        currentValues[19] || "", // Preserve YTD Sales
       ];
 
       await this.callGraphAPI(
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${SHOP_TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
         "PATCH",
         { values: [updatedRow] },
+        true
+      );
+    } finally {
+      await this.closeSession();
+    }
+  }
+
+  async deleteShop(rowIndex: number): Promise<void> {
+    const fileId = await this.getFileId();
+
+    try {
+      await this.createSession();
+
+      await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${SHOP_TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
+        "DELETE",
+        undefined,
         true
       );
     } finally {

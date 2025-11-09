@@ -67,6 +67,97 @@ export function useAddRepairOrder() {
   });
 }
 
+export function useUpdateRepairOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      rowIndex,
+      data,
+    }: {
+      rowIndex: number;
+      data: {
+        roNumber: string;
+        shopName: string;
+        partNumber: string;
+        serialNumber: string;
+        partDescription: string;
+        requiredWork: string;
+        estimatedCost?: number;
+        terms?: string;
+        shopReferenceNumber?: string;
+      };
+    }) => excelService.updateRepairOrder(rowIndex, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ros"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      toast.success("Repair order updated successfully");
+    },
+    onError: (error) => {
+      console.error("Update error:", error);
+      toast.error("Failed to update repair order");
+    },
+  });
+}
+
+export function useDeleteRepairOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (rowIndex: number) => excelService.deleteRepairOrder(rowIndex),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ros"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      toast.success("Repair order deleted successfully");
+    },
+    onError: (error) => {
+      console.error("Delete error:", error);
+      toast.error("Failed to delete repair order");
+    },
+  });
+}
+
+export function useBulkUpdateStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      roNumbers,
+      newStatus,
+    }: {
+      roNumbers: string[];
+      newStatus: string;
+    }) => {
+      // Get all ROs to find row indices
+      const allROs = await excelService.getRepairOrders();
+
+      // Update each RO
+      const updates = roNumbers.map((roNumber) => {
+        const ro = allROs.find((r) => r.roNumber === roNumber);
+        if (!ro) throw new Error(`RO ${roNumber} not found`);
+
+        const rowIndex = parseInt(ro.id.replace("row-", ""));
+        return excelService.updateROStatus(rowIndex, newStatus);
+      });
+
+      await Promise.all(updates);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["ros"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      toast.success(
+        `Successfully updated ${variables.roNumbers.length} repair order${
+          variables.roNumbers.length > 1 ? "s" : ""
+        }`
+      );
+    },
+    onError: (error) => {
+      console.error("Bulk update error:", error);
+      toast.error("Failed to update repair orders");
+    },
+  });
+}
+
 export function useDashboardStats() {
   return useQuery({
     queryKey: ["dashboard-stats"],
@@ -75,7 +166,10 @@ export function useDashboardStats() {
 
       const stats: DashboardStats = {
         totalActive: ros.filter(
-          (ro) => ro.currentStatus !== "PAID >>>>" && ro.currentStatus !== "BER"
+          (ro) =>
+            !ro.currentStatus.includes("PAID") &&
+            ro.currentStatus !== "PAYMENT SENT" &&
+            ro.currentStatus !== "BER"
         ).length,
         overdue: ros.filter((ro) => ro.isOverdue).length,
         waitingQuote: ros.filter((ro) =>

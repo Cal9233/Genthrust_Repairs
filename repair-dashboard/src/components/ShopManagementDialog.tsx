@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -27,12 +26,18 @@ interface ShopManagementDialogProps {
 }
 
 const TERMS_OPTIONS = [
+  "C.O.D.",
   "COD",
+  "COD Secure",
+  "NET 15",
   "NET 30",
   "NET 60",
   "NET 90",
-  "Prepaid",
+  "UPON RECEIPT",
+  "Wire Transfer",
   "Credit Card",
+  "C.I.A.",
+  "Prepaid",
 ];
 
 export function ShopManagementDialog({
@@ -43,14 +48,24 @@ export function ShopManagementDialog({
   const isEditing = !!shop;
 
   // Form state
-  const [shopName, setShopName] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [email, setEmail] = useState("");
+  const [customerNumber, setCustomerNumber] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [addressLine3, setAddressLine3] = useState("");
+  const [addressLine4, setAddressLine4] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zip, setZip] = useState("");
+  const [country, setCountry] = useState("");
   const [phone, setPhone] = useState("");
-  const [defaultTerms, setDefaultTerms] = useState("NET 30");
-  const [typicalTAT, setTypicalTAT] = useState<string>("14");
-  const [notes, setNotes] = useState("");
-  const [active, setActive] = useState(true);
+  const [tollFree, setTollFree] = useState("");
+  const [fax, setFax] = useState("");
+  const [email, setEmail] = useState("");
+  const [website, setWebsite] = useState("");
+  const [contact, setContact] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState("NET 30");
+  const [ilsCode, setIlsCode] = useState("");
 
   const addShop = useAddShop();
   const updateShop = useUpdateShop();
@@ -58,35 +73,50 @@ export function ShopManagementDialog({
   // Populate form when editing
   useEffect(() => {
     if (shop) {
-      setShopName(shop.shopName);
-      setContactName(shop.contactName);
-      setEmail(shop.email);
+      setCustomerNumber(shop.customerNumber);
+      setBusinessName(shop.businessName);
+      setAddressLine1(shop.addressLine1);
+      setAddressLine2(shop.addressLine2);
+      setAddressLine3(shop.addressLine3);
+      setAddressLine4(shop.addressLine4);
+      setCity(shop.city);
+      setState(shop.state);
+      setZip(shop.zip);
+      setCountry(shop.country);
       setPhone(shop.phone);
-      setDefaultTerms(shop.defaultTerms);
-      setTypicalTAT(shop.typicalTAT.toString());
-      setNotes(shop.notes);
-      setActive(shop.active);
+      setTollFree(shop.tollFree);
+      setFax(shop.fax);
+      setEmail(shop.email);
+      setWebsite(shop.website);
+      setContact(shop.contact);
+      setPaymentTerms(shop.paymentTerms);
+      setIlsCode(shop.ilsCode);
     } else {
       // Reset form for adding
-      setShopName("");
-      setContactName("");
-      setEmail("");
+      setCustomerNumber("");
+      setBusinessName("");
+      setAddressLine1("");
+      setAddressLine2("");
+      setAddressLine3("");
+      setAddressLine4("");
+      setCity("");
+      setState("");
+      setZip("");
+      setCountry("");
       setPhone("");
-      setDefaultTerms("NET 30");
-      setTypicalTAT("14");
-      setNotes("");
-      setActive(true);
+      setTollFree("");
+      setFax("");
+      setEmail("");
+      setWebsite("");
+      setContact("");
+      setPaymentTerms("NET 30");
+      setIlsCode("");
     }
   }, [shop, open]);
 
   const handleSubmit = () => {
     // Basic validation
-    if (!shopName.trim()) {
-      return;
-    }
-
-    const tatNumber = parseInt(typicalTAT);
-    if (isNaN(tatNumber) || tatNumber < 0) {
+    if (!businessName.trim()) {
       return;
     }
 
@@ -97,14 +127,24 @@ export function ShopManagementDialog({
         {
           rowIndex,
           data: {
-            shopName: shopName.trim(),
-            contactName: contactName.trim(),
-            email: email.trim(),
+            customerNumber: customerNumber.trim(),
+            businessName: businessName.trim(),
+            addressLine1: addressLine1.trim(),
+            addressLine2: addressLine2.trim(),
+            addressLine3: addressLine3.trim(),
+            addressLine4: addressLine4.trim(),
+            city: city.trim(),
+            state: state.trim(),
+            zip: zip.trim(),
+            country: country.trim(),
             phone: phone.trim(),
-            defaultTerms,
-            typicalTAT: tatNumber,
-            notes: notes.trim(),
-            active,
+            tollFree: tollFree.trim(),
+            fax: fax.trim(),
+            email: email.trim(),
+            website: website.trim(),
+            contact: contact.trim(),
+            paymentTerms,
+            ilsCode: ilsCode.trim(),
           },
         },
         {
@@ -117,13 +157,24 @@ export function ShopManagementDialog({
       // Add new shop
       addShop.mutate(
         {
-          shopName: shopName.trim(),
-          contactName: contactName.trim(),
-          email: email.trim(),
+          customerNumber: customerNumber.trim(),
+          businessName: businessName.trim(),
+          addressLine1: addressLine1.trim(),
+          addressLine2: addressLine2.trim(),
+          addressLine3: addressLine3.trim(),
+          addressLine4: addressLine4.trim(),
+          city: city.trim(),
+          state: state.trim(),
+          zip: zip.trim(),
+          country: country.trim(),
           phone: phone.trim(),
-          defaultTerms,
-          typicalTAT: tatNumber,
-          notes: notes.trim(),
+          tollFree: tollFree.trim(),
+          fax: fax.trim(),
+          email: email.trim(),
+          website: website.trim(),
+          contact: contact.trim(),
+          paymentTerms,
+          ilsCode: ilsCode.trim(),
         },
         {
           onSuccess: () => {
@@ -138,67 +189,297 @@ export function ShopManagementDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>
-            {isEditing ? `Edit Shop - ${shop?.shopName}` : "Add New Shop"}
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="border-b pb-4">
+          <DialogTitle className="text-2xl font-bold text-gray-900">
+            {isEditing ? `Edit Vendor - ${shop?.businessName}` : "Add New Vendor"}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-6 py-4">
+          {/* Basic Information Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+              <div className="h-6 w-1 bg-blue-600 rounded"></div>
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                Basic Information
+              </h3>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="shopName">
-                Shop Name <span className="text-red-500">*</span>
+              <Label htmlFor="businessName" className="text-sm font-medium">
+                Business Name <span className="text-red-500">*</span>
               </Label>
               <Input
-                id="shopName"
-                value={shopName}
-                onChange={(e) => setShopName(e.target.value)}
+                id="businessName"
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
                 placeholder="ABC Repair Shop"
+                className="h-10"
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="customerNumber" className="text-sm font-medium">
+                  Customer #
+                </Label>
+                <Input
+                  id="customerNumber"
+                  value={customerNumber}
+                  onChange={(e) => setCustomerNumber(e.target.value)}
+                  placeholder="AUTO-123"
+                  className="h-10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ilsCode" className="text-sm font-medium">
+                  ILS Code
+                </Label>
+                <Input
+                  id="ilsCode"
+                  value={ilsCode}
+                  onChange={(e) => setIlsCode(e.target.value)}
+                  placeholder="ILS-123"
+                  className="h-10"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Address Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+              <div className="h-6 w-1 bg-green-600 rounded"></div>
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                Address
+              </h3>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="contactName">Contact Name</Label>
+              <Label htmlFor="addressLine1" className="text-sm font-medium">
+                Street Address
+              </Label>
               <Input
-                id="contactName"
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                placeholder="John Smith"
+                id="addressLine1"
+                value={addressLine1}
+                onChange={(e) => setAddressLine1(e.target.value)}
+                placeholder="123 Main Street"
+                className="h-10"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="addressLine2" className="text-sm font-medium text-gray-600">
+                  Address Line 2
+                </Label>
+                <Input
+                  id="addressLine2"
+                  value={addressLine2}
+                  onChange={(e) => setAddressLine2(e.target.value)}
+                  placeholder="Suite 100"
+                  className="h-10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="addressLine3" className="text-sm font-medium text-gray-600">
+                  Address Line 3
+                </Label>
+                <Input
+                  id="addressLine3"
+                  value={addressLine3}
+                  onChange={(e) => setAddressLine3(e.target.value)}
+                  placeholder="Optional"
+                  className="h-10"
+                />
+              </div>
+            </div>
+
+            {addressLine3 && (
+              <div className="space-y-2">
+                <Label htmlFor="addressLine4" className="text-sm font-medium text-gray-600">
+                  Address Line 4
+                </Label>
+                <Input
+                  id="addressLine4"
+                  value={addressLine4}
+                  onChange={(e) => setAddressLine4(e.target.value)}
+                  placeholder="Optional"
+                  className="h-10"
+                />
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="city" className="text-sm font-medium">
+                  City
+                </Label>
+                <Input
+                  id="city"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="New York"
+                  className="h-10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="state" className="text-sm font-medium">
+                  State
+                </Label>
+                <Input
+                  id="state"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  placeholder="NY"
+                  className="h-10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="zip" className="text-sm font-medium">
+                  ZIP
+                </Label>
+                <Input
+                  id="zip"
+                  value={zip}
+                  onChange={(e) => setZip(e.target.value)}
+                  placeholder="10001"
+                  className="h-10"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="country" className="text-sm font-medium">
+                Country
+              </Label>
+              <Input
+                id="country"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                placeholder="USA"
+                className="h-10"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="contact@shop.com"
-              />
+          {/* Contact Information Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+              <div className="h-6 w-1 bg-purple-600 rounded"></div>
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                Contact Information
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="contact" className="text-sm font-medium">
+                  Contact Person
+                </Label>
+                <Input
+                  id="contact"
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                  placeholder="John Smith"
+                  className="h-10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Email Address
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="contact@shop.com"
+                  className="h-10"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-sm font-medium">
+                  Phone
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="(555) 123-4567"
+                  className="h-10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tollFree" className="text-sm font-medium text-gray-600">
+                  Toll Free
+                </Label>
+                <Input
+                  id="tollFree"
+                  type="tel"
+                  value={tollFree}
+                  onChange={(e) => setTollFree(e.target.value)}
+                  placeholder="(800) 123-4567"
+                  className="h-10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fax" className="text-sm font-medium text-gray-600">
+                  Fax
+                </Label>
+                <Input
+                  id="fax"
+                  type="tel"
+                  value={fax}
+                  onChange={(e) => setFax(e.target.value)}
+                  placeholder="(555) 123-4568"
+                  className="h-10"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="website" className="text-sm font-medium">
+                Website
+              </Label>
               <Input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="(555) 123-4567"
+                id="website"
+                type="url"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                placeholder="https://www.example.com"
+                className="h-10"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Payment Terms Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+              <div className="h-6 w-1 bg-orange-600 rounded"></div>
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                Payment Terms
+              </h3>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="defaultTerms">Default Payment Terms</Label>
-              <Select value={defaultTerms} onValueChange={setDefaultTerms}>
-                <SelectTrigger>
+              <Label htmlFor="paymentTerms" className="text-sm font-medium">
+                Default Payment Terms
+              </Label>
+              <Select value={paymentTerms} onValueChange={setPaymentTerms}>
+                <SelectTrigger className="h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -210,62 +491,30 @@ export function ShopManagementDialog({
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="typicalTAT">Typical Turnaround Time (days)</Label>
-              <Input
-                id="typicalTAT"
-                type="number"
-                min="0"
-                value={typicalTAT}
-                onChange={(e) => setTypicalTAT(e.target.value)}
-                placeholder="14"
-              />
-            </div>
-          </div>
-
-          {isEditing && (
-            <div className="space-y-2">
-              <Label htmlFor="active">Status</Label>
-              <Select
-                value={active ? "active" : "inactive"}
-                onValueChange={(value) => setActive(value === "active")}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Additional information about this shop..."
-              rows={3}
-            />
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isPending}>
+        <DialogFooter className="border-t pt-4 gap-2">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={isPending}
+            className="min-w-[100px] border-gray-300 hover:bg-gray-50"
+          >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isPending || !shopName.trim()}>
+          <Button
+            onClick={handleSubmit}
+            disabled={isPending || !businessName.trim()}
+            className="min-w-[120px] bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+          >
             {isPending
               ? isEditing
                 ? "Updating..."
                 : "Adding..."
               : isEditing
-              ? "Update Shop"
-              : "Add Shop"}
+              ? "Update Vendor"
+              : "Add Vendor"}
           </Button>
         </DialogFooter>
       </DialogContent>

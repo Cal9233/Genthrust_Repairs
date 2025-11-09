@@ -33,9 +33,27 @@ class ExcelService {
         account,
       });
       return response.accessToken;
-    } catch (error) {
-      const response = await this.msalInstance.acquireTokenPopup(loginRequest);
-      return response.accessToken;
+    } catch (silentError) {
+      console.log("[Excel Service] Silent token acquisition failed, using popup");
+      try {
+        const response = await this.msalInstance.acquireTokenPopup({
+          ...loginRequest,
+          account,
+        });
+        return response.accessToken;
+      } catch (popupError: any) {
+        console.error("[Excel Service] Popup token acquisition failed:", popupError);
+        // If popup fails due to CORS/COOP, try redirect
+        if (popupError.message?.includes("popup") || popupError.message?.includes("CORS")) {
+          console.log("[Excel Service] Using redirect flow...");
+          await this.msalInstance.acquireTokenRedirect({
+            ...loginRequest,
+            account,
+          });
+          throw new Error("Redirecting for authentication...");
+        }
+        throw popupError;
+      }
     }
   }
 
@@ -207,11 +225,28 @@ class ExcelService {
 
   private getCurrentUser(): string {
     if (!this.msalInstance) {
+      console.warn("[ExcelService] MSAL instance not available for getCurrentUser");
       return "Unknown User";
     }
 
-    const account = this.msalInstance.getActiveAccount();
-    return account?.name || account?.username || "Unknown User";
+    // Try active account first
+    let account = this.msalInstance.getActiveAccount();
+
+    // If no active account, try getting all accounts
+    if (!account) {
+      const accounts = this.msalInstance.getAllAccounts();
+      account = accounts[0];
+    }
+
+    if (!account) {
+      console.warn("[ExcelService] No account found");
+      return "Unknown User";
+    }
+
+    // Return the best available identifier
+    const userName = account.name || account.username || account.idTokenClaims?.preferred_username || "Unknown User";
+    console.log("[ExcelService] Current user:", userName);
+    return userName;
   }
 
   async getFileId(): Promise<string> {
@@ -269,11 +304,19 @@ class ExcelService {
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables`
     );
 
+    console.log("[Excel Service] Available tables in workbook:", response.value);
     return response.value;
   }
 
   async getRepairOrders(): Promise<RepairOrder[]> {
     const fileId = await this.getFileId();
+
+    // Debug: List available tables
+    try {
+      await this.listTables();
+    } catch (error) {
+      console.error("[Excel Service] Could not list tables:", error);
+    }
 
     const response = await this.callGraphAPI(
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows`
@@ -358,10 +401,6 @@ class ExcelService {
     const today = new Date();
     const todayISO = today.toISOString();
 
-    // Calculate next update date based on new status
-    const nextUpdateDate = calculateNextUpdateDate(status, today);
-    const nextUpdateISO = nextUpdateDate ? nextUpdateDate.toISOString() : "";
-
     // Get current user
     const currentUser = this.getCurrentUser();
 
@@ -378,6 +417,13 @@ class ExcelService {
       );
 
       const currentValues = response.values[0];
+
+      // Get payment terms from current row (column 10)
+      const paymentTerms = currentValues[10] || "";
+
+      // Calculate next update date based on new status and payment terms
+      const nextUpdateDate = calculateNextUpdateDate(status, today, paymentTerms);
+      const nextUpdateISO = nextUpdateDate ? nextUpdateDate.toISOString() : "";
 
       // Parse existing notes and history
       const { notes, statusHistory } = this.parseNotesWithHistory(currentValues[18] || "");
@@ -432,9 +478,9 @@ class ExcelService {
     const today = new Date();
     const todayISO = today.toISOString();
 
-    // Calculate next update date based on initial status
+    // Calculate next update date based on initial status and payment terms
     const initialStatus = "TO SEND";
-    const nextUpdateDate = calculateNextUpdateDate(initialStatus, today);
+    const nextUpdateDate = calculateNextUpdateDate(initialStatus, today, data.terms);
     const nextUpdateISO = nextUpdateDate ? nextUpdateDate.toISOString() : "";
 
     // Get current user
@@ -490,6 +536,84 @@ class ExcelService {
       );
     } finally {
       // Always close the session, even if there was an error
+      await this.closeSession();
+    }
+  }
+
+  async updateRepairOrder(
+    rowIndex: number,
+    data: {
+      roNumber: string;
+      shopName: string;
+      partNumber: string;
+      serialNumber: string;
+      partDescription: string;
+      requiredWork: string;
+      estimatedCost?: number;
+      terms?: string;
+      shopReferenceNumber?: string;
+    }
+  ): Promise<void> {
+    if (!this.msalInstance) {
+      throw new Error("Service not initialized. Please refresh the page and try again.");
+    }
+
+    const fileId = await this.getFileId();
+
+    try {
+      await this.createSession();
+
+      // Get current row to preserve other fields
+      const response = await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
+        "GET",
+        undefined,
+        true
+      );
+
+      const currentValues = response.values[0];
+      const today = new Date().toISOString();
+
+      // Update only the editable fields, preserve all others
+      currentValues[0] = data.roNumber;
+      currentValues[2] = data.shopName;
+      currentValues[3] = data.partNumber;
+      currentValues[4] = data.serialNumber;
+      currentValues[5] = data.partDescription;
+      currentValues[6] = data.requiredWork;
+      currentValues[8] = data.estimatedCost || "";
+      currentValues[10] = data.terms || "";
+      currentValues[11] = data.shopReferenceNumber || "";
+      currentValues[19] = today; // Last Date Updated
+
+      await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
+        "PATCH",
+        { values: [currentValues] },
+        true
+      );
+    } finally {
+      await this.closeSession();
+    }
+  }
+
+  async deleteRepairOrder(rowIndex: number): Promise<void> {
+    if (!this.msalInstance) {
+      throw new Error("Service not initialized. Please refresh the page and try again.");
+    }
+
+    const fileId = await this.getFileId();
+
+    try {
+      await this.createSession();
+
+      await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
+        "DELETE",
+        undefined,
+        true
+      );
+    } finally {
       await this.closeSession();
     }
   }
