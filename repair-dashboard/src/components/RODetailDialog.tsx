@@ -10,10 +10,11 @@ import { StatusBadge } from "./StatusBadge";
 import { UpdateStatusDialog } from "./UpdateStatusDialog";
 import { StatusTimeline } from "./StatusTimeline";
 import { EmailComposerDialog } from "./EmailComposerDialog";
+import { ReminderTypeDialog } from "./ReminderTypeDialog";
 import { useShops } from "../hooks/useShops";
 import { useUpdateROStatus } from "../hooks/useROs";
 import type { RepairOrder } from "../types";
-import { Mail, Bell, Calendar as CalendarIcon } from "lucide-react";
+import { Mail, Bell, Calendar as CalendarIcon, Info } from "lucide-react";
 import { reminderService } from "../lib/reminderService";
 import { toast } from "sonner";
 
@@ -26,7 +27,12 @@ interface RODetailDialogProps {
 export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
   const [showUpdateStatus, setShowUpdateStatus] = useState(false);
   const [showEmailComposer, setShowEmailComposer] = useState(false);
+  const [showReminderTypeDialog, setShowReminderTypeDialog] = useState(false);
   const [isCreatingReminder, setIsCreatingReminder] = useState(false);
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(() => {
+    // Check if user has created a reminder before
+    return !localStorage.getItem("hasCreatedReminder");
+  });
 
   // Fetch shops to get shop details
   const { data: shops } = useShops();
@@ -70,8 +76,8 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
     });
   };
 
-  // Handler to create reminders
-  const handleCreateReminders = async () => {
+  // Handler to create reminders with selected types
+  const handleCreateReminders = async (types: { todo: boolean; calendar: boolean }) => {
     if (!ro.nextDateToUpdate) {
       toast.error("No follow-up date set for this RO");
       return;
@@ -80,22 +86,44 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
     setIsCreatingReminder(true);
 
     try {
-      const results = await reminderService.createReminders({
-        roNumber: ro.roNumber,
-        shopName: ro.shopName,
-        title: `Follow up - ${ro.currentStatus}`,
-        dueDate: new Date(ro.nextDateToUpdate),
-        notes: `Follow up on repair order for ${ro.partDescription}. Current status: ${ro.currentStatus}`,
-      });
+      const results = await reminderService.createReminders(
+        {
+          roNumber: ro.roNumber,
+          shopName: ro.shopName,
+          title: `Follow up - ${ro.currentStatus}`,
+          dueDate: new Date(ro.nextDateToUpdate),
+          notes: `Follow up on repair order for ${ro.partDescription}. Current status: ${ro.currentStatus}`,
+        },
+        types
+      );
 
-      if (results.todo && results.calendar) {
-        toast.success("Created reminders in To Do and Calendar!");
-      } else if (results.todo) {
-        toast.success("Created reminder in To Do (Calendar failed)");
-      } else if (results.calendar) {
-        toast.success("Created reminder in Calendar (To Do failed)");
-      } else {
-        toast.error("Failed to create reminders");
+      // Mark that user has created a reminder
+      localStorage.setItem("hasCreatedReminder", "true");
+      setIsFirstTimeUser(false);
+
+      // Show appropriate success message
+      if (types.todo && types.calendar) {
+        if (results.todo && results.calendar) {
+          toast.success("Created reminders in To Do and Calendar!");
+        } else if (results.todo) {
+          toast.success("Created reminder in To Do (Calendar failed)");
+        } else if (results.calendar) {
+          toast.success("Created reminder in Calendar (To Do failed)");
+        } else {
+          toast.error("Failed to create reminders");
+        }
+      } else if (types.todo) {
+        if (results.todo) {
+          toast.success("Created reminder in To Do!");
+        } else {
+          toast.error("Failed to create To Do reminder");
+        }
+      } else if (types.calendar) {
+        if (results.calendar) {
+          toast.success("Created reminder in Calendar!");
+        } else {
+          toast.error("Failed to create Calendar reminder");
+        }
       }
     } catch (error) {
       console.error("[RODetailDialog] Error creating reminders:", error);
@@ -117,6 +145,24 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
           </DialogHeader>
 
           <div className="space-y-6 py-4">
+            {/* First-time user help text */}
+            {isFirstTimeUser && ro.nextDateToUpdate && (
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200">
+                <div className="flex items-start gap-3">
+                  <Info className="h-5 w-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-purple-900">
+                      First time using reminders?
+                    </p>
+                    <p className="text-xs text-purple-800">
+                      Clicking "Set Reminder" will ask for permission to access your Microsoft To Do and Calendar.
+                      This is secure and only happens once. You can choose to create reminders in one or both apps.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex flex-wrap gap-3">
               <Button
@@ -136,7 +182,7 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
               {ro.nextDateToUpdate && (
                 <Button
                   variant="outline"
-                  onClick={handleCreateReminders}
+                  onClick={() => setShowReminderTypeDialog(true)}
                   disabled={isCreatingReminder}
                   className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
                 >
@@ -313,6 +359,16 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
           open={showEmailComposer}
           onClose={() => setShowEmailComposer(false)}
           onLogEmail={handleLogEmail}
+        />
+      )}
+
+      {showReminderTypeDialog && ro.nextDateToUpdate && (
+        <ReminderTypeDialog
+          open={showReminderTypeDialog}
+          onClose={() => setShowReminderTypeDialog(false)}
+          onConfirm={handleCreateReminders}
+          roNumber={ro.roNumber}
+          dueDate={new Date(ro.nextDateToUpdate)}
         />
       )}
     </>

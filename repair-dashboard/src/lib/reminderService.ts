@@ -161,7 +161,7 @@ class ReminderService {
     endDate.setHours(9, 30, 0, 0); // 9:30 AM
 
     const eventBody = {
-      subject: `[RO ${data.roNumber}] ${data.title}`,
+      subject: `[REMINDER] RO ${data.roNumber} - ${data.title}`,
       body: {
         contentType: "text",
         content: data.notes || `Follow up on repair order ${data.roNumber} for ${data.shopName}`,
@@ -174,6 +174,7 @@ class ReminderService {
         dateTime: endDate.toISOString(),
         timeZone: "UTC",
       },
+      showAs: "free",  // Doesn't block your calendar
       isReminderOn: true,
       reminderMinutesBeforeStart: 15,
       categories: ["Repair Orders"],
@@ -190,30 +191,38 @@ class ReminderService {
   }
 
   /**
-   * Create both To Do task and Calendar event
+   * Create To Do task and/or Calendar event based on options
    */
-  async createReminders(data: {
-    roNumber: string;
-    shopName: string;
-    title: string;
-    dueDate: Date;
-    notes?: string;
-  }): Promise<{ todo: boolean; calendar: boolean }> {
+  async createReminders(
+    data: {
+      roNumber: string;
+      shopName: string;
+      title: string;
+      dueDate: Date;
+      notes?: string;
+    },
+    options: { todo: boolean; calendar: boolean } = { todo: true, calendar: true }
+  ): Promise<{ todo: boolean; calendar: boolean }> {
     const results = { todo: false, calendar: false };
 
-    // Scopes are already granted at login, so we can directly create reminders
-    try {
-      await this.createToDoTask(data, ["Tasks.ReadWrite"]);
-      results.todo = true;
-    } catch (error) {
-      console.error("[Reminder Service] Failed to create To Do task:", error);
+    // Create To Do task if requested
+    if (options.todo) {
+      try {
+        await this.createToDoTask(data, ["Tasks.ReadWrite"]);
+        results.todo = true;
+      } catch (error) {
+        console.error("[Reminder Service] Failed to create To Do task:", error);
+      }
     }
 
-    try {
-      await this.createCalendarEvent(data, ["Calendars.ReadWrite"]);
-      results.calendar = true;
-    } catch (error) {
-      console.error("[Reminder Service] Failed to create Calendar event:", error);
+    // Create Calendar event if requested
+    if (options.calendar) {
+      try {
+        await this.createCalendarEvent(data, ["Calendars.ReadWrite"]);
+        results.calendar = true;
+      } catch (error) {
+        console.error("[Reminder Service] Failed to create Calendar event:", error);
+      }
     }
 
     return results;
