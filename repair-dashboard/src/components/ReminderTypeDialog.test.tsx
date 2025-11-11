@@ -56,7 +56,7 @@ describe('ReminderTypeDialog', () => {
     });
 
     it('displays formatted due date', () => {
-      const { container } = render(
+      render(
         <ReminderTypeDialog
           open={true}
           onClose={mockOnClose}
@@ -67,7 +67,6 @@ describe('ReminderTypeDialog', () => {
       );
 
       // Date is formatted, just verify the dialog renders with content
-      expect(container).toBeTruthy();
       // The dialog description should exist
       expect(screen.getByText(new RegExp(mockRONumber))).toBeInTheDocument();
     });
@@ -410,7 +409,7 @@ describe('ReminderTypeDialog', () => {
 
   describe('Visual States', () => {
     it('shows selected state for To Do option', () => {
-      const { container } = render(
+      render(
         <ReminderTypeDialog
           open={true}
           onClose={mockOnClose}
@@ -425,7 +424,7 @@ describe('ReminderTypeDialog', () => {
     });
 
     it('shows selected state for Calendar option', () => {
-      const { container } = render(
+      render(
         <ReminderTypeDialog
           open={true}
           onClose={mockOnClose}
@@ -444,7 +443,7 @@ describe('ReminderTypeDialog', () => {
     it('formats date correctly', () => {
       const testDate = new Date('2024-12-25');
 
-      const { container } = render(
+      render(
         <ReminderTypeDialog
           open={true}
           onClose={mockOnClose}
@@ -455,14 +454,13 @@ describe('ReminderTypeDialog', () => {
       );
 
       // Date formatting is locale-dependent, just verify dialog renders
-      expect(container).toBeTruthy();
       expect(screen.getByText(new RegExp(mockRONumber))).toBeInTheDocument();
     });
 
     it('handles different date formats', () => {
       const testDate = new Date('2024-01-01');
 
-      const { container } = render(
+      render(
         <ReminderTypeDialog
           open={true}
           onClose={mockOnClose}
@@ -473,7 +471,6 @@ describe('ReminderTypeDialog', () => {
       );
 
       // Date formatting is locale-dependent, just verify dialog renders
-      expect(container).toBeTruthy();
       expect(screen.getByText(new RegExp(mockRONumber))).toBeInTheDocument();
     });
   });

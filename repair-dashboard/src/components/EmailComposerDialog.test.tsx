@@ -230,7 +230,7 @@ describe('EmailComposerDialog', () => {
     });
 
     it('shows contact information when available', () => {
-      const { container } = render(
+      render(
         <EmailComposerDialog
           ro={mockRO}
           shop={mockShop}
@@ -240,7 +240,7 @@ describe('EmailComposerDialog', () => {
       );
 
       // Check for the contact info text which includes "Contact:" prefix
-      const contactTexts = screen.queryAllByText((content, element) => {
+      const contactTexts = screen.queryAllByText((_content, element) => {
         return element?.textContent?.includes(`Contact: ${mockShop.contactName}`) ?? false;
       });
       // Should find at least one instance of the contact name
@@ -478,8 +478,8 @@ describe('EmailComposerDialog', () => {
   });
 
   describe('Template Selection', () => {
-    it('updates email content when template changes', async () => {
-      const { user } = render(
+    it('updates email content when template changes', () => {
+      render(
         <EmailComposerDialog
           ro={mockRO}
           shop={mockShop}

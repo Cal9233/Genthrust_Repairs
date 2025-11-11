@@ -11,6 +11,7 @@ import { UpdateStatusDialog } from "./UpdateStatusDialog";
 import { StatusTimeline } from "./StatusTimeline";
 import { EmailComposerDialog } from "./EmailComposerDialog";
 import { ReminderTypeDialog } from "./ReminderTypeDialog";
+import { AttachmentManager } from "./AttachmentManager";
 import { useShops } from "../hooks/useShops";
 import { useUpdateROStatus } from "../hooks/useROs";
 import type { RepairOrder } from "../types";
@@ -331,6 +332,9 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
                 </div>
               </div>
             )}
+
+            {/* Attachments */}
+            <AttachmentManager roNumber={ro.roNumber} />
 
             {/* Status History */}
             <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg p-4 border border-slate-200">

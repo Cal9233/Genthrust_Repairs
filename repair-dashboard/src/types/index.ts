@@ -79,3 +79,33 @@ export interface Shop {
   contactName: string; // alias for contact
   defaultTerms: string; // alias for paymentTerms
 }
+
+export interface Attachment {
+  id: string; // SharePoint/OneDrive file ID
+  name: string; // File name
+  size: number; // File size in bytes
+  mimeType: string; // File MIME type
+  webUrl: string; // URL to open in browser
+  downloadUrl: string; // Direct download URL
+  createdDateTime: Date; // When uploaded
+  createdBy: {
+    user: {
+      displayName: string;
+      email: string;
+    };
+  };
+  lastModifiedDateTime: Date;
+  lastModifiedBy: {
+    user: {
+      displayName: string;
+      email: string;
+    };
+  };
+}
+
+export interface AttachmentUploadProgress {
+  fileName: string;
+  progress: number; // 0-100
+  status: 'uploading' | 'success' | 'error';
+  error?: string;
+}

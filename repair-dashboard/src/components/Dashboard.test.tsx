@@ -104,7 +104,7 @@ describe('Dashboard', () => {
   });
 
   it('applies red styling to overdue card when overdue count > 0', () => {
-    const { container } = render(<Dashboard />);
+    render(<Dashboard />);
 
     const overdueCard = screen.getByText('Overdue').closest('.border-red-200');
     expect(overdueCard).toBeInTheDocument();
@@ -116,7 +116,7 @@ describe('Dashboard', () => {
       isLoading: false,
     } as any);
 
-    const { container } = render(<Dashboard />);
+    render(<Dashboard />);
 
     const overdueCard = screen.getByText('Overdue').closest('.border-gray-200');
     expect(overdueCard).toBeInTheDocument();

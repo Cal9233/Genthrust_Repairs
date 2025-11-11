@@ -63,8 +63,8 @@ describe('Checkbox', () => {
 
     it('supports controlled checkbox', async () => {
       const TestComponent = () => {
-        const [checked, setChecked] = React.useState(false);
-        return <Checkbox checked={checked} onCheckedChange={setChecked} data-testid="checkbox" />;
+        const [checked, setChecked] = React.useState<boolean>(false);
+        return <Checkbox checked={checked} onCheckedChange={(value) => setChecked(value as boolean)} data-testid="checkbox" />;
       };
 
       const { user } = render(<TestComponent />);

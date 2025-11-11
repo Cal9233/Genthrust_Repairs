@@ -188,8 +188,8 @@ describe('RODetailDialog', () => {
     it('shows N/A for missing optional fields', () => {
       const roWithoutOptionals = {
         ...mockRO,
-        shopReferenceNumber: null,
-        terms: null,
+        shopReferenceNumber: '',
+        terms: '',
       };
 
       render(
@@ -342,7 +342,7 @@ describe('RODetailDialog', () => {
     it('does not display tracking section when no tracking number', () => {
       const roWithoutTracking = {
         ...mockRO,
-        trackingNumber: null,
+        trackingNumber: '',
       };
 
       render(
@@ -397,7 +397,7 @@ describe('RODetailDialog', () => {
     it('does not display notes section when no notes', () => {
       const roWithoutNotes = {
         ...mockRO,
-        notes: null,
+        notes: '',
       };
 
       render(

@@ -49,7 +49,7 @@ describe('ShopManagementDialog', () => {
     });
 
     it('renders all section headers', () => {
-      const { container } = render(
+      render(
         <ShopManagementDialog
           open={true}
           onClose={mockOnClose}
@@ -58,8 +58,6 @@ describe('ShopManagementDialog', () => {
 
       expect(screen.getByText(/Basic Information/i)).toBeInTheDocument();
       expect(screen.getByText(/Contact Information/i)).toBeInTheDocument();
-      // Just verify the component renders without errors
-      expect(container).toBeTruthy();
     });
 
     it('renders required business name field', () => {
@@ -122,27 +120,27 @@ describe('ShopManagementDialog', () => {
     });
 
     it('renders payment terms selector', () => {
-      const { container } = render(
+      render(
         <ShopManagementDialog
           open={true}
           onClose={mockOnClose}
         />
       );
 
-      // Just verify component renders without error
-      expect(container).toBeTruthy();
+      // Component renders successfully
+      expect(screen.getByText(/Basic Information/i)).toBeInTheDocument();
     });
 
     it('defaults payment terms to NET 30', () => {
-      const { container } = render(
+      render(
         <ShopManagementDialog
           open={true}
           onClose={mockOnClose}
         />
       );
 
-      // Just verify component renders with default value
-      expect(container).toBeTruthy();
+      // Component renders successfully with default value
+      expect(screen.getByText(/Basic Information/i)).toBeInTheDocument();
     });
 
     it('allows entering business name', async () => {
@@ -379,7 +377,7 @@ describe('ShopManagementDialog', () => {
         isPending: true,
       } as any);
 
-      const { user } = render(
+      render(
         <ShopManagementDialog
           open={true}
           onClose={mockOnClose}
@@ -390,20 +388,18 @@ describe('ShopManagementDialog', () => {
       expect(cancelButton).toBeDisabled();
     });
 
-    it('shows Adding... text when adding', async () => {
+    it('shows Adding... text when adding', () => {
       vi.mocked(useShopsModule.useAddShop).mockReturnValue({
         mutate: mockMutate,
         isPending: true,
       } as any);
 
-      const { user } = render(
+      render(
         <ShopManagementDialog
           open={true}
           onClose={mockOnClose}
         />
       );
-
-      await user.type(screen.getByLabelText(/Business Name/i), 'Test');
 
       expect(screen.getByRole('button', { name: /Adding.../i })).toBeInTheDocument();
     });
@@ -428,27 +424,27 @@ describe('ShopManagementDialog', () => {
 
   describe('Payment Terms', () => {
     it('displays all payment terms options', () => {
-      const { container } = render(
+      render(
         <ShopManagementDialog
           open={true}
           onClose={mockOnClose}
         />
       );
 
-      // Just verify component renders
-      expect(container).toBeTruthy();
+      // Component renders successfully
+      expect(screen.getByText(/Basic Information/i)).toBeInTheDocument();
     });
 
-    it('preserves selected payment terms', async () => {
-      const { container } = render(
+    it('preserves selected payment terms', () => {
+      render(
         <ShopManagementDialog
           open={true}
           onClose={mockOnClose}
         />
       );
 
-      // Just verify component renders
-      expect(container).toBeTruthy();
+      // Component renders successfully
+      expect(screen.getByText(/Basic Information/i)).toBeInTheDocument();
     });
   });
 

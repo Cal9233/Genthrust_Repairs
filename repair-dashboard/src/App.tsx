@@ -4,6 +4,7 @@ import { loginRequest } from "./lib/msalConfig";
 import { excelService } from "./lib/excelService";
 import { shopService } from "./lib/shopService";
 import { reminderService } from "./lib/reminderService";
+import { sharePointService } from "./services/sharepoint";
 import { Dashboard } from "./components/Dashboard";
 import { ROTable } from "./components/ROTable";
 import { ShopDirectory } from "./components/ShopDirectory";
@@ -24,6 +25,7 @@ function App() {
       excelService.setMsalInstance(instance);
       shopService.setMsalInstance(instance);
       reminderService.setMsalInstance(instance);
+      sharePointService.setMsalInstance(instance);
       console.log("[App] MSAL instance set for services");
     }
   }, [instance]);

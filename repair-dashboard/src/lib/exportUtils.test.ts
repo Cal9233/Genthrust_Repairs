@@ -3,8 +3,8 @@ import { exportToCSV } from './exportUtils';
 import { mockRepairOrders } from '../test/mocks';
 
 // Mock URL.createObjectURL and related DOM APIs
-global.URL.createObjectURL = vi.fn(() => 'mock-url');
-global.URL.revokeObjectURL = vi.fn();
+globalThis.URL.createObjectURL = vi.fn(() => 'mock-url');
+globalThis.URL.revokeObjectURL = vi.fn();
 
 describe('exportUtils', () => {
   let mockLink: any;
@@ -30,7 +30,7 @@ describe('exportUtils', () => {
       exportToCSV(mockRepairOrders, 'test.csv');
 
       expect(document.createElement).toHaveBeenCalledWith('a');
-      expect(global.URL.createObjectURL).toHaveBeenCalled();
+      expect(globalThis.URL.createObjectURL).toHaveBeenCalled();
       expect(mockLink.setAttribute).toHaveBeenCalledWith('download', 'test.csv');
       expect(mockLink.click).toHaveBeenCalled();
     });
@@ -38,7 +38,7 @@ describe('exportUtils', () => {
     it('should include all repair order data', () => {
       exportToCSV(mockRepairOrders, 'test.csv');
 
-      const createObjectURLCall = vi.mocked(global.URL.createObjectURL).mock.calls[0][0] as Blob;
+      const createObjectURLCall = vi.mocked(globalThis.URL.createObjectURL).mock.calls[0][0] as Blob;
       expect(createObjectURLCall.type).toBe('text/csv;charset=utf-8;');
     });
 

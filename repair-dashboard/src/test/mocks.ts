@@ -1,4 +1,5 @@
 import type { RepairOrder, Shop } from '../types';
+import { vi } from 'vitest';
 
 // Mock repair orders
 export const mockRepairOrders: RepairOrder[] = [
@@ -20,18 +21,23 @@ export const mockRepairOrders: RepairOrder[] = [
     currentStatus: 'IN PROGRESS',
     currentStatusDate: new Date('2024-01-25'),
     genThrustStatus: 'Active',
-    orderType: 'Repair',
+    shopStatus: '',
+    trackingNumber: '',
+    lastDateUpdated: null,
     nextDateToUpdate: new Date('2024-02-01'),
+    checked: '',
     notes: 'Test notes',
     statusHistory: [
       {
         status: 'RECEIVED',
         date: new Date('2024-01-20'),
+        user: 'Test User',
         notes: 'Received from shop',
       },
       {
         status: 'IN PROGRESS',
         date: new Date('2024-01-25'),
+        user: 'Test User',
         notes: 'Started repair work',
       },
     ],
@@ -56,13 +62,17 @@ export const mockRepairOrders: RepairOrder[] = [
     currentStatus: 'WAITING QUOTE',
     currentStatusDate: new Date('2024-01-15'),
     genThrustStatus: 'Pending',
-    orderType: 'Repair',
+    shopStatus: '',
+    trackingNumber: '',
+    lastDateUpdated: null,
     nextDateToUpdate: new Date('2024-01-18'),
+    checked: '',
     notes: '',
     statusHistory: [
       {
         status: 'RECEIVED',
         date: new Date('2024-01-15'),
+        user: 'Test User',
         notes: 'Initial receipt',
       },
     ],
@@ -146,8 +156,11 @@ export const mockExcelResponse = {
     ro.currentStatus,
     ro.currentStatusDate?.toISOString(),
     ro.genThrustStatus,
-    ro.orderType,
+    ro.shopStatus,
+    ro.trackingNumber,
+    ro.lastDateUpdated?.toISOString(),
     ro.nextDateToUpdate?.toISOString(),
+    ro.checked,
     ro.notes,
   ]),
 };

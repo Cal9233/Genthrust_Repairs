@@ -67,9 +67,9 @@ export function ROTable() {
       filtered = filtered.filter(
         (ro) =>
           String(ro.roNumber).toLowerCase().includes(search.toLowerCase()) ||
-          ro.shopName.toLowerCase().includes(search.toLowerCase()) ||
-          ro.partDescription.toLowerCase().includes(search.toLowerCase()) ||
-          ro.serialNumber.toLowerCase().includes(search.toLowerCase())
+          ro.shopName?.toLowerCase().includes(search.toLowerCase()) ||
+          ro.partDescription?.toLowerCase().includes(search.toLowerCase()) ||
+          ro.serialNumber?.toLowerCase().includes(search.toLowerCase())
       );
     }
 

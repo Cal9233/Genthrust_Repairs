@@ -276,7 +276,7 @@ describe('AddRODialog', () => {
     });
 
     it('filters shops based on search query', async () => {
-      const { user, container } = render(
+      const { user } = render(
         <AddRODialog
           open={true}
           onClose={mockOnClose}
