@@ -345,7 +345,7 @@ class ExcelService {
 
       return {
         id: `row-${index}`,
-        roNumber: values[0] || "",
+        roNumber: String(values[0] ?? ""),
         dateMade: this.parseExcelDate(values[1]),
         shopName: values[2] || "",
         partNumber: values[3] || "",
