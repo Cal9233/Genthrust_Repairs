@@ -8,9 +8,11 @@ import { sharePointService } from "./services/sharepoint";
 import { Dashboard } from "./components/Dashboard";
 import { ROTable } from "./components/ROTable";
 import { ShopDirectory } from "./components/ShopDirectory";
+import { AICommandBar } from "./components/AICommandBar";
+import { AIAgentDialog } from "./components/AIAgentDialog";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
-import { LogOut, RefreshCw, ClipboardList, Store } from "lucide-react";
+import { LogOut, RefreshCw, ClipboardList, Store, Sparkles } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import logo from "./assets/GENLOGO.png";
 
@@ -19,6 +21,8 @@ function App() {
   const isAuthenticated = useIsAuthenticated();
   const queryClient = useQueryClient();
   const [currentView, setCurrentView] = useState<"repairs" | "shops">("repairs");
+  const [showAICommand, setShowAICommand] = useState(false);
+  const [showAIAgent, setShowAIAgent] = useState(false);
 
   useEffect(() => {
     if (instance) {
@@ -33,6 +37,19 @@ function App() {
   useEffect(() => {
     console.log("[App] Authentication status:", isAuthenticated);
   }, [isAuthenticated]);
+
+  // Keyboard shortcut for AI agent (Ctrl/Cmd + K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowAIAgent(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleLogin = async () => {
     try {
@@ -166,6 +183,16 @@ function App() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setShowAIAgent(true)}
+                className="hover:bg-purple-50 hover:border-purple-300 text-purple-600 border-purple-200"
+                title="AI Agent (Ctrl+K)"
+              >
+                <Sparkles className="h-4 w-4 mr-1" />
+                <span className="hidden lg:inline">AI Agent</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleRefresh}
                 className="hover:bg-blue-50 hover:border-blue-300"
               >
@@ -233,6 +260,12 @@ function App() {
       </main>
 
       <Toaster position="bottom-right" />
+
+      {/* AI Command Bar (legacy) */}
+      <AICommandBar isOpen={showAICommand} onClose={() => setShowAICommand(false)} />
+
+      {/* AI Agent Dialog */}
+      <AIAgentDialog open={showAIAgent} onOpenChange={setShowAIAgent} />
     </div>
   );
 }

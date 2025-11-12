@@ -283,3 +283,27 @@ export function generateEmail(
       return generateFollowUpEmail(ro, shop);
   }
 }
+
+/**
+ * Generate email for AI agent (with specific template types)
+ */
+export function generateEmailForAI(
+  templateType: 'quote_request' | 'status_update' | 'approval' | 'expedite' | 'confirm_receipt',
+  ro: RepairOrder,
+  shop: Shop | null
+): EmailContent {
+  switch (templateType) {
+    case 'quote_request':
+      return generateQuoteRequestEmail(ro, shop);
+    case 'status_update':
+      return generateFollowUpEmail(ro, shop);
+    case 'approval':
+      return generateApprovalEmail(ro, shop);
+    case 'expedite':
+      return generateExpeditedRequestEmail(ro, shop);
+    case 'confirm_receipt':
+      return generateReceiptConfirmationEmail(ro, shop);
+    default:
+      return generateFollowUpEmail(ro, shop);
+  }
+}

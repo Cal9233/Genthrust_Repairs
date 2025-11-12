@@ -66,10 +66,10 @@ export function ROTable() {
     if (search) {
       filtered = filtered.filter(
         (ro) =>
-          String(ro.roNumber).toLowerCase().includes(search.toLowerCase()) ||
-          ro.shopName?.toLowerCase().includes(search.toLowerCase()) ||
-          ro.partDescription?.toLowerCase().includes(search.toLowerCase()) ||
-          ro.serialNumber?.toLowerCase().includes(search.toLowerCase())
+          String(ro.roNumber)?.toLowerCase().includes(search.toLowerCase()) ||
+          String(ro.shopName)?.toLowerCase().includes(search.toLowerCase()) ||
+          String(ro.partDescription)?.toLowerCase().includes(search.toLowerCase()) ||
+          String(ro.serialNumber)?.toLowerCase().includes(search.toLowerCase())
       );
     }
 
