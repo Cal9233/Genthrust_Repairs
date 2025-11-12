@@ -9,26 +9,26 @@ interface StatusBadgeProps {
 export function StatusBadge({ status, isOverdue }: StatusBadgeProps) {
   const getStatusStyle = () => {
     if (isOverdue) {
-      return "bg-red-100 text-red-700 border-red-300 font-semibold";
+      return "bg-danger/10 text-danger border-danger/30 font-semibold";
     }
 
     if (status.includes("WAITING QUOTE")) {
-      return "bg-yellow-100 text-yellow-700 border-yellow-300 font-medium";
+      return "bg-warning/10 text-warning border-warning/30 font-medium";
     }
     if (status.includes("APPROVED")) {
-      return "bg-green-100 text-green-700 border-green-300 font-medium";
+      return "bg-success/10 text-success border-success/30 font-medium";
     }
     if (status.includes("BEING REPAIRED")) {
-      return "bg-purple-100 text-purple-700 border-purple-300 font-medium";
+      return "bg-[#8b5cf6]/10 text-[#8b5cf6] border-[#8b5cf6]/30 font-medium";
     }
     if (status.includes("SHIPPING")) {
-      return "bg-blue-100 text-blue-700 border-blue-300 font-medium";
+      return "bg-[#06b6d4]/10 text-[#06b6d4] border-[#06b6d4]/30 font-medium";
     }
     if (status.includes("PAID")) {
-      return "bg-gray-100 text-gray-700 border-gray-300 font-medium";
+      return "bg-secondary text-muted-foreground border-border font-medium";
     }
 
-    return "bg-gray-100 text-gray-700 border-gray-300 font-medium";
+    return "bg-secondary text-muted-foreground border-border font-medium";
   };
 
   const getIcon = () => {

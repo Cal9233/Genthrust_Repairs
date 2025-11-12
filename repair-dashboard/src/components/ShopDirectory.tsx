@@ -120,80 +120,83 @@ export function ShopDirectory() {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 md:space-y-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex flex-col gap-3 sm:gap-4">
           <div>
-            <div className="flex items-center gap-3">
-              <Store className="h-8 w-8 text-blue-600" />
-              <h2 className="text-3xl font-bold text-gray-900">
-                Vendor Directory
-              </h2>
-            </div>
-            <p className="text-sm text-gray-600 mt-1">
+            <h1 className="text-2xl sm:text-3xl md:text-h1 text-foreground mb-1 sm:mb-2">
+              Vendor Directory
+            </h1>
+            <p className="text-sm sm:text-[15px] text-muted-foreground font-normal">
               Manage repair vendors and their information
             </p>
           </div>
           <Button
             onClick={() => setShowAddDialog(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+            className="bg-gradient-blue text-white font-semibold shadow-[0_4px_12px_rgba(2,132,199,0.3)] button-lift transition-all duration-200 rounded-lg px-4 sm:px-5 py-2.5 sm:py-3 w-full sm:w-auto"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Add New Vendor
+            <Plus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Add New Vendor</span>
+            <span className="sm:hidden ml-2">Add Vendor</span>
           </Button>
         </div>
 
         {/* Search Bar */}
-        <Card className="shadow-sm border-gray-200">
-          <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <Input
-                placeholder="Search vendors by name, customer #, location, or contact..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-11 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <div className="relative">
+          <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+          <Input
+            placeholder="Search vendors..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 sm:pl-11 h-12 sm:h-14 border-2 border-input focus:border-bright-blue focus:ring-4 focus:ring-bright-blue/10 focus:bg-bg-secondary rounded-xl transition-all duration-200 text-sm"
+          />
+        </div>
 
         {/* Shop Stats */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-blue-900">
-                Total Vendors
+        <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-3">
+          <Card className="bg-card-blue border-l-[4px] sm:border-l-[5px] border-l-bright-blue border-t border-r border-b border-border shadow-[0_4px_12px_rgba(2,132,199,0.08)] lift-on-hover rounded-xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 sm:pb-3">
+              <CardTitle className="text-[11px] sm:text-[12px] md:text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
+                TOTAL VENDORS
               </CardTitle>
+              <div className="bg-bright-blue/15 p-2 sm:p-2.5 md:p-3 rounded-full">
+                <Store className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-bright-blue" strokeWidth={2.5} />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-900">
+              <div className="text-[32px] sm:text-[36px] md:text-[40px] font-bold text-foreground leading-none">
                 {shops.length}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-green-900">
-                With Email
+          <Card className="bg-card-green border-l-[4px] sm:border-l-[5px] border-l-success border-t border-r border-b border-border shadow-[0_4px_12px_rgba(16,185,129,0.08)] lift-on-hover rounded-xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 sm:pb-3">
+              <CardTitle className="text-[11px] sm:text-[12px] md:text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
+                WITH EMAIL
               </CardTitle>
+              <div className="bg-success/15 p-2 sm:p-2.5 md:p-3 rounded-full">
+                <Mail className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-success" strokeWidth={2.5} />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-900">
+              <div className="text-[32px] sm:text-[36px] md:text-[40px] font-bold text-foreground leading-none">
                 {shops.filter((s) => s.email).length}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-purple-900">
-                With Website
+          <Card className="bg-card-purple border-l-[4px] sm:border-l-[5px] border-l-[#8b5cf6] border-t border-r border-b border-border shadow-[0_4px_12px_rgba(139,92,246,0.08)] lift-on-hover rounded-xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 sm:pb-3">
+              <CardTitle className="text-[11px] sm:text-[12px] md:text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
+                WITH WEBSITE
               </CardTitle>
+              <div className="bg-[#8b5cf6]/15 p-2 sm:p-2.5 md:p-3 rounded-full">
+                <Phone className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-[#8b5cf6]" strokeWidth={2.5} />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-purple-900">
+              <div className="text-[32px] sm:text-[36px] md:text-[40px] font-bold text-foreground leading-none">
                 {shops.filter((s) => s.website).length}
               </div>
             </CardContent>
@@ -201,10 +204,9 @@ export function ShopDirectory() {
         </div>
 
         {/* Shop Table */}
-        <Card className="shadow-sm border-gray-200">
-          <CardHeader className="border-b bg-gradient-to-r from-slate-50 to-slate-100">
-            <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <div className="h-1 w-8 bg-blue-600 rounded"></div>
+        <Card className="shadow-vibrant-lg border-border rounded-xl overflow-hidden">
+          <CardHeader className="border-b border-border bg-secondary py-3 sm:py-4">
+            <CardTitle className="text-lg sm:text-xl md:text-h3 text-foreground">
               All Vendors ({filteredShops.length})
             </CardTitle>
           </CardHeader>
@@ -212,28 +214,30 @@ export function ShopDirectory() {
             <div className="relative overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gray-50 hover:bg-gray-50">
-                    <TableHead className="font-semibold text-gray-700">Customer #</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Business Name</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Contact</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Location</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Email</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Phone</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Payment Terms</TableHead>
-                    <TableHead className="sticky right-0 bg-gray-50 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)] font-semibold text-gray-700">Actions</TableHead>
+                  <TableRow className="bg-secondary hover:bg-secondary border-b border-border">
+                    <TableHead className="font-semibold text-muted-foreground text-[13px] uppercase">Customer #</TableHead>
+                    <TableHead className="font-semibold text-muted-foreground text-[13px] uppercase">Business Name</TableHead>
+                    <TableHead className="font-semibold text-muted-foreground text-[13px] uppercase">Contact</TableHead>
+                    <TableHead className="font-semibold text-muted-foreground text-[13px] uppercase">Location</TableHead>
+                    <TableHead className="font-semibold text-muted-foreground text-[13px] uppercase">Email</TableHead>
+                    <TableHead className="font-semibold text-muted-foreground text-[13px] uppercase">Phone</TableHead>
+                    <TableHead className="font-semibold text-muted-foreground text-[13px] uppercase">Payment Terms</TableHead>
+                    <TableHead className="sticky right-0 bg-secondary shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)] font-semibold text-muted-foreground text-[13px] uppercase">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredShops.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
-                        <div className="flex flex-col items-center gap-2 text-gray-500">
-                          <Store className="h-12 w-12 text-gray-300" />
-                          <p className="font-medium">No vendors found</p>
-                          <p className="text-sm">
+                      <TableCell colSpan={8} className="text-center py-12">
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="w-16 h-16 rounded-full bg-bright-blue/10 flex items-center justify-center">
+                            <Store className="h-8 w-8 text-bright-blue" />
+                          </div>
+                          <p className="font-semibold text-foreground text-lg">No vendors found</p>
+                          <p className="text-sm text-muted-foreground max-w-sm">
                             {searchQuery
-                              ? "Try adjusting your search"
-                              : "Get started by adding your first vendor"}
+                              ? "Try adjusting your search to find vendors"
+                              : "Get started by adding your first vendor to the directory"}
                           </p>
                         </div>
                       </TableCell>
@@ -245,67 +249,73 @@ export function ShopDirectory() {
                         .join(", ");
 
                       return (
-                        <TableRow key={shop.id} className="hover:bg-blue-50/50 transition-colors">
-                          <TableCell className="font-mono text-sm text-gray-900">
-                            {shop.customerNumber}
+                        <TableRow key={shop.id} className="hover:bg-bg-hover transition-smooth border-b border-border group">
+                          <TableCell className="font-mono text-[13px] text-muted-foreground font-medium">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-bright-blue/30 group-hover:bg-bright-blue transition-colors"></div>
+                              {shop.customerNumber}
+                            </div>
                           </TableCell>
-                          <TableCell className="font-semibold text-gray-900">
-                            {shop.businessName}
+                          <TableCell className="font-semibold text-sm text-foreground">
+                            <div className="flex items-center gap-2">
+                              <Store className="h-4 w-4 text-bright-blue opacity-0 group-hover:opacity-100 transition-opacity" />
+                              {shop.businessName}
+                            </div>
                           </TableCell>
-                          <TableCell className="text-gray-700">{shop.contact || "—"}</TableCell>
-                          <TableCell className="text-sm text-gray-600">
+                          <TableCell className="text-sm text-muted-foreground">{shop.contact || "—"}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
                             {location || "—"}
                           </TableCell>
                           <TableCell>
                             {shop.email ? (
                               <a
                                 href={`mailto:${shop.email}`}
-                                className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 font-medium"
+                                className="text-bright-blue hover:opacity-80 hover:underline flex items-center gap-1.5 font-medium"
                               >
                                 <Mail className="h-3.5 w-3.5" />
                                 <span className="truncate max-w-[200px]">{shop.email}</span>
                               </a>
                             ) : (
-                              <span className="text-gray-400">—</span>
+                              <span className="text-muted-foreground">—</span>
                             )}
                           </TableCell>
                           <TableCell>
                             {shop.phone ? (
                               <a
                                 href={`tel:${shop.phone}`}
-                                className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 font-medium"
+                                className="text-bright-blue hover:opacity-80 hover:underline flex items-center gap-1.5 font-medium"
                               >
                                 <Phone className="h-3.5 w-3.5" />
                                 {shop.phone}
                               </a>
                             ) : (
-                              <span className="text-gray-400">—</span>
+                              <span className="text-muted-foreground">—</span>
                             )}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className="font-medium border-blue-200 text-blue-700 bg-blue-50">
+                            <Badge variant="outline" className="font-semibold border-bright-blue/30 text-bright-blue bg-bright-blue/10 rounded-md px-2.5 py-1 text-xs">
                               {shop.paymentTerms}
                             </Badge>
                           </TableCell>
-                          <TableCell className="sticky right-0 bg-white shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)]">
-                            <div className="flex items-center gap-2">
+                          <TableCell className="sticky right-0 bg-background shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)]">
+                            <div className="flex items-center gap-3">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleEdit(shop)}
                                 title="Edit vendor"
-                                className="text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                                className="text-muted-foreground hover:text-bright-blue hover:bg-bright-blue/10"
                               >
-                                <Edit className="h-4 w-4" />
+                                <Edit className="h-5 w-5" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDelete(shop)}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                className="text-muted-foreground hover:text-danger hover:bg-danger/5"
                                 title="Delete vendor"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-5 w-5" />
                               </Button>
                             </div>
                           </TableCell>

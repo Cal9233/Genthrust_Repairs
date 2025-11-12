@@ -33,131 +33,168 @@ export function Dashboard() {
 
   const statCards = [
     {
-      title: "Active ROs",
+      title: "ACTIVE ROS",
       value: stats.totalActive,
       icon: Package,
-      bgColor: "bg-blue-50",
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600",
-      borderColor: "border-blue-200",
+      iconColor: "text-bright-blue",
+      iconBg: "bg-bright-blue/20",
+      borderColor: "border-l-bright-blue",
+      bgGradient: "bg-card-blue",
+      shadow: "shadow-[0_2px_8px_rgba(2,132,199,0.12)]",
     },
     {
-      title: "Overdue",
+      title: "OVERDUE",
       value: stats.overdue,
       icon: AlertTriangle,
-      bgColor: stats.overdue > 0 ? "bg-red-50" : "bg-gray-50",
-      iconBg: stats.overdue > 0 ? "bg-red-100" : "bg-gray-100",
-      iconColor: stats.overdue > 0 ? "text-red-600" : "text-gray-600",
-      borderColor: stats.overdue > 0 ? "border-red-200" : "border-gray-200",
+      iconColor: "text-danger",
+      iconBg: "bg-danger/20",
+      borderColor: "border-l-danger",
+      bgGradient: "bg-card-red",
+      shadow: "shadow-[0_2px_8px_rgba(239,68,68,0.12)]",
       alert: stats.overdue > 0,
+      alertColor: "text-danger",
     },
     {
-      title: "Waiting Quote",
+      title: "WAITING QUOTE",
       value: stats.waitingQuote,
       icon: Clock,
-      bgColor: "bg-yellow-50",
-      iconBg: "bg-yellow-100",
-      iconColor: "text-yellow-600",
-      borderColor: "border-yellow-200",
+      iconColor: "text-warning",
+      iconBg: "bg-warning/20",
+      borderColor: "border-l-warning",
+      bgGradient: "bg-card-amber",
+      shadow: "shadow-[0_2px_8px_rgba(245,158,11,0.12)]",
     },
     {
-      title: "Approved",
+      title: "APPROVED",
       value: stats.approved,
       icon: CheckCircle,
-      bgColor: "bg-green-50",
-      iconBg: "bg-green-100",
-      iconColor: "text-green-600",
-      borderColor: "border-green-200",
+      iconColor: "text-success",
+      iconBg: "bg-success/20",
+      borderColor: "border-l-success",
+      bgGradient: "bg-card-green",
+      shadow: "shadow-[0_2px_8px_rgba(16,185,129,0.12)]",
     },
     {
-      title: "Being Repaired",
+      title: "BEING REPAIRED",
       value: stats.beingRepaired,
       icon: Wrench,
-      bgColor: "bg-purple-50",
-      iconBg: "bg-purple-100",
-      iconColor: "text-purple-600",
-      borderColor: "border-purple-200",
+      iconColor: "text-[#8b5cf6]",
+      iconBg: "bg-[#8b5cf6]/20",
+      borderColor: "border-l-[#8b5cf6]",
+      bgGradient: "bg-card-purple",
+      shadow: "shadow-[0_2px_8px_rgba(139,92,246,0.12)]",
     },
     {
-      title: "Shipping",
+      title: "SHIPPING",
       value: stats.shipping,
       icon: Truck,
-      bgColor: "bg-cyan-50",
-      iconBg: "bg-cyan-100",
-      iconColor: "text-cyan-600",
-      borderColor: "border-cyan-200",
+      iconColor: "text-electric",
+      iconBg: "bg-electric/20",
+      borderColor: "border-l-electric",
+      bgGradient: "bg-card-cyan",
+      shadow: "shadow-[0_2px_8px_rgba(6,182,212,0.12)]",
     },
     {
-      title: "Due Today",
+      title: "DUE TODAY",
       value: stats.dueToday,
       icon: Calendar,
-      bgColor: stats.dueToday > 0 ? "bg-orange-50" : "bg-gray-50",
-      iconBg: stats.dueToday > 0 ? "bg-orange-100" : "bg-gray-100",
-      iconColor: stats.dueToday > 0 ? "text-orange-600" : "text-gray-600",
-      borderColor: stats.dueToday > 0 ? "border-orange-200" : "border-gray-200",
+      iconColor: "text-warning",
+      iconBg: "bg-warning/20",
+      borderColor: "border-l-warning",
+      bgGradient: "bg-card-amber",
+      shadow: "shadow-[0_2px_8px_rgba(245,158,11,0.12)]",
       alert: stats.dueToday > 0,
+      alertColor: "text-warning",
     },
     {
-      title: "Overdue 30+ Days",
+      title: "OVERDUE 30+ DAYS",
       value: stats.overdue30Plus,
       icon: AlertOctagon,
-      bgColor: stats.overdue30Plus > 0 ? "bg-rose-50" : "bg-gray-50",
-      iconBg: stats.overdue30Plus > 0 ? "bg-rose-100" : "bg-gray-100",
-      iconColor: stats.overdue30Plus > 0 ? "text-rose-600" : "text-gray-600",
-      borderColor: stats.overdue30Plus > 0 ? "border-rose-200" : "border-gray-200",
+      iconColor: "text-danger",
+      iconBg: "bg-danger/20",
+      borderColor: "border-l-danger",
+      bgGradient: "bg-card-red",
+      shadow: "shadow-[0_2px_8px_rgba(239,68,68,0.12)]",
       alert: stats.overdue30Plus > 0,
+      alertColor: "text-danger",
     },
     {
-      title: "On Track",
+      title: "ON TRACK",
       value: stats.onTrack,
       icon: TrendingUp,
-      bgColor: "bg-emerald-50",
-      iconBg: "bg-emerald-100",
-      iconColor: "text-emerald-600",
-      borderColor: "border-emerald-200",
+      iconColor: "text-success",
+      iconBg: "bg-success/20",
+      borderColor: "border-l-success",
+      bgGradient: "bg-card-green",
+      shadow: "shadow-[0_2px_8px_rgba(16,185,129,0.12)]",
     },
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="space-y-4 sm:space-y-6 md:space-y-8">
+      <div className="flex flex-col gap-3 sm:gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className="text-2xl sm:text-3xl md:text-display text-foreground mb-1 sm:mb-2">Dashboard</h1>
+          <p className="text-sm sm:text-[15px] text-muted-foreground font-normal">
             Overview of all repair orders
           </p>
         </div>
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 px-6 py-4 rounded-xl border border-blue-200">
-          <div className="text-xs font-medium text-blue-700 uppercase tracking-wide">
-            Total Value
+
+        {/* Total Value Cards */}
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Combined Total Value */}
+          <div className="bg-gradient-value px-4 sm:px-5 md:px-6 py-4 sm:py-5 rounded-xl shadow-[0_8px_24px_rgba(6,182,212,0.25)] animate-shimmer bg-[length:200%_200%]">
+            <div className="text-[10px] sm:text-[11px] font-semibold text-white/90 uppercase tracking-wider">
+              TOTAL VALUE
+            </div>
+            <div className="text-2xl sm:text-3xl md:text-display text-white mt-1 font-bold">
+              {formatCurrency(stats.totalValue)}
+            </div>
           </div>
-          <div className="text-2xl font-bold text-blue-900 mt-1">
-            {formatCurrency(stats.totalValue)}
+
+          {/* Estimated Value */}
+          <div className="bg-gradient-to-br from-[#f59e0b] to-[#d97706] px-4 sm:px-5 md:px-6 py-4 sm:py-5 rounded-xl shadow-[0_8px_24px_rgba(245,158,11,0.25)]">
+            <div className="text-[10px] sm:text-[11px] font-semibold text-white/90 uppercase tracking-wider">
+              ESTIMATED VALUE
+            </div>
+            <div className="text-2xl sm:text-3xl md:text-display text-white mt-1 font-bold">
+              {formatCurrency(stats.totalEstimatedValue)}
+            </div>
+          </div>
+
+          {/* Final/Repaired Value */}
+          <div className="bg-gradient-to-br from-[#10b981] to-[#059669] px-4 sm:px-5 md:px-6 py-4 sm:py-5 rounded-xl shadow-[0_8px_24px_rgba(16,185,129,0.25)]">
+            <div className="text-[10px] sm:text-[11px] font-semibold text-white/90 uppercase tracking-wider">
+              FINAL VALUE
+            </div>
+            <div className="text-2xl sm:text-3xl md:text-display text-white mt-1 font-bold">
+              {formatCurrency(stats.totalFinalValue)}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {statCards.map((stat) => (
           <Card
             key={stat.title}
-            className={`${stat.bgColor} ${stat.borderColor} border-2 hover:shadow-md transition-shadow duration-200`}
+            className={`${stat.bgGradient} border-l-[4px] sm:border-l-[5px] ${stat.borderColor} border-t border-r border-b border-border ${stat.shadow} lift-on-hover rounded-xl`}
           >
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-sm font-semibold text-gray-700">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 sm:pb-3">
+              <CardTitle className="text-[11px] sm:text-[12px] md:text-[13px] font-semibold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
                 {stat.title}
               </CardTitle>
-              <div className={`${stat.iconBg} p-2 rounded-lg`}>
-                <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
+              <div className={`${stat.iconBg} p-2 sm:p-2.5 md:p-3 rounded-full`}>
+                <stat.icon className={`h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 ${stat.iconColor}`} strokeWidth={2.5} />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gray-900">
+              <div className="text-[28px] sm:text-[32px] md:text-[36px] font-bold text-slate-900 dark:text-foreground leading-none">
                 {stat.value}
               </div>
               {stat.alert && (
-                <div className="mt-2 text-xs font-medium text-red-600 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
+                <div className={`mt-2 sm:mt-3 text-[11px] sm:text-[12px] md:text-[13px] font-semibold ${stat.alertColor} flex items-center gap-1.5`}>
+                  <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   Requires attention
                 </div>
               )}

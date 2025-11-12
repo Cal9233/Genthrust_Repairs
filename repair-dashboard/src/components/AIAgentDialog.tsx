@@ -83,16 +83,17 @@ useEffect(() => {
       setMessages(prev => [...prev, response]);
       setStreamingText('');
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('Error processing command:', error);
       toast.error('Failed to process command', {
-        description: error.message
+        description: errorMessage
       });
 
       // Add error message
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: `I encountered an error: ${error.message}. Please try again or rephrase your command.`,
+        content: `I encountered an error: ${errorMessage}. Please try again or rephrase your command.`,
         timestamp: new Date()
       }]);
 
@@ -116,31 +117,31 @@ useEffect(() => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showClose={false} className="max-w-5xl h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50">
-        {/* Modern Header with Gradient */}
-        <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 px-6 py-4 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl shadow-lg">
-                <Sparkles className="h-6 w-6 text-white" />
+      <DialogContent showClose={false} className="max-w-[calc(100%-2rem)] sm:max-w-3xl md:max-w-4xl lg:max-w-5xl h-[85vh] sm:h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-[hsl(var(--bg-primary))]">
+        {/* Professional Header */}
+        <div className="relative bg-gradient-header px-3 sm:px-4 md:px-6 py-3 sm:py-4 shadow-vibrant-lg">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-sm rounded-xl shadow-md">
+                <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-bold text-white m-0">
+                <DialogTitle className="text-lg sm:text-xl md:text-[24px] font-semibold text-white m-0">
                   AI Assistant
                 </DialogTitle>
-                <p className="text-xs text-blue-100 mt-0.5">
+                <p className="text-[10px] sm:text-xs text-white/70 mt-0.5 hidden sm:block">
                   Powered by Claude Sonnet 4
                 </p>
               </div>
             </div>
 
             {/* Quick Stats */}
-            <div className="hidden md:flex items-center gap-3 text-white/90 text-xs">
-              <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg">
+            <div className="hidden md:flex items-center gap-3 text-white/90 text-[13px]">
+              <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-[20px]">
                 <Package className="h-3.5 w-3.5" />
                 <span>{ros.length} ROs</span>
               </div>
-              <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg">
+              <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-[20px]">
                 <MessageSquare className="h-3.5 w-3.5" />
                 <span>{messages.length} messages</span>
               </div>
@@ -155,62 +156,59 @@ useEffect(() => {
               <X className="h-4 w-4" />
             </Button>
           </div>
-
-          {/* Decorative gradient line */}
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-indigo-400"></div>
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4">
           {messages.length === 0 && !streamingText && (
-            <div className="h-full flex flex-col items-center justify-center">
+            <div className="min-h-full flex flex-col items-center justify-center px-3 py-8">
               {/* Hero Section */}
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-purple-100 to-blue-100 rounded-2xl shadow-lg mb-4">
-                  <Sparkles className="h-10 w-10 text-purple-600" />
+              <div className="text-center mb-6 sm:mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-bright-blue/10 rounded-2xl shadow-vibrant mb-3 sm:mb-4">
+                  <Sparkles className="h-10 w-10 sm:h-12 sm:w-12 text-bright-blue" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
                   Welcome to AI Assistant
                 </h2>
-                <p className="text-gray-600 max-w-md">
+                <p className="text-sm sm:text-base text-muted-foreground max-w-md px-4">
                   Manage your repair orders with natural language commands. I can help with updates, queries, analytics, and more.
                 </p>
               </div>
 
               {/* Feature Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-3xl mb-6">
-                <Card className="p-4 border-blue-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 w-full max-w-3xl mb-4 sm:mb-6">
+                <Card className="p-4 sm:p-6 border border-border bg-card-blue shadow-vibrant hover:shadow-vibrant-lg transition-all hover:-translate-y-0.5 duration-200 rounded-xl">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg">
-                      <Zap className="h-5 w-5 text-blue-600" />
+                    <div className="flex items-center justify-center w-10 h-10 bg-bright-blue/15 rounded-lg">
+                      <Zap className="h-5 w-5 text-bright-blue" />
                     </div>
-                    <h3 className="font-semibold text-gray-900">Quick Updates</h3>
+                    <h3 className="font-semibold text-foreground">Quick Updates</h3>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     Update statuses, costs, and dates instantly with natural commands
                   </p>
                 </Card>
 
-                <Card className="p-4 border-purple-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <Card className="p-4 sm:p-6 border border-border bg-card-purple shadow-vibrant hover:shadow-vibrant-lg transition-all hover:-translate-y-0.5 duration-200 rounded-xl">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg">
-                      <MessageSquare className="h-5 w-5 text-purple-600" />
+                    <div className="flex items-center justify-center w-10 h-10 bg-[#8b5cf6]/15 rounded-lg">
+                      <MessageSquare className="h-5 w-5 text-[#8b5cf6]" />
                     </div>
-                    <h3 className="font-semibold text-gray-900">Smart Queries</h3>
+                    <h3 className="font-semibold text-foreground">Smart Queries</h3>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     Ask questions and get instant insights about your ROs
                   </p>
                 </Card>
 
-                <Card className="p-4 border-indigo-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <Card className="p-4 sm:p-6 border border-border bg-card-amber shadow-vibrant hover:shadow-vibrant-lg transition-all hover:-translate-y-0.5 duration-200 rounded-xl">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="flex items-center justify-center w-10 h-10 bg-indigo-100 rounded-lg">
-                      <TrendingUp className="h-5 w-5 text-indigo-600" />
+                    <div className="flex items-center justify-center w-10 h-10 bg-warning/15 rounded-lg">
+                      <TrendingUp className="h-5 w-5 text-warning" />
                     </div>
-                    <h3 className="font-semibold text-gray-900">Analytics</h3>
+                    <h3 className="font-semibold text-foreground">Analytics</h3>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     Get statistics, trends, and performance metrics
                   </p>
                 </Card>
@@ -218,31 +216,31 @@ useEffect(() => {
 
               {/* Example Commands */}
               <div className="w-full max-w-2xl">
-                <p className="text-sm font-medium text-gray-700 mb-3 text-center">
+                <p className="text-sm font-medium text-muted-foreground mb-3 text-center">
                   Try these example commands:
                 </p>
                 <div className="space-y-2">
                   <button
                     onClick={() => setInput("show me all overdue ROs")}
-                    className="w-full text-left p-3 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all text-sm group"
+                    className="w-full text-left p-3.5 bg-secondary border border-border rounded-lg hover:border-bright-blue hover:bg-bright-blue/5 transition-all duration-200 text-sm font-mono group"
                   >
-                    <span className="text-gray-700 group-hover:text-blue-700">
+                    <span className="text-muted-foreground group-hover:text-bright-blue">
                       "show me all overdue ROs"
                     </span>
                   </button>
                   <button
                     onClick={() => setInput("update RO39643 as delivered and mark RO40321 as paid")}
-                    className="w-full text-left p-3 bg-white border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-all text-sm group"
+                    className="w-full text-left p-3.5 bg-secondary border border-border rounded-lg hover:border-bright-blue hover:bg-bright-blue/5 transition-all duration-200 text-sm font-mono group"
                   >
-                    <span className="text-gray-700 group-hover:text-purple-700">
+                    <span className="text-muted-foreground group-hover:text-bright-blue">
                       "update RO39643 as delivered and mark RO40321 as paid"
                     </span>
                   </button>
                   <button
                     onClick={() => setInput("what's the total value of approved repairs?")}
-                    className="w-full text-left p-3 bg-white border border-gray-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 transition-all text-sm group"
+                    className="w-full text-left p-3.5 bg-secondary border border-border rounded-lg hover:border-bright-blue hover:bg-bright-blue/5 transition-all duration-200 text-sm font-mono group"
                   >
-                    <span className="text-gray-700 group-hover:text-indigo-700">
+                    <span className="text-muted-foreground group-hover:text-bright-blue">
                       "what's the total value of approved repairs?"
                     </span>
                   </button>
@@ -260,8 +258,8 @@ useEffect(() => {
             >
               {message.role === 'assistant' && (
                 <div className="flex-shrink-0 pt-1">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-100 to-blue-100 border border-purple-200 flex items-center justify-center shadow-sm">
-                    <Bot className="h-5 w-5 text-purple-600" />
+                  <div className="w-9 h-9 rounded-xl bg-bright-blue/10 border border-bright-blue/20 flex items-center justify-center shadow-sm">
+                    <Bot className="h-5 w-5 text-bright-blue" />
                   </div>
                 </div>
               )}
@@ -269,15 +267,15 @@ useEffect(() => {
               <div
                 className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${
                   message.role === 'user'
-                    ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white'
-                    : 'bg-white border border-gray-200'
+                    ? 'bg-gradient-blue text-white'
+                    : 'bg-secondary border border-border text-foreground'
                 }`}
               >
                 <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                   {typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}
                 </div>
                 <div className={`text-xs mt-2 flex items-center gap-1 ${
-                  message.role === 'user' ? 'text-blue-100' : 'text-gray-400'
+                  message.role === 'user' ? 'text-white/80' : 'text-muted-foreground'
                 }`}>
                   <span>{message.timestamp.toLocaleTimeString()}</span>
                 </div>
@@ -285,8 +283,8 @@ useEffect(() => {
 
               {message.role === 'user' && (
                 <div className="flex-shrink-0 pt-1">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 border border-blue-200 flex items-center justify-center shadow-sm">
-                    <User className="h-5 w-5 text-blue-600" />
+                  <div className="w-9 h-9 rounded-xl bg-deep-blue/10 border border-deep-blue/20 flex items-center justify-center shadow-sm">
+                    <User className="h-5 w-5 text-deep-blue" />
                   </div>
                 </div>
               )}
@@ -297,14 +295,14 @@ useEffect(() => {
           {streamingText && (
             <div className="flex gap-3 justify-start animate-in fade-in duration-200">
               <div className="flex-shrink-0 pt-1">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-100 to-blue-100 border border-purple-200 flex items-center justify-center shadow-sm">
-                  <Bot className="h-5 w-5 text-purple-600 animate-pulse" />
+                <div className="w-9 h-9 rounded-xl bg-bright-blue/10 border border-bright-blue/20 flex items-center justify-center shadow-sm">
+                  <Bot className="h-5 w-5 text-bright-blue animate-pulse" />
                 </div>
               </div>
-              <div className="max-w-[75%] rounded-2xl px-4 py-3 bg-white border border-gray-200 shadow-sm">
-                <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+              <div className="max-w-[75%] rounded-2xl px-4 py-3 bg-secondary border border-border shadow-sm">
+                <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
                   {streamingText}
-                  <span className="inline-block w-0.5 h-4 bg-purple-600 ml-1 animate-pulse" />
+                  <span className="inline-block w-0.5 h-4 bg-bright-blue ml-1 animate-pulse" />
                 </div>
               </div>
             </div>
@@ -313,9 +311,9 @@ useEffect(() => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area with Modern Design */}
-        <div className="border-t border-gray-200 bg-white p-4">
-          <form onSubmit={handleSubmit} className="flex gap-3">
+        {/* Input Area with Professional Design */}
+        <div className="border-t border-border bg-background p-3 sm:p-4">
+          <form onSubmit={handleSubmit} className="flex gap-2 sm:gap-3">
             <div className="flex-1 relative">
               <Textarea
                 ref={textareaRef}
@@ -323,10 +321,10 @@ useEffect(() => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Ask me anything about your repair orders..."
-                className="flex-1 min-h-[70px] max-h-[140px] resize-none border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-xl shadow-sm pr-12"
+                className="flex-1 min-h-[70px] max-h-[140px] resize-none border-2 border-input focus:border-bright-blue focus:ring-4 focus:ring-bright-blue/10 rounded-[10px] shadow-sm pr-12 text-sm"
                 disabled={isProcessing}
               />
-              <div className="absolute bottom-3 right-3 text-xs text-gray-400">
+              <div className="absolute bottom-3 right-3 text-xs text-muted-foreground">
                 {input.length > 0 && `${input.length} chars`}
               </div>
             </div>
@@ -335,7 +333,7 @@ useEffect(() => {
               <Button
                 type="submit"
                 disabled={!input.trim() || isProcessing}
-                className="h-[70px] px-5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl font-medium"
+                className="h-[70px] px-4 sm:px-6 bg-gradient-blue text-white shadow-[0_4px_12px_rgba(2,132,199,0.3)] hover:shadow-[0_6px_20px_rgba(2,132,199,0.4)] button-lift transition-all duration-200 rounded-lg font-medium"
               >
                 {isProcessing ? (
                   <div className="flex flex-col items-center gap-1">
@@ -362,7 +360,7 @@ useEffect(() => {
                   size="sm"
                   onClick={clearHistory}
                   disabled={isProcessing}
-                  className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg text-xs"
+                  className="text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg text-xs"
                 >
                   <X className="h-3 w-3 mr-1" />
                   Clear Chat
@@ -370,17 +368,17 @@ useEffect(() => {
               )}
             </div>
 
-            <p className="text-xs text-gray-500 flex items-center gap-1.5">
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <span className="inline-flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-300 rounded">
+                <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-secondary border border-border rounded">
                   Ctrl
                 </kbd>
                 <span>+</span>
-                <kbd className="px-1.5 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-300 rounded">
+                <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-secondary border border-border rounded">
                   K
                 </kbd>
               </span>
-              <span className="text-gray-400">to open</span>
+              <span className="text-muted-foreground">to open</span>
             </p>
           </div>
         </div>

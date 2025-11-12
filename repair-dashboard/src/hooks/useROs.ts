@@ -182,7 +182,9 @@ export function useDashboardStats() {
         ).length,
         shipping: ros.filter((ro) => ro.currentStatus.includes("SHIPPING"))
           .length,
-        totalValue: ros.reduce((sum, ro) => sum + (ro.finalCost || 0), 0),
+        totalValue: ros.reduce((sum, ro) => sum + (ro.finalCost || ro.estimatedCost || 0), 0),
+        totalEstimatedValue: ros.reduce((sum, ro) => sum + (ro.estimatedCost || 0), 0),
+        totalFinalValue: ros.reduce((sum, ro) => sum + (ro.finalCost || 0), 0),
         // New stats
         dueToday: ros.filter((ro) => isDueToday(ro.nextDateToUpdate)).length,
         overdue30Plus: ros.filter((ro) => ro.daysOverdue > 30).length,

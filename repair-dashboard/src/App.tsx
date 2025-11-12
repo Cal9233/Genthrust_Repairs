@@ -10,6 +10,7 @@ import { ROTable } from "./components/ROTable";
 import { ShopDirectory } from "./components/ShopDirectory";
 import { AICommandBar } from "./components/AICommandBar";
 import { AIAgentDialog } from "./components/AIAgentDialog";
+import { ThemeToggle } from "./components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
 import { LogOut, RefreshCw, ClipboardList, Store, Sparkles } from "lucide-react";
@@ -91,38 +92,36 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 relative overflow-hidden">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse delay-700"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
+        {/* Subtle pattern overlay */}
+        <div className="absolute inset-0 overflow-hidden opacity-[0.03]">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'repeating-linear-gradient(45deg, hsl(var(--primary-deep-blue)) 0px, hsl(var(--primary-deep-blue)) 1px, transparent 1px, transparent 20px)',
+          }}></div>
         </div>
 
         {/* Login Card */}
-        <div className="relative max-w-md w-full mx-4">
-          <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
-            {/* Decorative header bar */}
-            <div className="h-2 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600"></div>
-
-            <div className="p-10 space-y-8">
+        <div className="relative max-w-[420px] w-full mx-4">
+          <div className="bg-card-blue rounded-2xl shadow-vibrant-xl border border-border overflow-hidden">
+            <div className="p-8 sm:p-12 space-y-6 sm:space-y-8">
               {/* Logo and Title */}
-              <div className="text-center space-y-6">
+              <div className="text-center space-y-4 sm:space-y-6">
                 <div className="mx-auto flex justify-center">
                   <div className="relative">
-                    <div className="absolute inset-0 bg-blue-100 rounded-full blur-xl opacity-50"></div>
+                    <div className="absolute inset-0 bg-bright-blue/10 rounded-full blur-xl"></div>
                     <img
                       src={logo}
                       alt="GenThrust Logo"
-                      className="relative h-24 w-auto object-contain"
+                      className="relative h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  <h1 className="text-2xl sm:text-[28px] font-bold text-foreground tracking-tight">
                     GenThrust RO Tracker
                   </h1>
-                  <p className="text-lg text-gray-600 font-medium">
+                  <p className="text-sm sm:text-[15px] text-muted-foreground font-normal">
                     Track aircraft parts sent to repair stations
                   </p>
                 </div>
@@ -132,10 +131,9 @@ function App() {
               <div className="space-y-4">
                 <Button
                   onClick={handleLogin}
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-                  size="lg"
+                  className="w-full bg-gradient-blue text-white font-semibold shadow-[0_4px_12px_rgba(2,132,199,0.3)] hover:shadow-[0_6px_20px_rgba(2,132,199,0.4)] button-lift transition-all duration-200 rounded-[10px] h-auto py-3 sm:py-3.5 text-sm sm:text-[15px]"
                 >
-                  <svg className="w-5 h-5 mr-2" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M10 0H0V10H10V0Z" fill="currentColor"/>
                     <path d="M21 0H11V10H21V0Z" fill="currentColor"/>
                     <path d="M10 11H0V21H10V11Z" fill="currentColor"/>
@@ -144,69 +142,60 @@ function App() {
                   Sign in with Microsoft
                 </Button>
 
-                <p className="text-xs text-center text-gray-500">
+                <p className="text-xs text-center text-muted-foreground">
                   Secure authentication powered by Microsoft Azure
                 </p>
               </div>
             </div>
-
-            {/* Decorative footer gradient */}
-            <div className="h-1 bg-gradient-to-r from-indigo-600 via-blue-500 to-blue-600"></div>
           </div>
-
-          {/* Shadow effect underneath */}
-          <div className="absolute inset-x-0 -bottom-6 h-6 bg-gradient-to-b from-black/10 to-transparent blur-xl"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-slate-50">
-      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-3">
-            <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-background">
+      <header className="bg-gradient-header border-b border-deep-blue/20 sticky top-0 z-50 shadow-[0_4px_16px_rgba(12,74,110,0.15)]">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-3 md:py-4">
+            <div className="flex items-center gap-2 md:gap-3">
               <img
                 src={logo}
                 alt="GenThrust Logo"
-                className="h-12 w-auto object-contain"
+                className="h-7 sm:h-8 md:h-9 w-auto object-contain"
               />
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-base sm:text-lg md:text-[20px] font-semibold text-white">
                 RO Tracker
               </h1>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-gray-700 hidden sm:block">
+            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+              <span className="text-xs sm:text-sm font-medium text-white/90 hidden md:block">
                 {accounts[0]?.name}
               </span>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowAIAgent(true)}
-                className="relative group bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border-purple-200 hover:border-purple-300 text-purple-700 hover:text-purple-800 font-medium shadow-sm hover:shadow-md transition-all duration-200"
+                className="relative group bg-gradient-blue border-electric text-white font-semibold shadow-[0_2px_8px_rgba(6,182,212,0.3)] hover:shadow-[0_4px_16px_rgba(6,182,212,0.4)] transition-all duration-200 rounded-lg button-lift px-2 sm:px-3"
                 title="AI Assistant (Ctrl+K)"
               >
-                <Sparkles className="h-4 w-4 mr-1.5 group-hover:animate-pulse" />
-                <span className="hidden lg:inline">AI Assistant</span>
-                <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
-                </span>
+                <Sparkles className="h-4 w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">AI Assistant</span>
               </Button>
+              <ThemeToggle />
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={handleRefresh}
-                className="hover:bg-blue-50 hover:border-blue-300"
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 rounded-lg px-2 sm:px-3"
               >
                 <RefreshCw className="h-4 w-4" />
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={handleLogout}
-                className="hover:bg-red-50 hover:border-red-300"
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 rounded-lg px-2 sm:px-3 hidden sm:flex"
               >
                 <LogOut className="h-4 w-4" />
               </Button>
@@ -214,44 +203,46 @@ function App() {
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex gap-2 pb-3">
+          <div className="flex gap-1.5 sm:gap-2 pb-2 sm:pb-3 overflow-x-auto">
             <Button
-              variant={currentView === "repairs" ? "default" : "ghost"}
+              variant="ghost"
               size="sm"
               onClick={() => setCurrentView("repairs")}
               className={
                 currentView === "repairs"
-                  ? "bg-blue-600 text-white hover:bg-blue-700"
-                  : "text-gray-600 hover:bg-gray-100"
+                  ? "bg-white text-deep-blue hover:bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-200 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 font-semibold text-xs sm:text-sm whitespace-nowrap"
+                  : "bg-white/15 text-white hover:bg-white/25 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 transition-all duration-200 text-xs sm:text-sm whitespace-nowrap"
               }
             >
-              <ClipboardList className="h-4 w-4 mr-2" />
-              Repair Orders
+              <ClipboardList className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Repair Orders</span>
+              <span className="sm:hidden ml-1.5">Repairs</span>
             </Button>
             <Button
-              variant={currentView === "shops" ? "default" : "ghost"}
+              variant="ghost"
               size="sm"
               onClick={() => setCurrentView("shops")}
               className={
                 currentView === "shops"
-                  ? "bg-blue-600 text-white hover:bg-blue-700"
-                  : "text-gray-600 hover:bg-gray-100"
+                  ? "bg-white text-deep-blue hover:bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-200 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 font-semibold text-xs sm:text-sm whitespace-nowrap"
+                  : "bg-white/15 text-white hover:bg-white/25 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 transition-all duration-200 text-xs sm:text-sm whitespace-nowrap"
               }
             >
-              <Store className="h-4 w-4 mr-2" />
-              Shop Directory
+              <Store className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Shop Directory</span>
+              <span className="sm:hidden ml-1.5">Shops</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
         <div className="space-y-8">
           {currentView === "repairs" ? (
             <>
               <Dashboard />
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              <div className="bg-background rounded-xl shadow-vibrant-lg border border-border p-6">
+                <h2 className="text-2xl font-bold text-foreground mb-6">
                   Repair Orders
                 </h2>
                 <ROTable />

@@ -24,13 +24,9 @@ export const tools: Tool[] = [
               enum: ["TO SEND", "WAITING QUOTE", "APPROVED", "BEING REPAIRED", "SHIPPING", "PAID"],
               description: "New status for the repair order"
             },
-            estimated_cost: {
+            cost: {
               type: "number",
-              description: "Estimated cost in dollars"
-            },
-            final_cost: {
-              type: "number",
-              description: "Final cost in dollars"
+              description: "Cost in dollars. Will update Estimated Cost for non-final statuses, or Final Cost for PAID/SHIPPING statuses."
             },
             estimated_delivery_date: {
               type: "string",
@@ -183,6 +179,58 @@ export const tools: Tool[] = [
       },
       required: ["ro_number", "template_type"]
     }
+  },
+  {
+    name: "query_reminders",
+    description: "Query and retrieve information about existing RO reminders in Microsoft To Do and Calendar. Can search all reminders or filter by specific RO number.",
+    input_schema: {
+      type: "object",
+      properties: {
+        ro_number: {
+          type: "string",
+          description: "Optional: Specific RO number to search for. If not provided, returns all RO reminders."
+        },
+        date_filter: {
+          type: "string",
+          enum: ["all", "today", "this_week", "overdue"],
+          description: "Optional: Filter reminders by date. Default is 'all'."
+        }
+      },
+      required: []
+    }
+  },
+  {
+    name: "delete_reminders",
+    description: "Delete reminders for one or more RO numbers. Removes both To Do tasks and Calendar events.",
+    input_schema: {
+      type: "object",
+      properties: {
+        ro_numbers: {
+          type: "array",
+          items: { type: "string" },
+          description: "List of RO numbers to delete reminders for"
+        }
+      },
+      required: ["ro_numbers"]
+    }
+  },
+  {
+    name: "update_reminder_date",
+    description: "Update the due date for an RO reminder. Updates both To Do task and Calendar event if they exist.",
+    input_schema: {
+      type: "object",
+      properties: {
+        ro_number: {
+          type: "string",
+          description: "RO number to update reminder for"
+        },
+        new_date: {
+          type: "string",
+          description: "New due date in ISO format (YYYY-MM-DD)"
+        }
+      },
+      required: ["ro_number", "new_date"]
+    }
   }
 ];
 
@@ -207,7 +255,7 @@ export const toolExecutors: Record<string, ToolExecutor> = {
 
       // Prepare the update data
       const statusToUpdate = updates.status || ro.currentStatus;
-      const costToUpdate = updates.estimated_cost;
+      const costToUpdate = updates.cost;
       const deliveryDate = updates.estimated_delivery_date ? new Date(updates.estimated_delivery_date) : undefined;
       const notes = updates.notes;
 
@@ -222,8 +270,11 @@ export const toolExecutors: Record<string, ToolExecutor> = {
 
       const updatedFields = [];
       if (updates.status) updatedFields.push('status');
-      if (updates.estimated_cost !== undefined) updatedFields.push('estimated_cost');
-      if (updates.final_cost !== undefined) updatedFields.push('final_cost');
+      if (updates.cost !== undefined) {
+        // Determine which cost field was updated based on status
+        const isFinalStatus = statusToUpdate.includes("PAID") || statusToUpdate.includes("SHIPPING");
+        updatedFields.push(isFinalStatus ? 'final_cost' : 'estimated_cost');
+      }
       if (updates.estimated_delivery_date) updatedFields.push('estimated_delivery_date');
       if (updates.notes) updatedFields.push('notes');
       if (updates.tracking_number) updatedFields.push('tracking_number');
@@ -547,6 +598,153 @@ export const toolExecutors: Record<string, ToolExecutor> = {
       return {
         success: false,
         error: error.message
+      };
+    }
+  },
+
+  query_reminders: async (input, context) => {
+    const { ro_number, date_filter = 'all' } = input;
+
+    try {
+      // Get reminders from Microsoft services
+      let reminders = await reminderService.searchROReminders(ro_number);
+
+      // Apply date filter
+      const now = new Date();
+      if (date_filter === 'today') {
+        const today = now.toDateString();
+        reminders = reminders.filter(r => r.dueDate.toDateString() === today);
+      } else if (date_filter === 'this_week') {
+        const weekFromNow = new Date(now);
+        weekFromNow.setDate(weekFromNow.getDate() + 7);
+        reminders = reminders.filter(r => r.dueDate >= now && r.dueDate <= weekFromNow);
+      } else if (date_filter === 'overdue') {
+        reminders = reminders.filter(r => r.dueDate < now);
+      }
+
+      // Match with actual ROs to get additional info
+      const enrichedReminders = reminders.map(reminder => {
+        const ro = context.allROs.find(r =>
+          r.roNumber.toString().includes(reminder.roNumber) ||
+          reminder.roNumber.includes(r.roNumber.toString())
+        );
+
+        return {
+          ro_number: reminder.roNumber,
+          reminder_type: reminder.type,
+          due_date: reminder.dueDate.toISOString(),
+          has_todo: !!reminder.todoTask,
+          has_calendar: !!reminder.calendarEvent,
+          todo_status: reminder.todoTask?.status,
+          // Include RO info if found
+          ro_exists: !!ro,
+          ro_status: ro?.currentStatus,
+          ro_shop: ro?.shopName,
+          ro_actual_due_date: ro?.nextDateToUpdate,
+          is_overdue: reminder.dueDate < now
+        };
+      });
+
+      return {
+        total_count: enrichedReminders.length,
+        filter_applied: date_filter,
+        reminders: enrichedReminders
+      };
+
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to query reminders'
+      };
+    }
+  },
+
+  delete_reminders: async (input, _context) => {
+    const { ro_numbers } = input;
+
+    const results = {
+      successful: [] as string[],
+      partial: [] as { ro_number: string; details: string }[],
+      failed: [] as { ro_number: string; error: string }[]
+    };
+
+    for (const ro_number of ro_numbers) {
+      try {
+        const result = await reminderService.deleteROReminder(ro_number);
+
+        if (result.todo && result.calendar) {
+          // Both deleted successfully
+          results.successful.push(ro_number);
+        } else if (result.todo || result.calendar) {
+          // Only one deleted (partial success)
+          const deletedFrom = result.todo ? 'To Do' : 'Calendar';
+          const missingFrom = result.todo ? 'Calendar' : 'To Do';
+          results.partial.push({
+            ro_number,
+            details: `Deleted from ${deletedFrom} (no ${missingFrom} event found)`
+          });
+        } else {
+          // Neither found
+          results.failed.push({
+            ro_number,
+            error: 'No reminders found for this RO'
+          });
+        }
+      } catch (error: any) {
+        results.failed.push({
+          ro_number,
+          error: error.message
+        });
+      }
+    }
+
+    return {
+      total: ro_numbers.length,
+      successful_count: results.successful.length,
+      partial_count: results.partial.length,
+      failed_count: results.failed.length,
+      successful: results.successful,
+      partial: results.partial,
+      failed: results.failed
+    };
+  },
+
+  update_reminder_date: async (input, _context) => {
+    const { ro_number, new_date } = input;
+
+    try {
+      const newDateObj = new Date(new_date);
+
+      // Validate date
+      if (isNaN(newDateObj.getTime())) {
+        return {
+          success: false,
+          error: 'Invalid date format'
+        };
+      }
+
+      const result = await reminderService.updateROReminderDate(ro_number, newDateObj);
+
+      if (!result.todo && !result.calendar) {
+        return {
+          success: false,
+          error: 'No reminders found for this RO'
+        };
+      }
+
+      return {
+        success: true,
+        ro_number,
+        new_date: newDateObj.toISOString(),
+        updated_todo: result.todo,
+        updated_calendar: result.calendar,
+        message: `Reminder updated to ${newDateObj.toLocaleDateString()}`
+      };
+
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to update reminder'
       };
     }
   }

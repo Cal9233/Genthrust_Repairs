@@ -2,6 +2,7 @@ import type { IPublicClientApplication } from "@azure/msal-browser";
 import { loginRequest } from "./msalConfig";
 import type { RepairOrder, StatusHistoryEntry } from "../types";
 import { calculateNextUpdateDate } from "./businessRules";
+import { reminderService, ReminderService } from "./reminderService";
 
 const SITE_URL = import.meta.env.VITE_SHAREPOINT_SITE_URL;
 const FILE_NAME = import.meta.env.VITE_EXCEL_FILE_NAME;
@@ -451,12 +452,53 @@ class ExcelService {
       currentValues[19] = todayISO; // Last Updated
       currentValues[20] = nextUpdateISO; // Next Date to Update (auto-calculated)
 
+      // Update cost columns if provided
+      if (cost !== undefined) {
+        // Determine which cost column to update based on status
+        // For final statuses (PAID, SHIPPING), update Final Cost
+        // Otherwise, update Estimated Cost
+        const isFinalStatus = status.includes("PAID") || status.includes("SHIPPING");
+
+        if (isFinalStatus) {
+          currentValues[9] = cost; // Final Cost (column 9)
+        } else {
+          currentValues[8] = cost; // Estimated Cost (column 8)
+        }
+      }
+
       await this.callGraphAPI(
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
         "PATCH",
         { values: [currentValues] },
         true // use session
       );
+
+      // Create payment due calendar event for NET payment terms
+      // Do this after the Excel update succeeds
+      const isFinalStatus = status.includes("PAID") || status.includes("SHIPPING");
+      if (isFinalStatus && cost !== undefined && paymentTerms) {
+        const netDays = ReminderService.extractNetDays(paymentTerms);
+        if (netDays) {
+          // Get RO number from current values (column 0)
+          const roNumber = currentValues[0];
+          // Get shop name from current values (column 2)
+          const shopName = currentValues[2];
+
+          // Create calendar event asynchronously (don't block on failure)
+          reminderService.createPaymentDueCalendarEvent({
+            roNumber,
+            shopName,
+            invoiceDate: today,
+            amount: cost,
+            netDays
+          }).catch((error) => {
+            console.error('[Excel Service] Failed to create payment due calendar event:', error);
+            // Don't throw - we don't want to fail the whole update if calendar creation fails
+          });
+
+          console.log(`[Excel Service] Payment due calendar event will be created for RO ${roNumber}: NET ${netDays} (due ${new Date(today.getTime() + netDays * 24 * 60 * 60 * 1000).toLocaleDateString()})`);
+        }
+      }
     } finally {
       // Always close the session, even if there was an error
       await this.closeSession();

@@ -46,6 +46,8 @@ export interface DashboardStats {
   beingRepaired: number;
   shipping: number;
   totalValue: number;
+  totalEstimatedValue: number;
+  totalFinalValue: number;
   dueToday: number;
   overdue30Plus: number;
   onTrack: number;

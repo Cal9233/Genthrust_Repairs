@@ -67,3 +67,18 @@ export interface ConversationState {
   isProcessing: boolean;
   currentToolCalls: string[];
 }
+
+// RO Reminder query result
+export interface ROReminder {
+  roNumber: string;
+  type: 'todo' | 'calendar' | 'both';
+  dueDate: Date;
+  hasToDo: boolean;
+  hasCalendar: boolean;
+  todoStatus?: string;
+  roExists: boolean;
+  roStatus?: string;
+  roShop?: string;
+  roActualDueDate?: Date;
+  isOverdue: boolean;
+}

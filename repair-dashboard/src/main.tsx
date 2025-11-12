@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { MsalProvider } from '@azure/msal-react'
 import { PublicClientApplication } from '@azure/msal-browser'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ThemeProvider } from './contexts/ThemeContext'
 import { msalConfig } from './lib/msalConfig'
 import './index.css'
 import App from './App.tsx'
@@ -20,10 +21,12 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MsalProvider instance={msalInstance}>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    </MsalProvider>
+    <ThemeProvider>
+      <MsalProvider instance={msalInstance}>
+        <QueryClientProvider client={queryClient}>
+          <App />
+        </QueryClientProvider>
+      </MsalProvider>
+    </ThemeProvider>
   </StrictMode>,
 )

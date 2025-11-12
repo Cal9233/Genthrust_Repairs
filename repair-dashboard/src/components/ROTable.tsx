@@ -27,7 +27,7 @@ import { AddRODialog } from "./AddRODialog";
 import { EmailComposerDialog } from "./EmailComposerDialog";
 import { BulkActionsBar } from "./BulkActionsBar";
 import { exportToCSV } from "../lib/exportUtils";
-import { Search, ArrowUpDown, AlertTriangle, Plus, Mail, X, Filter, Edit, Trash2 } from "lucide-react";
+import { Search, ArrowUpDown, AlertTriangle, Plus, Mail, X, Filter, Edit, Trash2, AlertCircle, Clock, DollarSign, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import type { RepairOrder } from "../types";
 
@@ -202,128 +202,149 @@ export function ROTable() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
+    <div className="space-y-3 sm:space-y-4">
+      <div className="flex flex-col gap-3 sm:gap-4">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search ROs, shops, parts..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+            className="pl-10 border-2 border-input focus:border-bright-blue focus:ring-4 focus:ring-bright-blue/10 focus:bg-bg-secondary rounded-xl transition-all duration-200 w-full"
           />
         </div>
-        <div className="flex items-center gap-3">
-          <div className="text-sm font-medium text-gray-600 bg-gray-100 px-4 py-2 rounded-lg">
+        <div className="flex items-center justify-between gap-2 sm:gap-3">
+          <div className="text-xs sm:text-sm font-semibold text-muted-foreground bg-secondary px-3 sm:px-4 py-2 rounded-lg border border-border">
             {filteredAndSorted.length} of {ros?.length || 0} ROs
           </div>
           <Button
             onClick={() => setShowAddDialog(true)}
-            className="bg-green-600 hover:bg-green-700 text-white font-medium shadow-sm"
+            className="bg-gradient-blue text-white font-semibold shadow-[0_4px_12px_rgba(2,132,199,0.3)] button-lift transition-all duration-200 rounded-lg px-3 sm:px-4"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            New RO
+            <Plus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">New RO</span>
           </Button>
         </div>
       </div>
 
       {/* Smart Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1 text-sm font-medium text-gray-700">
-          <Filter className="h-4 w-4" />
-          Filters:
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1 text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          <span className="hidden sm:inline">Filters:</span>
         </div>
         <Button
-          variant={filters.overdue ? "default" : "outline"}
+          variant="outline"
           size="sm"
           onClick={() => setFilter("overdue", !filters.overdue)}
-          className={filters.overdue ? "bg-red-600 hover:bg-red-700" : ""}
+          className={
+            filters.overdue
+              ? "bg-danger text-white border-danger hover:bg-danger/90 shadow-[0_2px_8px_rgba(239,68,68,0.3)] font-semibold transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+              : "bg-danger/10 text-danger border-danger/30 hover:bg-danger/15 hover:border-danger/50 transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+          }
         >
-          🔴 Overdue
+          <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
+          <span className="hidden sm:inline">Overdue</span>
         </Button>
         <Button
-          variant={filters.dueThisWeek ? "default" : "outline"}
+          variant="outline"
           size="sm"
           onClick={() => setFilter("dueThisWeek", !filters.dueThisWeek)}
-          className={filters.dueThisWeek ? "bg-yellow-600 hover:bg-yellow-700" : ""}
+          className={
+            filters.dueThisWeek
+              ? "bg-warning text-white border-warning hover:bg-warning/90 shadow-[0_2px_8px_rgba(245,158,11,0.3)] font-semibold transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+              : "bg-warning/10 text-warning border-warning/30 hover:bg-warning/15 hover:border-warning/50 transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+          }
         >
-          ⏰ Due This Week
+          <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
+          <span className="hidden sm:inline">Due This Week</span>
         </Button>
         <Button
-          variant={filters.highValue ? "default" : "outline"}
+          variant="outline"
           size="sm"
           onClick={() => setFilter("highValue", !filters.highValue)}
-          className={filters.highValue ? "bg-green-600 hover:bg-green-700" : ""}
+          className={
+            filters.highValue
+              ? "bg-success text-white border-success hover:bg-success/90 shadow-[0_2px_8px_rgba(16,185,129,0.3)] font-semibold transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+              : "bg-success/10 text-success border-success/30 hover:bg-success/15 hover:border-success/50 transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+          }
         >
-          💰 High Value ($5K+)
+          <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
+          <span className="hidden sm:inline">High Value ($5K+)</span>
         </Button>
         <Button
-          variant={filters.waitingAction ? "default" : "outline"}
+          variant="outline"
           size="sm"
           onClick={() => setFilter("waitingAction", !filters.waitingAction)}
-          className={filters.waitingAction ? "bg-blue-600 hover:bg-blue-700" : ""}
+          className={
+            filters.waitingAction
+              ? "bg-bright-blue text-white border-bright-blue hover:bg-bright-blue/90 shadow-[0_2px_8px_rgba(2,132,199,0.3)] font-semibold transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+              : "bg-bright-blue/10 text-bright-blue border-bright-blue/30 hover:bg-bright-blue/15 hover:border-bright-blue/50 transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+          }
         >
-          📋 Waiting Quote
+          <ClipboardList className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
+          <span className="hidden sm:inline">Waiting Quote</span>
         </Button>
         {activeFilterCount > 0 && (
           <Button
             variant="ghost"
             size="sm"
             onClick={clearFilters}
-            className="text-gray-600 hover:text-gray-900"
+            className="text-muted-foreground hover:text-foreground hover:bg-secondary text-xs sm:text-sm px-2 sm:px-3"
           >
-            <X className="h-4 w-4 mr-1" />
-            Clear Filters ({activeFilterCount})
+            <X className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Clear Filters ({activeFilterCount})</span>
+            <span className="sm:hidden">Clear ({activeFilterCount})</span>
           </Button>
         )}
       </div>
 
-      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+      <div className="border border-border rounded-xl overflow-hidden bg-background shadow-vibrant-lg">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-gray-50 hover:bg-gray-50">
-                <TableHead className="w-[50px]">
+              <TableRow className="bg-secondary hover:bg-secondary border-b border-border">
+                <TableHead className="w-[40px] sm:w-[50px]">
                   <Checkbox
                     checked={isAllSelected}
                     onCheckedChange={handleToggleSelectAll}
                     aria-label="Select all"
-                    className={isSomeSelected ? "data-[state=checked]:bg-blue-500" : ""}
+                    className={isSomeSelected ? "data-[state=checked]:bg-bright-blue" : ""}
                   />
                 </TableHead>
-                <TableHead className="font-semibold text-gray-700">
+                <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
                   <Button
                     variant="ghost"
                     onClick={() => handleSort("roNumber")}
-                    className="hover:bg-gray-100 font-semibold"
+                    className="hover:bg-bg-hover font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] px-2 sm:px-3"
                   >
                     RO #
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    <ArrowUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </TableHead>
-                <TableHead className="font-semibold text-gray-700">
+                <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
                   Shop
                 </TableHead>
-                <TableHead className="font-semibold text-gray-700">
+                <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
                   Part
                 </TableHead>
-                <TableHead className="font-semibold text-gray-700">
+                <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
                   Status
                 </TableHead>
-                <TableHead className="font-semibold text-gray-700">
+                <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
                   <Button
                     variant="ghost"
                     onClick={() => handleSort("nextDateToUpdate")}
-                    className="hover:bg-gray-100 font-semibold"
+                    className="hover:bg-bg-hover font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] px-2 sm:px-3"
                   >
                     Next Update
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    <ArrowUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </TableHead>
-                <TableHead className="text-right font-semibold text-gray-700">
+                <TableHead className="text-right font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
                   Cost
                 </TableHead>
-                <TableHead className="sticky right-0 bg-gray-50 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)] font-semibold text-gray-700">
+                <TableHead className="sticky right-0 bg-secondary hover:bg-secondary shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)] font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
                   Actions
                 </TableHead>
               </TableRow>
@@ -332,10 +353,10 @@ export function ROTable() {
               {filteredAndSorted.map((ro) => (
                 <TableRow
                   key={ro.id}
-                  className={`hover:bg-gray-50 transition-colors ${
-                    ro.isOverdue ? "bg-red-50 hover:bg-red-100" : ""
+                  className={`hover:bg-bg-hover transition-smooth border-b border-border group ${
+                    ro.isOverdue ? "bg-danger/5 hover:bg-danger/10" : ""
                   } ${
-                    selectedRONumbers.includes(ro.roNumber) ? "bg-blue-50" : ""
+                    selectedRONumbers.includes(ro.roNumber) ? "bg-bright-blue/5" : ""
                   }`}
                 >
                   <TableCell>
@@ -345,12 +366,12 @@ export function ROTable() {
                       aria-label={`Select RO ${ro.roNumber}`}
                     />
                   </TableCell>
-                  <TableCell className="font-semibold text-gray-900">
+                  <TableCell className="font-semibold text-foreground">
                     {ro.roNumber}
                   </TableCell>
-                  <TableCell className="text-gray-700">{ro.shopName}</TableCell>
+                  <TableCell className="text-muted-foreground">{ro.shopName}</TableCell>
                   <TableCell>
-                    <div className="max-w-xs truncate text-gray-700">
+                    <div className="max-w-xs truncate text-muted-foreground">
                       {ro.partDescription}
                     </div>
                   </TableCell>
@@ -361,20 +382,22 @@ export function ROTable() {
                     />
                   </TableCell>
                   <TableCell>
-                    <div className="text-gray-900">
+                    <div className="text-foreground">
                       {formatDate(ro.nextDateToUpdate)}
                     </div>
                     {ro.isOverdue && (
-                      <div className="text-xs font-semibold text-red-600 flex items-center gap-1 mt-1">
+                      <div className="text-xs font-semibold text-danger flex items-center gap-1 mt-1">
                         <AlertTriangle className="h-3 w-3" />
                         {ro.daysOverdue} days overdue
                       </div>
                   )}
                   </TableCell>
-                  <TableCell className="text-right font-semibold text-gray-900">
+                  <TableCell className="text-right font-semibold text-foreground">
                     {formatCurrency(ro.finalCost)}
                   </TableCell>
-                  <TableCell className="sticky right-0 bg-white shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)]">
+                  <TableCell className={`sticky right-0 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)] ${
+                    ro.isOverdue ? "bg-danger/5 hover:bg-danger/10" : selectedRONumbers.includes(ro.roNumber) ? "bg-bright-blue/5" : "bg-background"
+                  }`}>
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
@@ -383,7 +406,7 @@ export function ROTable() {
                           e.stopPropagation();
                           setEditingRO(ro);
                         }}
-                        className="text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                        className="text-muted-foreground hover:text-bright-blue hover:bg-bright-blue/10"
                         title="Edit RO"
                       >
                         <Edit className="h-4 w-4" />
@@ -395,7 +418,7 @@ export function ROTable() {
                           e.stopPropagation();
                           setDeletingRO(ro);
                         }}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="text-muted-foreground hover:text-danger hover:bg-danger/10"
                         title="Delete RO"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -407,7 +430,7 @@ export function ROTable() {
                           e.stopPropagation();
                           setEmailRO(ro);
                         }}
-                        className="text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                        className="text-muted-foreground hover:text-bright-blue hover:bg-bright-blue/10"
                         title="Send Email"
                       >
                         <Mail className="h-4 w-4" />
@@ -415,7 +438,7 @@ export function ROTable() {
                       <Button
                         size="sm"
                         onClick={() => setSelectedRO(ro)}
-                        className="bg-blue-600 text-white hover:bg-blue-700 font-medium shadow-sm"
+                        className="bg-gradient-blue text-white font-semibold shadow-[0_4px_12px_rgba(2,132,199,0.3)] hover:shadow-[0_6px_20px_rgba(2,132,199,0.4)] hover:-translate-y-0.5 transition-all duration-200"
                       >
                         View Details
                       </Button>

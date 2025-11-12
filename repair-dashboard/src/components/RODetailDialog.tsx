@@ -137,10 +137,10 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader className="border-b pb-4">
-            <DialogTitle className="flex items-center justify-between text-2xl">
-              <span className="font-bold text-gray-900">RO #{ro.roNumber}</span>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto bg-slate-900 rounded-[20px] shadow-[0_20px_60px_rgba(0,0,0,0.5)] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-800 [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb:hover]:bg-slate-600">
+          <DialogHeader className="bg-slate-800 -mx-6 -mt-6 px-6 pt-6 pb-4 mb-4 rounded-t-[20px]">
+            <DialogTitle className="flex items-center justify-between">
+              <span className="font-bold text-white text-[28px]">RO #{ro.roNumber}</span>
               <StatusBadge status={ro.currentStatus} isOverdue={ro.isOverdue} />
             </DialogTitle>
           </DialogHeader>
@@ -148,14 +148,14 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
           <div className="space-y-6 py-4">
             {/* First-time user help text */}
             {isFirstTimeUser && ro.nextDateToUpdate && (
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200">
+              <div className="bg-slate-800 rounded-lg p-4 border-2 border-purple-500/30">
                 <div className="flex items-start gap-3">
-                  <Info className="h-5 w-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                  <Info className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold text-purple-900">
+                    <p className="text-sm font-semibold text-purple-300">
                       First time using reminders?
                     </p>
-                    <p className="text-xs text-purple-800">
+                    <p className="text-xs text-slate-300">
                       Clicking "Set Reminder" will ask for permission to access your Microsoft To Do and Calendar.
                       This is secure and only happens once. You can choose to create reminders in one or both apps.
                     </p>
@@ -168,14 +168,14 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
             <div className="flex flex-wrap gap-3">
               <Button
                 onClick={() => setShowUpdateStatus(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+                className="bg-gradient-blue text-white font-semibold shadow-[0_4px_12px_rgba(2,132,199,0.3)] hover:shadow-[0_6px_20px_rgba(2,132,199,0.4)] button-lift transition-all duration-200"
               >
                 Update Status
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setShowEmailComposer(true)}
-                className="gap-2 border-gray-300 hover:bg-gray-50"
+                className="gap-2 bg-slate-800 border-2 border-slate-700 text-slate-200 hover:bg-slate-700 transition-all"
               >
                 <Mail className="h-4 w-4" />
                 Email Shop
@@ -185,7 +185,7 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
                   variant="outline"
                   onClick={() => setShowReminderTypeDialog(true)}
                   disabled={isCreatingReminder}
-                  className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+                  className="gap-2 bg-slate-800 border-2 border-purple-600 text-purple-300 hover:bg-purple-950 transition-all disabled:opacity-50"
                 >
                   <Bell className="h-4 w-4" />
                   <CalendarIcon className="h-4 w-4" />
@@ -195,83 +195,83 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
             </div>
 
             {/* Shop Info */}
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <h3 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
-                <div className="h-1 w-8 bg-blue-600 rounded"></div>
+            <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+              <h3 className="font-semibold text-white text-lg mb-3 flex items-center gap-2">
+                <div className="h-1.5 w-10 bg-cyan-600 rounded"></div>
                 Shop Information
               </h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-blue-700 font-medium">Shop:</span>{" "}
-                  <span className="font-semibold text-gray-900">{ro.shopName}</span>
+                  <span className="text-slate-400 font-semibold">Shop:</span>{" "}
+                  <span className="font-normal text-slate-200">{ro.shopName}</span>
                 </div>
                 <div>
-                  <span className="text-blue-700 font-medium">Shop Ref:</span>{" "}
-                  <span className="text-gray-900">{ro.shopReferenceNumber || "N/A"}</span>
+                  <span className="text-slate-400 font-semibold">Shop Ref:</span>{" "}
+                  <span className="text-slate-200">{ro.shopReferenceNumber || "N/A"}</span>
                 </div>
                 <div>
-                  <span className="text-blue-700 font-medium">Terms:</span>{" "}
-                  <span className="text-gray-900">{ro.terms || "N/A"}</span>
+                  <span className="text-slate-400 font-semibold">Terms:</span>{" "}
+                  <span className="text-slate-200">{ro.terms || "N/A"}</span>
                 </div>
               </div>
             </div>
 
             {/* Part Info */}
-            <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-              <h3 className="font-semibold text-purple-900 mb-3 flex items-center gap-2">
-                <div className="h-1 w-8 bg-purple-600 rounded"></div>
+            <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+              <h3 className="font-semibold text-white text-lg mb-3 flex items-center gap-2">
+                <div className="h-1.5 w-10 bg-purple-600 rounded"></div>
                 Part Information
               </h3>
               <div className="space-y-3 text-sm">
                 <div>
-                  <span className="text-purple-700 font-medium">Description:</span>{" "}
-                  <span className="font-semibold text-gray-900">{ro.partDescription}</span>
+                  <span className="text-slate-400 font-semibold">Description:</span>{" "}
+                  <span className="font-normal text-slate-200">{ro.partDescription}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <span className="text-purple-700 font-medium">Part #:</span>{" "}
-                    <span className="text-gray-900">{ro.partNumber || "N/A"}</span>
+                    <span className="text-slate-400 font-semibold">Part #:</span>{" "}
+                    <span className="text-slate-200">{ro.partNumber || "N/A"}</span>
                   </div>
                   <div>
-                    <span className="text-purple-700 font-medium">Serial #:</span>{" "}
-                    <span className="text-gray-900">{ro.serialNumber || "N/A"}</span>
+                    <span className="text-slate-400 font-semibold">Serial #:</span>{" "}
+                    <span className="text-slate-200">{ro.serialNumber || "N/A"}</span>
                   </div>
                 </div>
                 <div>
-                  <span className="text-purple-700 font-medium">Required Work:</span>{" "}
-                  <span className="text-gray-900">{ro.requiredWork || "N/A"}</span>
+                  <span className="text-slate-400 font-semibold">Required Work:</span>{" "}
+                  <span className="text-slate-200">{ro.requiredWork || "N/A"}</span>
                 </div>
               </div>
             </div>
 
             {/* Dates */}
-            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-              <h3 className="font-semibold text-green-900 mb-3 flex items-center gap-2">
-                <div className="h-1 w-8 bg-green-600 rounded"></div>
+            <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+              <h3 className="font-semibold text-white text-lg mb-3 flex items-center gap-2">
+                <div className="h-1.5 w-10 bg-green-600 rounded"></div>
                 Timeline
               </h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-green-700 font-medium">Date Made:</span>{" "}
-                  <span className="text-gray-900">{formatDate(ro.dateMade)}</span>
+                  <span className="text-slate-400 font-semibold">Date Made:</span>{" "}
+                  <span className="text-slate-200">{formatDate(ro.dateMade)}</span>
                 </div>
                 <div>
-                  <span className="text-green-700 font-medium">Dropped Off:</span>{" "}
-                  <span className="text-gray-900">{formatDate(ro.dateDroppedOff)}</span>
+                  <span className="text-slate-400 font-semibold">Dropped Off:</span>{" "}
+                  <span className="text-slate-200">{formatDate(ro.dateDroppedOff)}</span>
                 </div>
                 <div>
-                  <span className="text-green-700 font-medium">Est. Delivery:</span>{" "}
-                  <span className="text-gray-900">{formatDate(ro.estimatedDeliveryDate)}</span>
+                  <span className="text-slate-400 font-semibold">Est. Delivery:</span>{" "}
+                  <span className="text-slate-200">{formatDate(ro.estimatedDeliveryDate)}</span>
                 </div>
                 <div>
-                  <span className="text-green-700 font-medium">Last Updated:</span>{" "}
-                  <span className="text-gray-900">{formatDate(ro.lastDateUpdated)}</span>
+                  <span className="text-slate-400 font-semibold">Last Updated:</span>{" "}
+                  <span className="text-slate-200">{formatDate(ro.lastDateUpdated)}</span>
                 </div>
                 <div
-                  className={ro.isOverdue ? "text-red-600 font-semibold" : ""}
+                  className={ro.isOverdue ? "font-semibold" : ""}
                 >
-                  <span className="text-green-700 font-medium">Next Update:</span>{" "}
-                  <span className={ro.isOverdue ? "text-red-600" : "text-gray-900"}>
+                  <span className="text-slate-400 font-semibold">Next Update:</span>{" "}
+                  <span className={ro.isOverdue ? "text-red-400" : "text-slate-200"}>
                     {formatDate(ro.nextDateToUpdate)}
                     {ro.isOverdue && ` (${ro.daysOverdue} days overdue)`}
                   </span>
@@ -280,19 +280,19 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
             </div>
 
             {/* Costs */}
-            <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-              <h3 className="font-semibold text-orange-900 mb-3 flex items-center gap-2">
-                <div className="h-1 w-8 bg-orange-600 rounded"></div>
+            <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+              <h3 className="font-semibold text-white text-lg mb-3 flex items-center gap-2">
+                <div className="h-1.5 w-10 bg-orange-600 rounded"></div>
                 Costs
               </h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-orange-700 font-medium">Estimated:</span>{" "}
-                  <span className="text-gray-900 font-semibold">{formatCurrency(ro.estimatedCost)}</span>
+                  <span className="text-slate-400 font-semibold">Estimated:</span>{" "}
+                  <span className="text-slate-200 font-normal">{formatCurrency(ro.estimatedCost)}</span>
                 </div>
                 <div>
-                  <span className="text-orange-700 font-medium">Final:</span>{" "}
-                  <span className="font-semibold text-gray-900">
+                  <span className="text-slate-400 font-semibold">Final:</span>{" "}
+                  <span className="font-normal text-slate-200">
                     {formatCurrency(ro.finalCost)}
                   </span>
                 </div>
@@ -301,18 +301,18 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
 
             {/* Tracking */}
             {ro.trackingNumber && (
-              <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
-                <h3 className="font-semibold text-indigo-900 mb-3 flex items-center gap-2">
-                  <div className="h-1 w-8 bg-indigo-600 rounded"></div>
+              <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+                <h3 className="font-semibold text-white text-lg mb-3 flex items-center gap-2">
+                  <div className="h-1.5 w-10 bg-indigo-600 rounded"></div>
                   Shipping
                 </h3>
                 <div className="text-sm">
-                  <span className="text-indigo-700 font-medium">Tracking:</span>{" "}
+                  <span className="text-slate-400 font-semibold">Tracking:</span>{" "}
                   <a
                     href={`https://www.ups.com/track?tracknum=${ro.trackingNumber}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                    className="text-cyan-400 hover:text-cyan-300 hover:underline font-normal"
                   >
                     {ro.trackingNumber}
                   </a>
@@ -322,12 +322,12 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
 
             {/* Notes */}
             {ro.notes && (
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <div className="h-1 w-8 bg-gray-600 rounded"></div>
+              <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+                <h3 className="font-semibold text-white text-lg mb-3 flex items-center gap-2">
+                  <div className="h-1.5 w-10 bg-slate-600 rounded"></div>
                   Notes
                 </h3>
-                <div className="text-sm bg-white p-3 rounded-md whitespace-pre-wrap border border-gray-200 text-gray-700">
+                <div className="text-sm bg-slate-900 p-3 rounded-md whitespace-pre-wrap border border-slate-700 text-slate-200">
                   {ro.notes}
                 </div>
               </div>
@@ -337,9 +337,9 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
             <AttachmentManager roNumber={ro.roNumber} />
 
             {/* Status History */}
-            <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg p-4 border border-slate-200">
-              <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <div className="h-1 w-8 bg-slate-600 rounded"></div>
+            <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+              <h3 className="font-semibold text-white text-lg mb-4 flex items-center gap-2">
+                <div className="h-1.5 w-10 bg-slate-600 rounded"></div>
                 Status History
               </h3>
               <StatusTimeline history={ro.statusHistory} />

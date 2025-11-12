@@ -3,25 +3,314 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
+  :root.light {
+    /* Aerospace with Energy - Vibrant Professional Palette (LIGHT MODE) */
+
+    /* Primary Colors - Rich Blues with Energy */
+    --primary-deep-blue: 201 96% 24%;    /* #0c4a6e - Rich ocean blue */
+    --primary-bright-blue: 199 89% 39%;  /* #0284c7 - Vibrant sky blue */
+    --accent-electric: 188 94% 43%;      /* #06b6d4 - Cyan with energy */
+    --accent-sunset: 24 95% 53%;         /* #f97316 - Aviation orange */
+
+    /* Semantic Colors - More Vibrant */
+    --success-green: 142 71% 45%;        /* #10b981 - Vibrant emerald */
+    --warning-amber: 38 92% 50%;         /* #f59e0b - Energetic amber */
+    --danger-red: 0 72% 51%;             /* #ef4444 - Clear alert red */
+
+    /* Background Colors - White base with fresh tints */
+    --bg-primary: 0 0% 100%;             /* #ffffff - Pure white */
+    --bg-secondary: 204 100% 97%;        /* #f0f9ff - Very light sky blue */
+    --bg-accent: 187 100% 96%;           /* #ecfeff - Light cyan tint */
+    --bg-hover: 204 100% 97%;            /* #f0f9ff - Light blue hover */
+
+    /* Text Colors - Warmer blacks and grays */
+    --text-primary: 215 25% 17%;         /* #1e293b - Warm dark slate */
+    --text-secondary: 215 16% 36%;       /* #475569 - Warmer gray */
+    --text-tertiary: 215 16% 47%;        /* #64748b - Friendly gray */
+
+    /* shadcn/ui Theme Variables (mapped to vibrant colors) */
+    --background: 0 0% 100%;             /* Pure white */
+    --foreground: 215 25% 17%;           /* Warm dark slate */
+    --primary: 199 89% 39%;              /* Vibrant bright blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 204 100% 97%;           /* Light sky blue */
+    --secondary-foreground: 215 25% 17%;
+    --muted: 204 100% 97%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 188 94% 43%;               /* Electric cyan */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;               /* Light border */
+    --input: 204 94% 94%;                /* #e0f2fe - Light blue tint */
+    --ring: 199 89% 39%;
+    --radius: 0.75rem;
+
+    /* Enhanced Shadow System with Color */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 12px rgba(2, 132, 199, 0.08);
+    --shadow-lg: 0 8px 24px rgba(2, 132, 199, 0.15);
+    --shadow-xl: 0 12px 28px rgba(0, 0, 0, 0.12);
+    --shadow-colored: 0 4px 12px rgba(6, 182, 212, 0.3);
+  }
+
+  :root.dark {
+    /* Aerospace with Energy - Vibrant Professional Palette (DARK MODE) */
+
+    /* Primary Colors - Brighter for dark backgrounds */
+    --primary-deep-blue: 201 96% 35%;    /* Lighter deep blue for visibility */
+    --primary-bright-blue: 199 89% 50%;  /* #0ea5e9 - Brighter sky blue */
+    --accent-electric: 188 94% 53%;      /* #22d3ee - Brighter cyan */
+    --accent-sunset: 24 95% 60%;         /* Brighter orange */
+
+    /* Semantic Colors - Adjusted for dark mode */
+    --success-green: 142 71% 55%;        /* #34d399 - Brighter emerald */
+    --warning-amber: 38 92% 60%;         /* #fbbf24 - Brighter amber */
+    --danger-red: 0 72% 61%;             /* #f87171 - Brighter red */
+
+    /* Background Colors - Dark aerospace blues */
+    --bg-primary: 215 28% 11%;           /* #0f172a - Deep slate */
+    --bg-secondary: 215 25% 16%;         /* #1e293b - Slightly lighter slate */
+    --bg-accent: 215 25% 20%;            /* #334155 - Elevated surface */
+    --bg-hover: 215 25% 18%;             /* Hover state */
+
+    /* Text Colors - Lighter for dark backgrounds */
+    --text-primary: 210 40% 98%;         /* #f8fafc - Almost white */
+    --text-secondary: 214 32% 81%;       /* #cbd5e1 - Light gray */
+    --text-tertiary: 215 20% 65%;        /* #94a3b8 - Medium gray */
+
+    /* shadcn/ui Theme Variables (dark mode) */
+    --background: 215 28% 11%;           /* Deep slate */
+    --foreground: 210 40% 98%;           /* Almost white */
+    --primary: 199 89% 50%;              /* Brighter bright blue */
+    --primary-foreground: 215 28% 11%;
+    --secondary: 215 25% 16%;            /* Slightly lighter slate */
+    --secondary-foreground: 210 40% 98%;
+    --muted: 215 25% 16%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 188 94% 53%;               /* Brighter electric cyan */
+    --accent-foreground: 215 28% 11%;
+    --destructive: 0 72% 61%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --radius: 0.5rem;
+    --border: 215 25% 20%;               /* Subtle border */
+    --input: 215 25% 16%;                /* Dark input background */
+    --ring: 199 89% 50%;
+    --radius: 0.75rem;
+
+    /* Enhanced Shadow System with Color (darker shadows) */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+    --shadow-xl: 0 12px 28px rgba(0, 0, 0, 0.7);
+    --shadow-colored: 0 4px 12px rgba(6, 182, 212, 0.4);
+  }
+
+  /* Default to light mode if no class */
+  :root {
+    /* Aerospace with Energy - Vibrant Professional Palette */
+
+    /* Primary Colors - Rich Blues with Energy */
+    --primary-deep-blue: 201 96% 24%;    /* #0c4a6e - Rich ocean blue */
+    --primary-bright-blue: 199 89% 39%;  /* #0284c7 - Vibrant sky blue */
+    --accent-electric: 188 94% 43%;      /* #06b6d4 - Cyan with energy */
+    --accent-sunset: 24 95% 53%;         /* #f97316 - Aviation orange */
+
+    /* Semantic Colors - More Vibrant */
+    --success-green: 142 71% 45%;        /* #10b981 - Vibrant emerald */
+    --warning-amber: 38 92% 50%;         /* #f59e0b - Energetic amber */
+    --danger-red: 0 72% 51%;             /* #ef4444 - Clear alert red */
+
+    /* Background Colors - White base with fresh tints */
+    --bg-primary: 0 0% 100%;             /* #ffffff - Pure white */
+    --bg-secondary: 204 100% 97%;        /* #f0f9ff - Very light sky blue */
+    --bg-accent: 187 100% 96%;           /* #ecfeff - Light cyan tint */
+    --bg-hover: 204 100% 97%;            /* #f0f9ff - Light blue hover */
+
+    /* Text Colors - Warmer blacks and grays */
+    --text-primary: 215 25% 17%;         /* #1e293b - Warm dark slate */
+    --text-secondary: 215 16% 36%;       /* #475569 - Warmer gray */
+    --text-tertiary: 215 16% 47%;        /* #64748b - Friendly gray */
+
+    /* shadcn/ui Theme Variables (mapped to vibrant colors) */
+    --background: 0 0% 100%;             /* Pure white */
+    --foreground: 215 25% 17%;           /* Warm dark slate */
+    --primary: 199 89% 39%;              /* Vibrant bright blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 204 100% 97%;           /* Light sky blue */
+    --secondary-foreground: 215 25% 17%;
+    --muted: 204 100% 97%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 188 94% 43%;               /* Electric cyan */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;               /* Light border */
+    --input: 204 94% 94%;                /* #e0f2fe - Light blue tint */
+    --ring: 199 89% 39%;
+    --radius: 0.75rem;
+
+    /* Enhanced Shadow System with Color */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 12px rgba(2, 132, 199, 0.08);
+    --shadow-lg: 0 8px 24px rgba(2, 132, 199, 0.15);
+    --shadow-xl: 0 12px 28px rgba(0, 0, 0, 0.12);
+    --shadow-colored: 0 4px 12px rgba(6, 182, 212, 0.3);
   }
 }
 
-body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    @apply bg-background text-foreground;
+  }
+
+  /* Typography System */
+  h1 {
+    @apply text-[28px] font-bold leading-[1.3];
+  }
+
+  h2 {
+    @apply text-[24px] font-semibold leading-[1.3];
+  }
+
+  h3 {
+    @apply text-[20px] font-semibold leading-[1.4];
+  }
+}
+
+@layer utilities {
+  /* Vibrant Color Utilities */
+  .bg-gradient-blue {
+    background: linear-gradient(135deg, hsl(var(--primary-bright-blue)) 0%, hsl(var(--accent-electric)) 100%);
+  }
+
+  .bg-gradient-header {
+    background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
+    box-shadow: 0 2px 12px rgba(3, 105, 161, 0.15);
+  }
+
+  .dark .bg-gradient-header {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  }
+
+  .bg-gradient-value {
+    background: linear-gradient(135deg, hsl(var(--primary-deep-blue)) 0%, hsl(var(--primary-bright-blue)) 50%, hsl(var(--accent-electric)) 100%);
+  }
+
+  /* Card Gradient Backgrounds - Light Mode (More Vibrant) */
+  .bg-card-blue {
+    background: linear-gradient(135deg, #ffffff 0%, #e0f2fe 100%);
+  }
+
+  .dark .bg-card-blue {
+    background: linear-gradient(135deg, #1e293b 0%, #1e3a5f 100%);
+  }
+
+  .bg-card-red {
+    background: linear-gradient(135deg, #ffffff 0%, #fee2e2 100%);
+  }
+
+  .dark .bg-card-red {
+    background: linear-gradient(135deg, #1e293b 0%, #3f1f1f 100%);
+  }
+
+  .bg-card-amber {
+    background: linear-gradient(135deg, #ffffff 0%, #fef3c7 100%);
+  }
+
+  .dark .bg-card-amber {
+    background: linear-gradient(135deg, #1e293b 0%, #3f3520 100%);
+  }
+
+  .bg-card-green {
+    background: linear-gradient(135deg, #ffffff 0%, #d1fae5 100%);
+  }
+
+  .dark .bg-card-green {
+    background: linear-gradient(135deg, #1e293b 0%, #1f3f2f 100%);
+  }
+
+  .bg-card-purple {
+    background: linear-gradient(135deg, #ffffff 0%, #f3e8ff 100%);
+  }
+
+  .dark .bg-card-purple {
+    background: linear-gradient(135deg, #1e293b 0%, #2e1f3f 100%);
+  }
+
+  .bg-card-cyan {
+    background: linear-gradient(135deg, #ffffff 0%, #cffafe 100%);
+  }
+
+  .dark .bg-card-cyan {
+    background: linear-gradient(135deg, #1e293b 0%, #1f3f3f 100%);
+  }
+
+  /* Enhanced Shadow Utilities */
+  .shadow-vibrant {
+    box-shadow: var(--shadow-md);
+  }
+
+  .shadow-vibrant-lg {
+    box-shadow: var(--shadow-lg);
+  }
+
+  .shadow-vibrant-xl {
+    box-shadow: var(--shadow-xl);
+  }
+
+  .shadow-colored {
+    box-shadow: var(--shadow-colored);
+  }
+
+  /* Lift Effect on Hover */
+  .lift-on-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .lift-on-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  .dark .lift-on-hover:hover {
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Button Lift */
+  .button-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(2, 132, 199, 0.4);
+  }
+
+  /* Smooth transitions */
+  .transition-smooth {
+    transition: all 0.2s ease;
+  }
+}
+
+/* Keyframe Animations */
+@keyframes shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
 }
