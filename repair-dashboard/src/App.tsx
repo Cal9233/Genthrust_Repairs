@@ -184,11 +184,15 @@ function App() {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowAIAgent(true)}
-                className="hover:bg-purple-50 hover:border-purple-300 text-purple-600 border-purple-200"
-                title="AI Agent (Ctrl+K)"
+                className="relative group bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border-purple-200 hover:border-purple-300 text-purple-700 hover:text-purple-800 font-medium shadow-sm hover:shadow-md transition-all duration-200"
+                title="AI Assistant (Ctrl+K)"
               >
-                <Sparkles className="h-4 w-4 mr-1" />
-                <span className="hidden lg:inline">AI Agent</span>
+                <Sparkles className="h-4 w-4 mr-1.5 group-hover:animate-pulse" />
+                <span className="hidden lg:inline">AI Assistant</span>
+                <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                </span>
               </Button>
               <Button
                 variant="outline"
