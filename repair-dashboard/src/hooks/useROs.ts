@@ -158,6 +158,31 @@ export function useBulkUpdateStatus() {
   });
 }
 
+export function useArchiveRO() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      rowIndex,
+      targetSheetName,
+      targetTableName,
+    }: {
+      rowIndex: number;
+      targetSheetName: string;
+      targetTableName: string;
+    }) => excelService.moveROToArchive(rowIndex, targetSheetName, targetTableName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ros"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      toast.success("Repair order archived successfully");
+    },
+    onError: (error) => {
+      console.error("Archive error:", error);
+      toast.error("Failed to archive repair order");
+    },
+  });
+}
+
 export function useDashboardStats() {
   return useQuery({
     queryKey: ["dashboard-stats"],

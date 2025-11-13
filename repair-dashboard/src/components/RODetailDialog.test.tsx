@@ -356,10 +356,10 @@ describe('RODetailDialog', () => {
       expect(screen.queryByText(/Shipping/i)).not.toBeInTheDocument();
     });
 
-    it('creates UPS tracking link', () => {
+    it('creates UPS tracking link for UPS tracking numbers', () => {
       const roWithTracking = {
         ...mockRO,
-        trackingNumber: 'TRACK123456',
+        trackingNumber: '1Z999AA10123456784',
       };
 
       render(
@@ -370,9 +370,87 @@ describe('RODetailDialog', () => {
         />
       );
 
-      const link = screen.getByRole('link', { name: 'TRACK123456' });
-      expect(link).toHaveAttribute('href', 'https://www.ups.com/track?tracknum=TRACK123456');
+      const link = screen.getByRole('link', { name: '1Z999AA10123456784' });
+      expect(link).toHaveAttribute('href', 'https://www.ups.com/track?tracknum=1Z999AA10123456784');
       expect(link).toHaveAttribute('target', '_blank');
+      expect(screen.getByText('(UPS)')).toBeInTheDocument();
+    });
+
+    it('creates FedEx tracking link for FedEx 12-digit tracking numbers', () => {
+      const roWithTracking = {
+        ...mockRO,
+        trackingNumber: '123456789012',
+      };
+
+      render(
+        <RODetailDialog
+          ro={roWithTracking}
+          open={true}
+          onClose={mockOnClose}
+        />
+      );
+
+      const link = screen.getByRole('link', { name: '123456789012' });
+      expect(link).toHaveAttribute('href', 'https://www.fedex.com/fedextrack/?trknbr=123456789012');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(screen.getByText('(FedEx)')).toBeInTheDocument();
+    });
+
+    it('creates FedEx tracking link for FedEx 15-digit tracking numbers', () => {
+      const roWithTracking = {
+        ...mockRO,
+        trackingNumber: '123456789012345',
+      };
+
+      render(
+        <RODetailDialog
+          ro={roWithTracking}
+          open={true}
+          onClose={mockOnClose}
+        />
+      );
+
+      const link = screen.getByRole('link', { name: '123456789012345' });
+      expect(link).toHaveAttribute('href', 'https://www.fedex.com/fedextrack/?trknbr=123456789012345');
+      expect(screen.getByText('(FedEx)')).toBeInTheDocument();
+    });
+
+    it('creates FedEx tracking link for FedEx SmartPost tracking numbers', () => {
+      const roWithTracking = {
+        ...mockRO,
+        trackingNumber: '9612345678901234567890',
+      };
+
+      render(
+        <RODetailDialog
+          ro={roWithTracking}
+          open={true}
+          onClose={mockOnClose}
+        />
+      );
+
+      const link = screen.getByRole('link', { name: '9612345678901234567890' });
+      expect(link).toHaveAttribute('href', 'https://www.fedex.com/fedextrack/?trknbr=9612345678901234567890');
+      expect(screen.getByText('(FedEx)')).toBeInTheDocument();
+    });
+
+    it('defaults to UPS link for unknown tracking number formats', () => {
+      const roWithTracking = {
+        ...mockRO,
+        trackingNumber: 'UNKNOWN123',
+      };
+
+      render(
+        <RODetailDialog
+          ro={roWithTracking}
+          open={true}
+          onClose={mockOnClose}
+        />
+      );
+
+      const link = screen.getByRole('link', { name: 'UNKNOWN123' });
+      expect(link).toHaveAttribute('href', 'https://www.ups.com/track?tracknum=UNKNOWN123');
+      expect(screen.getByText('(Unknown)')).toBeInTheDocument();
     });
   });
 

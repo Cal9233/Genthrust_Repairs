@@ -23,7 +23,9 @@
       "Bash(timeout /t 2)",
       "Bash(echo:*)",
       "Bash(ShopDirectory.tsx)",
-      "Bash(ShopManagementDialog.tsx)"
+      "Bash(ShopManagementDialog.tsx)",
+      "Bash(find:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

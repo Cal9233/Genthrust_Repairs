@@ -17,10 +17,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useUpdateROStatus } from "../hooks/useROs";
+import { useUpdateROStatus, useArchiveRO } from "../hooks/useROs";
 import type { RepairOrder } from "../types";
 import { calculateNextUpdateDate, formatDateForDisplay } from "../lib/businessRules";
 import { Calendar, ArrowRight } from "lucide-react";
+import { ApprovalDialog } from "./ApprovalDialog";
+import { statusRequiresApproval, getFinalSheetForStatus } from "@/config/excelSheets";
 
 interface UpdateStatusDialogProps {
   ro: RepairOrder;
@@ -36,6 +38,7 @@ const STATUS_OPTIONS = [
   "SHIPPING",
   "PAID",
   "PAYMENT SENT",
+  "RAI",
   "BER",
 ];
 
@@ -48,7 +51,9 @@ export function UpdateStatusDialog({
   const [notes, setNotes] = useState("");
   const [cost, setCost] = useState<string>("");
   const [deliveryDate, setDeliveryDate] = useState<string>("");
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const updateStatus = useUpdateROStatus();
+  const archiveRO = useArchiveRO();
 
   // Calculate the next update date based on selected status and payment terms
   const calculatedNextUpdate = useMemo(() => {
@@ -63,6 +68,16 @@ export function UpdateStatusDialog({
   const showDeliveryDateField = status.includes("APPROVED");
 
   const handleSubmit = () => {
+    // Check if this status requires approval (PAID, NET, BER/RAI/Cancel)
+    if (statusRequiresApproval(status)) {
+      setShowApprovalDialog(true);
+    } else {
+      // No approval needed, update directly
+      performStatusUpdate();
+    }
+  };
+
+  const performStatusUpdate = () => {
     const rowIndex = parseInt(ro.id.replace("row-", ""));
 
     const costValue = cost ? parseFloat(cost.replace(/[^0-9.]/g, "")) : undefined;
@@ -82,6 +97,49 @@ export function UpdateStatusDialog({
         },
       }
     );
+  };
+
+  const handleApprovalResponse = (approved: boolean) => {
+    const rowIndex = parseInt(ro.id.replace("row-", ""));
+    const costValue = cost ? parseFloat(cost.replace(/[^0-9.]/g, "")) : undefined;
+    const deliveryDateValue = deliveryDate ? new Date(deliveryDate) : undefined;
+
+    if (approved) {
+      // User confirmed they received the part - update status then archive
+      const targetSheet = getFinalSheetForStatus(status);
+
+      if (targetSheet) {
+        updateStatus.mutate(
+          {
+            rowIndex,
+            status,
+            notes,
+            cost: costValue,
+            deliveryDate: deliveryDateValue,
+          },
+          {
+            onSuccess: () => {
+              // After updating status, archive the RO
+              archiveRO.mutate(
+                {
+                  rowIndex,
+                  targetSheetName: targetSheet.sheetName,
+                  targetTableName: targetSheet.tableName,
+                },
+                {
+                  onSuccess: () => {
+                    onClose();
+                  },
+                }
+              );
+            },
+          }
+        );
+      }
+    } else {
+      // User hasn't received it yet - just update status, keep in active sheet
+      performStatusUpdate();
+    }
   };
 
   return (
@@ -217,6 +275,14 @@ export function UpdateStatusDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <ApprovalDialog
+        isOpen={showApprovalDialog}
+        onClose={() => setShowApprovalDialog(false)}
+        status={status}
+        roNumber={ro.roNumber}
+        onConfirm={handleApprovalResponse}
+      />
     </Dialog>
   );
 }

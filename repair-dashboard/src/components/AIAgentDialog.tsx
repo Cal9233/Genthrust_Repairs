@@ -10,6 +10,7 @@ import { anthropicAgent } from '@/services/anthropicAgent';
 import type { CommandContext, AIMessage } from '@/types/aiAgent';
 import { toast } from 'sonner';
 import { useMsal } from '@azure/msal-react';
+import { loggingService } from '@/lib/loggingService';
 
 interface AIAgentDialogProps {
   open: boolean;
@@ -28,6 +29,23 @@ export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
   const { data: ros = [] } = useROs();
   const { data: shops = [] } = useShops();
   const { accounts } = useMsal();
+
+  // Helper to extract text content from message
+  interface ContentBlock {
+    type: string;
+    text?: string;
+  }
+
+  const getMessageText = (content: string | ContentBlock[]): string => {
+    if (typeof content === 'string') {
+      return content;
+    }
+    // If it's an array of content blocks, extract text blocks
+    return content
+      .filter((block: ContentBlock) => block.type === 'text')
+      .map((block: ContentBlock) => block.text || '')
+      .join('\n');
+  };
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -83,6 +101,15 @@ useEffect(() => {
       setMessages(prev => [...prev, response]);
       setStreamingText('');
 
+      // Log successful interaction
+      loggingService.logInteraction({
+        timestamp: new Date(),
+        user: currentUser,
+        userMessage: userMessage,
+        aiResponse: getMessageText(response.content),
+        success: true
+      });
+
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('Error processing command:', error);
@@ -90,12 +117,24 @@ useEffect(() => {
         description: errorMessage
       });
 
+      const errorResponse = `I encountered an error: ${errorMessage}. Please try again or rephrase your command.`;
+
       // Add error message
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: `I encountered an error: ${errorMessage}. Please try again or rephrase your command.`,
+        content: errorResponse,
         timestamp: new Date()
       }]);
+
+      // Log failed interaction
+      loggingService.logInteraction({
+        timestamp: new Date(),
+        user: accounts[0]?.name || 'User',
+        userMessage: userMessage,
+        aiResponse: errorResponse,
+        success: false,
+        error: errorMessage
+      });
 
     } finally {
       setIsProcessing(false);
@@ -277,7 +316,7 @@ useEffect(() => {
                 <div className={`text-xs mt-2 flex items-center gap-1 ${
                   message.role === 'user' ? 'text-white/80' : 'text-muted-foreground'
                 }`}>
-                  <span>{message.timestamp.toLocaleTimeString()}</span>
+                  <span>{message.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
               </div>
 

@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Clock, CheckCircle, Truck } from "lucide-react";
+import { AlertCircle, Clock, CheckCircle, Truck, RotateCcw, XCircle, DollarSign } from "lucide-react";
 
 interface StatusBadgeProps {
   status: string;
@@ -27,6 +27,15 @@ export function StatusBadge({ status, isOverdue }: StatusBadgeProps) {
     if (status.includes("PAID")) {
       return "bg-secondary text-muted-foreground border-border font-medium";
     }
+    if (status.includes("PAYMENT SENT")) {
+      return "bg-success/10 text-success border-success/30 font-medium"; // Green for Payment Sent
+    }
+    if (status.includes("RAI")) {
+      return "bg-[#f97316]/10 text-[#f97316] border-[#f97316]/30 font-medium"; // Orange for Return As Is
+    }
+    if (status.includes("BER")) {
+      return "bg-danger/10 text-danger border-danger/30 font-semibold"; // Red for Beyond Economical Repair
+    }
 
     return "bg-secondary text-muted-foreground border-border font-medium";
   };
@@ -36,6 +45,9 @@ export function StatusBadge({ status, isOverdue }: StatusBadgeProps) {
     if (status.includes("WAITING")) return <Clock className="h-3.5 w-3.5" />;
     if (status.includes("APPROVED")) return <CheckCircle className="h-3.5 w-3.5" />;
     if (status.includes("SHIPPING")) return <Truck className="h-3.5 w-3.5" />;
+    if (status.includes("PAYMENT SENT")) return <DollarSign className="h-3.5 w-3.5" />;
+    if (status.includes("RAI")) return <RotateCcw className="h-3.5 w-3.5" />;
+    if (status.includes("BER")) return <XCircle className="h-3.5 w-3.5" />;
     return null;
   };
 

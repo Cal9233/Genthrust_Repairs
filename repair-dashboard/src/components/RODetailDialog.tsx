@@ -17,6 +17,7 @@ import { useUpdateROStatus } from "../hooks/useROs";
 import type { RepairOrder } from "../types";
 import { Mail, Bell, Calendar as CalendarIcon, Info } from "lucide-react";
 import { reminderService } from "../lib/reminderService";
+import { getTrackingInfo } from "../lib/trackingUtils";
 import { toast } from "sonner";
 
 interface RODetailDialogProps {
@@ -309,13 +310,16 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
                 <div className="text-sm">
                   <span className="text-slate-400 font-semibold">Tracking:</span>{" "}
                   <a
-                    href={`https://www.ups.com/track?tracknum=${ro.trackingNumber}`}
+                    href={getTrackingInfo(ro.trackingNumber).url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-cyan-400 hover:text-cyan-300 hover:underline font-normal"
                   >
                     {ro.trackingNumber}
                   </a>
+                  <span className="text-slate-500 ml-2 text-xs">
+                    ({getTrackingInfo(ro.trackingNumber).carrier})
+                  </span>
                 </div>
               </div>
             )}

@@ -5,15 +5,17 @@ import { excelService } from "./lib/excelService";
 import { shopService } from "./lib/shopService";
 import { reminderService } from "./lib/reminderService";
 import { sharePointService } from "./services/sharepoint";
+import { loggingService } from "./lib/loggingService";
 import { Dashboard } from "./components/Dashboard";
 import { ROTable } from "./components/ROTable";
 import { ShopDirectory } from "./components/ShopDirectory";
 import { AICommandBar } from "./components/AICommandBar";
 import { AIAgentDialog } from "./components/AIAgentDialog";
+import { LogsDialog } from "./components/LogsDialog";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
-import { LogOut, RefreshCw, ClipboardList, Store, Sparkles } from "lucide-react";
+import { LogOut, RefreshCw, ClipboardList, Store, Sparkles, FileText } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import logo from "./assets/GENLOGO.png";
 
@@ -24,6 +26,7 @@ function App() {
   const [currentView, setCurrentView] = useState<"repairs" | "shops">("repairs");
   const [showAICommand, setShowAICommand] = useState(false);
   const [showAIAgent, setShowAIAgent] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
 
   useEffect(() => {
     if (instance) {
@@ -31,6 +34,7 @@ function App() {
       shopService.setMsalInstance(instance);
       reminderService.setMsalInstance(instance);
       sharePointService.setMsalInstance(instance);
+      loggingService.setMsalInstance(instance);
       console.log("[App] MSAL instance set for services");
     }
   }, [instance]);
@@ -182,6 +186,16 @@ function App() {
                 <Sparkles className="h-4 w-4 sm:mr-1.5" />
                 <span className="hidden sm:inline">AI Assistant</span>
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowLogs(true)}
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 rounded-lg px-2 sm:px-3"
+                title="View AI Activity Logs"
+              >
+                <FileText className="h-4 w-4 sm:mr-1.5" />
+                <span className="hidden lg:inline">Logs</span>
+              </Button>
               <ThemeToggle />
               <Button
                 variant="ghost"
@@ -261,6 +275,9 @@ function App() {
 
       {/* AI Agent Dialog */}
       <AIAgentDialog open={showAIAgent} onOpenChange={setShowAIAgent} />
+
+      {/* Logs Dialog */}
+      <LogsDialog open={showLogs} onOpenChange={setShowLogs} />
     </div>
   );
 }

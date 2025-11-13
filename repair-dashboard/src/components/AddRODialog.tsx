@@ -20,7 +20,7 @@ import {
 import { useAddRepairOrder, useUpdateRepairOrder } from "../hooks/useROs";
 import { useShops } from "../hooks/useShops";
 import { ShopManagementDialog } from "./ShopManagementDialog";
-import { Plus, Store } from "lucide-react";
+import { Plus, Store, Search } from "lucide-react";
 import type { RepairOrder } from "../types";
 
 interface AddRODialogProps {
@@ -63,6 +63,16 @@ export function AddRODialog({ ro, open, onClose }: AddRODialogProps) {
       shop.state?.toLowerCase().includes(query)
     );
   });
+
+  // Auto-select when there's exactly one match
+  useEffect(() => {
+    if (shopSearch && filteredShops.length === 1 && !selectedShopId) {
+      const shop = filteredShops[0];
+      setSelectedShopId(shop.id);
+      handleShopSelect(shop.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shopSearch, filteredShops.length, selectedShopId]);
 
   // Populate form when editing
   useEffect(() => {
@@ -218,45 +228,61 @@ export function AddRODialog({ ro, open, onClose }: AddRODialogProps) {
                 Add New Shop
               </Button>
             </div>
-            <div className="space-y-2">
-              <Input
-                type="text"
-                placeholder="Search shops by name, customer #, location..."
-                value={shopSearch}
-                onChange={(e) => setShopSearch(e.target.value)}
-                className="bg-white border-blue-200"
-              />
-              <Select
-                value={selectedShopId}
-                onValueChange={handleShopSelect}
-                disabled={shopsLoading}
-              >
-                <SelectTrigger className="bg-white border-blue-200">
-                  <SelectValue placeholder="Choose a shop to auto-fill details..." />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px] overflow-y-auto">
-                  {filteredShops.length === 0 ? (
-                    <div className="p-4 text-sm text-gray-500 text-center">
-                      No shops found
-                    </div>
-                  ) : (
-                    filteredShops.map((shop) => (
-                      <SelectItem key={shop.id} value={shop.id}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{shop.shopName}</span>
-                          <span className="text-xs text-gray-500">
-                            {shop.defaultTerms}
-                            {shop.city && shop.state ? ` • ${shop.city}, ${shop.state}` : ''}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+            <div className="space-y-3">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500" />
+                <Input
+                  type="text"
+                  placeholder="🔍 Type to search shops..."
+                  value={shopSearch}
+                  onChange={(e) => setShopSearch(e.target.value)}
+                  className="bg-white border-2 border-blue-300 pl-10 focus:border-blue-500 shadow-sm"
+                />
+                {shopSearch && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                    {filteredShops.length} {filteredShops.length === 1 ? 'match' : 'matches'}
+                  </div>
+                )}
+              </div>
+
+              {/* Dropdown Selector */}
+              <div className="space-y-1">
+                <Label className="text-xs text-blue-700 font-medium">
+                  {shopSearch ? 'Select from filtered results:' : 'Or browse all shops:'}
+                </Label>
+                <Select
+                  value={selectedShopId}
+                  onValueChange={handleShopSelect}
+                  disabled={shopsLoading}
+                >
+                  <SelectTrigger className="bg-gradient-to-r from-blue-50 to-white border-2 border-blue-200 hover:border-blue-400 transition-colors">
+                    <SelectValue placeholder="▼ Click to choose shop..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px] overflow-y-auto">
+                    {filteredShops.length === 0 ? (
+                      <div className="p-4 text-sm text-muted-foreground text-center">
+                        No shops found
+                      </div>
+                    ) : (
+                      filteredShops.map((shop) => (
+                        <SelectItem key={shop.id} value={shop.id}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{shop.shopName}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {shop.defaultTerms}
+                              {shop.city && shop.state ? ` • ${shop.city}, ${shop.state}` : ''}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <p className="text-xs text-blue-700">
-              Selecting a shop will auto-fill the shop name and payment terms below
+              💡 <strong>Tip:</strong> Start typing in the search bar to filter shops. When only one match is found, it will auto-select automatically!
             </p>
           </div>
 

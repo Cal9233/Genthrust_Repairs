@@ -75,8 +75,16 @@ export function ROTable() {
 
     // Sort
     filtered.sort((a, b) => {
-      const aVal = a[sortColumn];
-      const bVal = b[sortColumn];
+      let aVal, bVal;
+
+      // Special handling for cost column (uses finalCost || estimatedCost)
+      if (sortColumn === 'finalCost') {
+        aVal = a.finalCost || a.estimatedCost || 0;
+        bVal = b.finalCost || b.estimatedCost || 0;
+      } else {
+        aVal = a[sortColumn];
+        bVal = b[sortColumn];
+      }
 
       if (aVal === null || aVal === undefined) return 1;
       if (bVal === null || bVal === undefined) return -1;
@@ -326,7 +334,10 @@ export function ROTable() {
                   Shop
                 </TableHead>
                 <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
-                  Part
+                  Part #
+                </TableHead>
+                <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
+                  Description
                 </TableHead>
                 <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
                   Status
@@ -342,7 +353,14 @@ export function ROTable() {
                   </Button>
                 </TableHead>
                 <TableHead className="text-right font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
-                  Cost
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSort("finalCost")}
+                    className="hover:bg-bg-hover font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] px-2 sm:px-3 ml-auto"
+                  >
+                    Cost
+                    <ArrowUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  </Button>
                 </TableHead>
                 <TableHead className="sticky right-0 bg-secondary hover:bg-secondary shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)] font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
                   Actions
@@ -370,6 +388,9 @@ export function ROTable() {
                     {ro.roNumber}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{ro.shopName}</TableCell>
+                  <TableCell className="text-muted-foreground font-medium">
+                    {ro.partNumber}
+                  </TableCell>
                   <TableCell>
                     <div className="max-w-xs truncate text-muted-foreground">
                       {ro.partDescription}
@@ -393,7 +414,7 @@ export function ROTable() {
                   )}
                   </TableCell>
                   <TableCell className="text-right font-semibold text-foreground">
-                    {formatCurrency(ro.finalCost)}
+                    {formatCurrency(ro.finalCost || ro.estimatedCost)}
                   </TableCell>
                   <TableCell className={`sticky right-0 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)] ${
                     ro.isOverdue ? "bg-danger/5 hover:bg-danger/10" : selectedRONumbers.includes(ro.roNumber) ? "bg-bright-blue/5" : "bg-background"

@@ -220,7 +220,18 @@ class ExcelService {
     // Keep last 20 entries to avoid data bloat
     const limitedHistory = statusHistory.slice(-20);
 
-    const historyJson = JSON.stringify(limitedHistory);
+    // Format dates to MM/DD/YY before serializing
+    const formattedHistory = limitedHistory.map(entry => ({
+      ...entry,
+      date: entry.date instanceof Date
+        ? `${entry.date.getMonth() + 1}/${entry.date.getDate()}/${entry.date.getFullYear().toString().slice(-2)}`
+        : entry.date,
+      deliveryDate: entry.deliveryDate instanceof Date
+        ? `${entry.deliveryDate.getMonth() + 1}/${entry.deliveryDate.getDate()}/${entry.deliveryDate.getFullYear().toString().slice(-2)}`
+        : entry.deliveryDate
+    }));
+
+    const historyJson = JSON.stringify(formattedHistory);
     return `HISTORY:${historyJson}|NOTES:${notes}`;
   }
 
@@ -658,6 +669,79 @@ class ExcelService {
     } finally {
       await this.closeSession();
     }
+  }
+
+  /**
+   * Move an RO from the active sheet to a final archive sheet
+   * @param rowIndex - The row index in the active table
+   * @param targetSheetName - The target sheet name (e.g., 'Paid', 'NET', 'Returns')
+   * @param targetTableName - The target table name (e.g., 'Approved_Paid')
+   */
+  async moveROToArchive(
+    rowIndex: number,
+    targetSheetName: string,
+    targetTableName: string
+  ): Promise<void> {
+    if (!this.msalInstance) {
+      throw new Error("Service not initialized. Please refresh the page and try again.");
+    }
+
+    const fileId = await this.getFileId();
+
+    try {
+      await this.createSession();
+
+      // Step 1: Get the row data from the active table
+      const rowResponse = await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
+        "GET",
+        undefined,
+        true
+      );
+
+      const rowData = rowResponse.values[0];
+
+      // Step 2: Add the row to the target table
+      await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/${targetSheetName}/tables/${targetTableName}/rows/add`,
+        "POST",
+        {
+          values: [rowData],
+        },
+        true
+      );
+
+      // Step 3: Delete the row from the active table
+      await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
+        "DELETE",
+        undefined,
+        true
+      );
+
+      console.log(`[Excel Service] Moved RO from row ${rowIndex} to ${targetSheetName}/${targetTableName}`);
+    } finally {
+      await this.closeSession();
+    }
+  }
+
+  /**
+   * Get rows from a specific sheet/table
+   * @param sheetName - The sheet name
+   * @param tableName - The table name
+   */
+  async getRowsFromTable(sheetName: string, tableName: string): Promise<any[]> {
+    if (!this.msalInstance) {
+      throw new Error("Service not initialized. Please refresh the page and try again.");
+    }
+
+    const fileId = await this.getFileId();
+
+    const response = await this.callGraphAPI(
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/${sheetName}/tables/${tableName}/rows`
+    );
+
+    return response.value || [];
   }
 }
 

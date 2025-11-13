@@ -2,6 +2,7 @@ import type { Tool, ToolExecutor } from '@/types/aiAgent';
 import { excelService } from '@/lib/excelService';
 import { reminderService } from '@/lib/reminderService';
 import { generateEmailForAI } from '@/lib/emailTemplates';
+import { getFinalSheetForStatus } from '@/config/excelSheets';
 
 // Tool definitions
 export const tools: Tool[] = [
@@ -21,8 +22,8 @@ export const tools: Tool[] = [
           properties: {
             status: {
               type: "string",
-              enum: ["TO SEND", "WAITING QUOTE", "APPROVED", "BEING REPAIRED", "SHIPPING", "PAID"],
-              description: "New status for the repair order"
+              enum: ["TO SEND", "WAITING QUOTE", "APPROVED", "BEING REPAIRED", "SHIPPING", "PAID", "PAYMENT SENT", "RAI", "BER"],
+              description: "New status for the repair order. RAI = Return As Is, BER = Beyond Economical Repair"
             },
             cost: {
               type: "number",
@@ -231,6 +232,25 @@ export const tools: Tool[] = [
       },
       required: ["ro_number", "new_date"]
     }
+  },
+  {
+    name: "archive_repair_order",
+    description: "Archive a repair order by moving it from the active sheet to the appropriate final archive sheet (Paid, NET, or Returns). Use this ONLY after confirming with the user that they have received the part. This removes the RO from the active dashboard.",
+    input_schema: {
+      type: "object",
+      properties: {
+        ro_number: {
+          type: "string",
+          description: "The RO number to archive"
+        },
+        status: {
+          type: "string",
+          enum: ["PAID", "NET", "BER", "RAI", "CANCEL"],
+          description: "The status that determines which archive sheet to use. PAID → Paid sheet, NET → NET sheet, BER/RAI/CANCEL → Returns sheet"
+        }
+      },
+      required: ["ro_number", "status"]
+    }
   }
 ];
 
@@ -381,10 +401,14 @@ export const toolExecutors: Record<string, ToolExecutor> = {
         part: ro.partDescription,
         status: ro.currentStatus,
         cost: ro.finalCost || ro.estimatedCost,
+        estimated_cost: ro.estimatedCost,
+        final_cost: ro.finalCost,
+        estimated_delivery_date: ro.estimatedDeliveryDate,
         is_overdue: ro.isOverdue,
         days_overdue: ro.daysOverdue,
         date_made: ro.dateMade,
-        next_update: ro.nextDateToUpdate
+        next_update: ro.nextDateToUpdate,
+        terms: ro.terms
       }))
     };
   },
@@ -745,6 +769,54 @@ export const toolExecutors: Record<string, ToolExecutor> = {
       return {
         success: false,
         error: error.message || 'Failed to update reminder'
+      };
+    }
+  },
+
+  archive_repair_order: async (input, context) => {
+    const { ro_number, status } = input;
+
+    // Find the RO
+    const ro = context.allROs.find(r =>
+      r.roNumber.toString().includes(ro_number) ||
+      ro_number.includes(r.roNumber.toString())
+    );
+
+    if (!ro) {
+      return { success: false, error: `RO ${ro_number} not found` };
+    }
+
+    try {
+      const rowIndex = parseInt(ro.id.replace("row-", ""));
+
+      // Determine target sheet based on status
+      const targetSheet = getFinalSheetForStatus(status);
+
+      if (!targetSheet) {
+        return {
+          success: false,
+          error: `Status ${status} does not have an archive sheet configured`
+        };
+      }
+
+      // Move the RO to archive
+      await excelService.moveROToArchive(
+        rowIndex,
+        targetSheet.sheetName,
+        targetSheet.tableName
+      );
+
+      return {
+        success: true,
+        ro_number: ro.roNumber,
+        archived_to: targetSheet.sheetName,
+        message: `RO ${ro.roNumber} archived to ${targetSheet.description}`
+      };
+
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to archive RO'
       };
     }
   }
