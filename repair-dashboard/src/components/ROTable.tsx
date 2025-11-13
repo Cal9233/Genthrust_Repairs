@@ -27,9 +27,15 @@ import { AddRODialog } from "./AddRODialog";
 import { EmailComposerDialog } from "./EmailComposerDialog";
 import { BulkActionsBar } from "./BulkActionsBar";
 import { exportToCSV } from "../lib/exportUtils";
-import { Search, ArrowUpDown, AlertTriangle, Plus, Mail, X, Filter, Edit, Trash2, AlertCircle, Clock, DollarSign, ClipboardList } from "lucide-react";
+import { Search, ArrowUpDown, AlertTriangle, Plus, Mail, X, Filter, Edit, Trash2, AlertCircle, Clock, DollarSign, ClipboardList, ChevronDown, ChevronRight, MoreVertical, Eye } from "lucide-react";
 import { toast } from "sonner";
 import type { RepairOrder } from "../types";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function ROTable() {
   const { data: ros, isLoading } = useROs();
@@ -46,6 +52,7 @@ export function ROTable() {
   const [editingRO, setEditingRO] = useState<RepairOrder | undefined>(undefined);
   const [deletingRO, setDeletingRO] = useState<RepairOrder | undefined>(undefined);
   const [selectedRONumbers, setSelectedRONumbers] = useState<string[]>([]);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   // Filters
   const {
@@ -162,6 +169,18 @@ export function ROTable() {
         ? prev.filter((num) => num !== roNumber)
         : [...prev, roNumber]
     );
+  };
+
+  const toggleRowExpansion = (roId: string) => {
+    setExpandedRows((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(roId)) {
+        newSet.delete(roId);
+      } else {
+        newSet.add(roId);
+      }
+      return newSet;
+    });
   };
 
   const isAllSelected =
@@ -320,6 +339,7 @@ export function ROTable() {
                     className={isSomeSelected ? "data-[state=checked]:bg-bright-blue" : ""}
                   />
                 </TableHead>
+                <TableHead className="w-[40px] sm:w-[50px]"></TableHead>
                 <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
                   <Button
                     variant="ghost"
@@ -329,9 +349,6 @@ export function ROTable() {
                     RO #
                     <ArrowUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
-                </TableHead>
-                <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
-                  Shop
                 </TableHead>
                 <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
                   Part #
@@ -352,121 +369,282 @@ export function ROTable() {
                     <ArrowUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </TableHead>
-                <TableHead className="text-right font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
-                  <Button
-                    variant="ghost"
-                    onClick={() => handleSort("finalCost")}
-                    className="hover:bg-bg-hover font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] px-2 sm:px-3 ml-auto"
-                  >
-                    Cost
-                    <ArrowUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
-                  </Button>
-                </TableHead>
-                <TableHead className="sticky right-0 bg-secondary hover:bg-secondary shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)] font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
+                <TableHead className="sticky right-0 bg-secondary hover:bg-secondary shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)] font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase text-center">
                   Actions
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAndSorted.map((ro) => (
-                <TableRow
-                  key={ro.id}
-                  className={`hover:bg-bg-hover transition-smooth border-b border-border group ${
-                    ro.isOverdue ? "bg-danger/5 hover:bg-danger/10" : ""
-                  } ${
-                    selectedRONumbers.includes(ro.roNumber) ? "bg-bright-blue/5" : ""
-                  }`}
-                >
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedRONumbers.includes(ro.roNumber)}
-                      onCheckedChange={() => handleToggleSelect(ro.roNumber)}
-                      aria-label={`Select RO ${ro.roNumber}`}
-                    />
-                  </TableCell>
-                  <TableCell className="font-semibold text-foreground">
-                    {ro.roNumber}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{ro.shopName}</TableCell>
-                  <TableCell className="text-muted-foreground font-medium">
-                    {ro.partNumber}
-                  </TableCell>
-                  <TableCell>
-                    <div className="max-w-xs truncate text-muted-foreground">
-                      {ro.partDescription}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      status={ro.currentStatus}
-                      isOverdue={ro.isOverdue}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-foreground">
-                      {formatDate(ro.nextDateToUpdate)}
-                    </div>
-                    {ro.isOverdue && (
-                      <div className="text-xs font-semibold text-danger flex items-center gap-1 mt-1">
-                        <AlertTriangle className="h-3 w-3" />
-                        {ro.daysOverdue} days overdue
-                      </div>
-                  )}
-                  </TableCell>
-                  <TableCell className="text-right font-semibold text-foreground">
-                    {formatCurrency(ro.finalCost || ro.estimatedCost)}
-                  </TableCell>
-                  <TableCell className={`sticky right-0 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)] ${
-                    ro.isOverdue ? "bg-danger/5 hover:bg-danger/10" : selectedRONumbers.includes(ro.roNumber) ? "bg-bright-blue/5" : "bg-background"
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingRO(ro);
-                        }}
-                        className="text-muted-foreground hover:text-bright-blue hover:bg-bright-blue/10"
-                        title="Edit RO"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeletingRO(ro);
-                        }}
-                        className="text-muted-foreground hover:text-danger hover:bg-danger/10"
-                        title="Delete RO"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEmailRO(ro);
-                        }}
-                        className="text-muted-foreground hover:text-bright-blue hover:bg-bright-blue/10"
-                        title="Send Email"
-                      >
-                        <Mail className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => setSelectedRO(ro)}
-                        className="bg-gradient-blue text-white font-semibold shadow-[0_4px_12px_rgba(2,132,199,0.3)] hover:shadow-[0_6px_20px_rgba(2,132,199,0.4)] hover:-translate-y-0.5 transition-all duration-200"
-                      >
-                        View Details
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredAndSorted.map((ro) => {
+                const isExpanded = expandedRows.has(ro.id);
+                return (
+                  <>
+                    <TableRow
+                      key={ro.id}
+                      className={`hover:bg-bg-hover transition-smooth border-b border-border group ${
+                        ro.isOverdue ? "bg-danger/5 hover:bg-danger/10" : ""
+                      } ${
+                        selectedRONumbers.includes(ro.roNumber) ? "bg-bright-blue/5" : ""
+                      }`}
+                    >
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedRONumbers.includes(ro.roNumber)}
+                          onCheckedChange={() => handleToggleSelect(ro.roNumber)}
+                          aria-label={`Select RO ${ro.roNumber}`}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleRowExpansion(ro.id)}
+                          className="p-0 h-auto hover:bg-transparent"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </TableCell>
+                      <TableCell className="font-semibold text-foreground">
+                        {ro.roNumber}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground font-medium">
+                        {ro.partNumber}
+                      </TableCell>
+                      <TableCell>
+                        <div className="max-w-xs truncate text-muted-foreground">
+                          {ro.partDescription}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          status={ro.currentStatus}
+                          isOverdue={ro.isOverdue}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-foreground">
+                          {formatDate(ro.nextDateToUpdate)}
+                        </div>
+                        {ro.isOverdue && (
+                          <div className="text-xs font-semibold text-danger flex items-center gap-1 mt-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            {ro.daysOverdue} days overdue
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className={`sticky right-0 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)] ${
+                        ro.isOverdue ? "bg-danger/5 hover:bg-danger/10" : selectedRONumbers.includes(ro.roNumber) ? "bg-bright-blue/5" : "bg-background"
+                      }`}>
+                        <div className="flex items-center justify-center gap-1">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-muted-foreground hover:text-foreground hover:bg-secondary"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => setSelectedRO(ro)}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setEditingRO(ro)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setEmailRO(ro)}>
+                                <Mail className="h-4 w-4 mr-2" />
+                                Send Email
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setDeletingRO(ro)}
+                                className="text-danger focus:text-danger"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && (
+                      <TableRow key={`${ro.id}-expanded`} className="bg-secondary/30 hover:bg-secondary/30">
+                        <TableCell colSpan={8} className="p-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {/* Part Information */}
+                            <div className="space-y-2">
+                              <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide border-b border-border pb-1">
+                                Part Information
+                              </h4>
+                              <div className="space-y-1 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Part #:</span>
+                                  <span className="font-medium text-foreground">{ro.partNumber}</span>
+                                </div>
+                                {ro.serialNumber && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Serial #:</span>
+                                    <span className="font-medium text-foreground">{ro.serialNumber}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Description:</span>
+                                  <span className="font-medium text-foreground text-right max-w-[200px]">{ro.partDescription}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Shop & Logistics */}
+                            <div className="space-y-2">
+                              <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide border-b border-border pb-1">
+                                Shop & Logistics
+                              </h4>
+                              <div className="space-y-1 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Shop:</span>
+                                  <span className="font-medium text-foreground">{ro.shopName}</span>
+                                </div>
+                                {ro.shopReferenceNumber && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Shop Ref #:</span>
+                                    <span className="font-medium text-foreground">{ro.shopReferenceNumber}</span>
+                                  </div>
+                                )}
+                                {ro.terms && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Terms:</span>
+                                    <span className="font-medium text-foreground">{ro.terms}</span>
+                                  </div>
+                                )}
+                                {ro.trackingNumber && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Tracking #:</span>
+                                    <span className="font-medium text-foreground">{ro.trackingNumber}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Timeline */}
+                            <div className="space-y-2">
+                              <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide border-b border-border pb-1">
+                                Timeline
+                              </h4>
+                              <div className="space-y-1 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Created:</span>
+                                  <span className="font-medium text-foreground">{formatDate(ro.dateMade)}</span>
+                                </div>
+                                {ro.dateDroppedOff && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Dropped Off:</span>
+                                    <span className="font-medium text-foreground">{formatDate(ro.dateDroppedOff)}</span>
+                                  </div>
+                                )}
+                                {ro.estimatedDeliveryDate && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Est. Delivery:</span>
+                                    <span className="font-medium text-foreground">{formatDate(ro.estimatedDeliveryDate)}</span>
+                                  </div>
+                                )}
+                                {ro.lastDateUpdated && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Last Updated:</span>
+                                    <span className="font-medium text-foreground">{formatDate(ro.lastDateUpdated)}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Financials */}
+                            <div className="space-y-2">
+                              <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide border-b border-border pb-1">
+                                Financials
+                              </h4>
+                              <div className="space-y-1 text-sm">
+                                {ro.estimatedCost && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Estimated Cost:</span>
+                                    <span className="font-medium text-foreground">{formatCurrency(ro.estimatedCost)}</span>
+                                  </div>
+                                )}
+                                {ro.finalCost && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Final Cost:</span>
+                                    <span className="font-semibold text-foreground">{formatCurrency(ro.finalCost)}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Status Tracking */}
+                            <div className="space-y-2">
+                              <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide border-b border-border pb-1">
+                                Status Tracking
+                              </h4>
+                              <div className="space-y-1 text-sm">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-muted-foreground">Current Status:</span>
+                                  <StatusBadge status={ro.currentStatus} isOverdue={ro.isOverdue} />
+                                </div>
+                                {ro.currentStatusDate && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Status Date:</span>
+                                    <span className="font-medium text-foreground">{formatDate(ro.currentStatusDate)}</span>
+                                  </div>
+                                )}
+                                {ro.genThrustStatus && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Genthrust Status:</span>
+                                    <span className="font-medium text-foreground">{ro.genThrustStatus}</span>
+                                  </div>
+                                )}
+                                {ro.shopStatus && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Shop Status:</span>
+                                    <span className="font-medium text-foreground">{ro.shopStatus}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Additional Information */}
+                            {(ro.requiredWork || ro.notes) && (
+                              <div className="space-y-2">
+                                <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide border-b border-border pb-1">
+                                  Additional
+                                </h4>
+                                <div className="space-y-1 text-sm">
+                                  {ro.requiredWork && (
+                                    <div>
+                                      <span className="text-muted-foreground">Required Work:</span>
+                                      <p className="font-medium text-foreground mt-1">{ro.requiredWork}</p>
+                                    </div>
+                                  )}
+                                  {ro.notes && (
+                                    <div>
+                                      <span className="text-muted-foreground">Notes:</span>
+                                      <p className="font-medium text-foreground mt-1">{ro.notes}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
