@@ -51,6 +51,12 @@ export interface DashboardStats {
   dueToday: number;
   overdue30Plus: number;
   onTrack: number;
+  // Archive stats
+  approvedPaid: number;
+  rai: number;
+  ber: number;
+  cancel: number;
+  approvedNet: number;
 }
 
 export interface Shop {

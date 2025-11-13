@@ -6,12 +6,17 @@
 
 import type { IPublicClientApplication } from '@azure/msal-browser';
 import { loginRequest } from './msalConfig';
+import { excelService } from './excelService';
 
 export interface LogEntry {
   timestamp: Date;
+  date?: string; // Date only (YYYY-MM-DD) for filtering (auto-generated if not provided)
   user: string;
   userMessage: string;
   aiResponse: string;
+  context?: string; // RO# or action being performed
+  model?: string; // AI model used
+  duration?: number; // Request duration in milliseconds
   success: boolean;
   error?: string;
 }
@@ -206,20 +211,55 @@ class LoggingService {
     try {
       console.log('[LoggingService] Logging AI interaction');
 
-      // Ensure folder exists
-      await this.ensureLogsFolderExists();
+      // Ensure date field is populated (YYYY-MM-DD format)
+      if (!entry.date) {
+        const timestamp = entry.timestamp;
+        entry.date = `${timestamp.getFullYear()}-${String(timestamp.getMonth() + 1).padStart(2, '0')}-${String(timestamp.getDate()).padStart(2, '0')}`;
+      }
 
-      // Get existing content
-      const existingContent = await this.getExistingLogContent();
+      // Write to text file (existing functionality)
+      try {
+        // Ensure folder exists
+        await this.ensureLogsFolderExists();
 
-      // Format new entry
-      const newEntry = this.formatLogEntry(entry);
+        // Get existing content
+        const existingContent = await this.getExistingLogContent();
 
-      // Append to existing content
-      const updatedContent = existingContent + newEntry;
+        // Format new entry
+        const newEntry = this.formatLogEntry(entry);
 
-      // Write back to file
-      await this.writeLogFile(updatedContent);
+        // Append to existing content
+        const updatedContent = existingContent + newEntry;
+
+        // Write back to file
+        await this.writeLogFile(updatedContent);
+
+        console.log('[LoggingService] Successfully logged to text file');
+      } catch (textFileError) {
+        console.error('[LoggingService] Failed to log to text file:', textFileError);
+        // Continue to Excel logging even if text file fails
+      }
+
+      // Write to Excel table (new functionality)
+      try {
+        await excelService.addLogToExcelTable({
+          timestamp: entry.timestamp,
+          date: entry.date,
+          user: entry.user,
+          userMessage: entry.userMessage,
+          aiResponse: entry.aiResponse,
+          context: entry.context,
+          model: entry.model,
+          duration: entry.duration,
+          success: entry.success,
+          error: entry.error
+        });
+
+        console.log('[LoggingService] Successfully logged to Excel table');
+      } catch (excelError) {
+        console.error('[LoggingService] Failed to log to Excel:', excelError);
+        // Don't throw - Excel logging failure shouldn't break the app
+      }
 
       console.log('[LoggingService] Successfully logged interaction');
     } catch (error) {

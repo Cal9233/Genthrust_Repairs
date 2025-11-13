@@ -320,18 +320,138 @@ class ExcelService {
     return response.value;
   }
 
+  async listAllWorksheetsAndTables(): Promise<void> {
+    const fileId = await this.getFileId();
+
+    // Get all worksheets
+    const worksheetsResponse = await this.callGraphAPI(
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets`
+    );
+
+    console.log("========================================");
+    console.log("[Excel Service] WORKBOOK STRUCTURE");
+    console.log("========================================");
+    console.log(`Total Worksheets: ${worksheetsResponse.value.length}`);
+    console.log("");
+
+    for (const worksheet of worksheetsResponse.value) {
+      console.log(`📄 WORKSHEET: "${worksheet.name}"`);
+      console.log(`   - Position: ${worksheet.position}`);
+      console.log(`   - Visibility: ${worksheet.visibility}`);
+
+      // Get tables in this worksheet
+      try {
+        const tablesResponse = await this.callGraphAPI(
+          `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/${worksheet.name}/tables`
+        );
+
+        if (tablesResponse.value.length > 0) {
+          console.log(`   - Tables (${tablesResponse.value.length}):`);
+
+          for (const table of tablesResponse.value) {
+            console.log(`     📊 TABLE: "${table.name}"`);
+
+            // Get columns for this table
+            try {
+              const columnsResponse = await this.callGraphAPI(
+                `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${table.name}/columns`
+              );
+
+              console.log(`        - Row Count: ${table.rowCount || 'Unknown'}`);
+              console.log(`        - Columns (${columnsResponse.value.length}):`);
+              columnsResponse.value.forEach((col: any, idx: number) => {
+                console.log(`          [${idx}] ${col.name}`);
+              });
+            } catch (error) {
+              console.log(`        - Could not fetch columns: ${error}`);
+            }
+          }
+        } else {
+          console.log(`   - No tables in this worksheet`);
+        }
+      } catch (error) {
+        console.log(`   - Error fetching tables: ${error}`);
+      }
+
+      console.log("");
+    }
+
+    console.log("========================================");
+  }
+
   async getRepairOrders(): Promise<RepairOrder[]> {
     const fileId = await this.getFileId();
 
-    // Debug: List available tables
+    // Debug: List all worksheets, tables, and columns
     try {
-      await this.listTables();
+      await this.listAllWorksheetsAndTables();
     } catch (error) {
-      console.error("[Excel Service] Could not list tables:", error);
+      console.error("[Excel Service] Could not list worksheets and tables:", error);
     }
 
     const response = await this.callGraphAPI(
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows`
+    );
+
+    const rows = response.value;
+
+    return rows.map((row: any, index: number) => {
+      const values = row.values[0]; // First array contains the row data
+
+      const lastUpdated = this.parseExcelDate(values[19]);
+      const nextUpdate = this.parseExcelDate(values[20]);
+      const today = new Date();
+
+      let daysOverdue = 0;
+      let isOverdue = false;
+
+      if (nextUpdate) {
+        const diffTime = today.getTime() - nextUpdate.getTime();
+        daysOverdue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        isOverdue = daysOverdue > 0;
+      }
+
+      // Parse notes and status history
+      const { notes, statusHistory } = this.parseNotesWithHistory(values[18] || "");
+
+      return {
+        id: `row-${index}`,
+        roNumber: String(values[0] ?? ""),
+        dateMade: this.parseExcelDate(values[1]),
+        shopName: values[2] || "",
+        partNumber: values[3] || "",
+        serialNumber: values[4] || "",
+        partDescription: values[5] || "",
+        requiredWork: values[6] || "",
+        dateDroppedOff: this.parseExcelDate(values[7]),
+        estimatedCost: this.parseCurrency(values[8]),
+        finalCost: this.parseCurrency(values[9]),
+        terms: values[10] || "",
+        shopReferenceNumber: values[11] || "",
+        estimatedDeliveryDate: this.parseExcelDate(values[12]),
+        currentStatus: values[13] || "",
+        currentStatusDate: this.parseExcelDate(values[14]),
+        genThrustStatus: values[15] || "",
+        shopStatus: values[16] || "",
+        trackingNumber: values[17] || "",
+        notes,
+        lastDateUpdated: lastUpdated,
+        nextDateToUpdate: nextUpdate,
+        checked: values[21] || "",
+        statusHistory,
+        daysOverdue,
+        isOverdue,
+      };
+    });
+  }
+
+  async getRepairOrdersFromSheet(sheetName: string, tableName: string): Promise<RepairOrder[]> {
+    const fileId = await this.getFileId();
+
+    console.log(`[Excel Service] Fetching ROs from sheet "${sheetName}", table "${tableName}"`);
+
+    const response = await this.callGraphAPI(
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/${sheetName}/tables/${tableName}/rows`
     );
 
     const rows = response.value;
@@ -742,6 +862,235 @@ class ExcelService {
     );
 
     return response.value || [];
+  }
+
+  /**
+   * AI Logging Methods - Store AI conversation logs in Excel
+   */
+
+  /**
+   * Ensure the Logs worksheet exists
+   */
+  private async ensureLogsWorksheetExists(): Promise<void> {
+    const fileId = await this.getFileId();
+
+    try {
+      // Try to get the Logs worksheet
+      await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs`
+      );
+      console.log('[Excel Service] Logs worksheet already exists');
+    } catch (error) {
+      // Worksheet doesn't exist, create it
+      console.log('[Excel Service] Creating Logs worksheet');
+      await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/add`,
+        'POST',
+        { name: 'Logs' }
+      );
+    }
+  }
+
+  /**
+   * Ensure the AILogs table exists in the Logs worksheet
+   */
+  private async ensureAILogsTableExists(): Promise<void> {
+    const fileId = await this.getFileId();
+
+    await this.ensureLogsWorksheetExists();
+
+    try {
+      // Try to get the AILogs table
+      await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/tables/AILogs`
+      );
+      console.log('[Excel Service] AILogs table already exists');
+    } catch (error) {
+      // Table doesn't exist, create it
+      console.log('[Excel Service] Creating AILogs table');
+
+      // Create table with headers
+      // Columns: Timestamp, Date, User, User Message, AI Response, Context, Model, Duration, Success, Error
+      await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/tables/add`,
+        'POST',
+        {
+          address: 'A1:J1',
+          hasHeaders: true
+        }
+      );
+
+      // Set the table name
+      await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/tables`,
+        'GET'
+      ).then(async (response) => {
+        const tableId = response.value[0]?.id;
+        if (tableId) {
+          await this.callGraphAPI(
+            `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${tableId}`,
+            'PATCH',
+            { name: 'AILogs' }
+          );
+        }
+      });
+
+      // Set column headers
+      await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/range(address='A1:J1')`,
+        'PATCH',
+        {
+          values: [[
+            'Timestamp',
+            'Date',
+            'User',
+            'User Message',
+            'AI Response',
+            'Context',
+            'Model',
+            'Duration (ms)',
+            'Success',
+            'Error'
+          ]]
+        }
+      );
+    }
+  }
+
+  /**
+   * Add a log entry to the Excel AILogs table
+   */
+  async addLogToExcelTable(entry: {
+    timestamp: Date;
+    date: string;
+    user: string;
+    userMessage: string;
+    aiResponse: string;
+    context?: string;
+    model?: string;
+    duration?: number;
+    success: boolean;
+    error?: string;
+  }): Promise<void> {
+    try {
+      const fileId = await this.getFileId();
+
+      // Ensure table exists
+      await this.ensureAILogsTableExists();
+
+      // Create a session for this operation
+      await this.createSession();
+
+      try {
+        // Prepare row data
+        const rowData = [
+          entry.timestamp.toISOString(),
+          entry.date,
+          entry.user,
+          entry.userMessage,
+          entry.aiResponse,
+          entry.context || '',
+          entry.model || '',
+          entry.duration || '',
+          entry.success ? 'Yes' : 'No',
+          entry.error || ''
+        ];
+
+        // Add row to table
+        await this.callGraphAPI(
+          `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/tables/AILogs/rows/add`,
+          'POST',
+          { values: [rowData] },
+          true
+        );
+
+        console.log('[Excel Service] Successfully logged to Excel table');
+      } finally {
+        await this.closeSession();
+      }
+    } catch (error) {
+      console.error('[Excel Service] Failed to log to Excel table:', error);
+      // Don't throw - logging failures shouldn't break the app
+    }
+  }
+
+  /**
+   * Get all log entries from the Excel AILogs table
+   */
+  async getLogsFromExcelTable(): Promise<Array<{
+    id: string;
+    timestamp: Date;
+    date: string;
+    user: string;
+    userMessage: string;
+    aiResponse: string;
+    context?: string;
+    model?: string;
+    duration?: number;
+    success: boolean;
+    error?: string;
+  }>> {
+    try {
+      const fileId = await this.getFileId();
+
+      // Ensure table exists
+      await this.ensureAILogsTableExists();
+
+      // Get all rows
+      const response = await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/tables/AILogs/rows`
+      );
+
+      const rows = response.value || [];
+
+      return rows.map((row: any, index: number) => {
+        const values = row.values[0];
+
+        return {
+          id: `log-${index}`,
+          timestamp: new Date(values[0]),
+          date: values[1] || '',
+          user: values[2] || '',
+          userMessage: values[3] || '',
+          aiResponse: values[4] || '',
+          context: values[5] || undefined,
+          model: values[6] || undefined,
+          duration: values[7] ? Number(values[7]) : undefined,
+          success: values[8] === 'Yes',
+          error: values[9] || undefined
+        };
+      }).sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime()); // Newest first
+    } catch (error) {
+      console.error('[Excel Service] Failed to get logs from Excel table:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Delete a log entry from Excel by row index
+   */
+  async deleteExcelLog(rowIndex: number): Promise<void> {
+    try {
+      const fileId = await this.getFileId();
+
+      await this.createSession();
+
+      try {
+        await this.callGraphAPI(
+          `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/tables/AILogs/rows/itemAt(index=${rowIndex})`,
+          'DELETE',
+          undefined,
+          true
+        );
+
+        console.log('[Excel Service] Successfully deleted Excel log entry');
+      } finally {
+        await this.closeSession();
+      }
+    } catch (error) {
+      console.error('[Excel Service] Failed to delete Excel log entry:', error);
+      throw error;
+    }
   }
 }
 

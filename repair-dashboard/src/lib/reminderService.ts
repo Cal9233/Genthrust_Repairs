@@ -337,18 +337,24 @@ export class ReminderService {
    */
   async searchROReminders(roNumber?: string): Promise<ROReminder[]> {
     try {
+      console.log(`[Reminder Service] 🔍 Searching for RO reminders${roNumber ? ` (filtering for: ${roNumber})` : ''}`);
+
       // Get all To Do tasks
       const tasks = await this.getToDoTasks();
+      console.log(`[Reminder Service] Retrieved ${tasks.length} To Do tasks total`);
 
       // Get Calendar events for next 6 months
       const now = new Date();
       const sixMonthsLater = new Date();
       sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
       const events = await this.getCalendarEvents(now, sixMonthsLater);
+      console.log(`[Reminder Service] Retrieved ${events.length} Calendar events total`);
 
       // Filter for RO-related items
       const roPattern = /RO\s*#?\s*(\w*\d+)/i;
       const reminders: Map<string, ROReminder> = new Map();
+
+      console.log(`[Reminder Service] Using pattern: ${roPattern}`);
 
       // Process To Do tasks
       for (const task of tasks) {
@@ -408,7 +414,13 @@ export class ReminderService {
         }
       }
 
-      return Array.from(reminders.values());
+      const result = Array.from(reminders.values());
+      console.log(`[Reminder Service] 📋 Found ${result.length} RO reminder(s) matching search`);
+      if (result.length > 0) {
+        console.log(`[Reminder Service] RO Numbers found:`, result.map(r => r.roNumber));
+      }
+
+      return result;
 
     } catch (error: any) {
       console.error('[Reminder Service] Error searching RO reminders:', error);
@@ -466,36 +478,53 @@ export class ReminderService {
    */
   async deleteROReminder(roNumber: string): Promise<{ todo: boolean; calendar: boolean }> {
     try {
+      console.log(`[Reminder Service] ======================================`);
+      console.log(`[Reminder Service] Searching for reminders for RO: ${roNumber}`);
+
       const reminders = await this.searchROReminders(roNumber);
+
+      console.log(`[Reminder Service] Found ${reminders.length} reminder(s) for RO ${roNumber}`);
 
       if (reminders.length === 0) {
         console.log(`[Reminder Service] No reminders found for RO ${roNumber}`);
+        console.log(`[Reminder Service] ======================================`);
         return { todo: false, calendar: false };
       }
 
       const reminder = reminders[0];
       const results = { todo: false, calendar: false };
 
+      console.log(`[Reminder Service] Reminder details:`, {
+        roNumber: reminder.roNumber,
+        type: reminder.type,
+        hasTodoTask: !!reminder.todoTask,
+        hasCalendarEvent: !!reminder.calendarEvent
+      });
+
       if (reminder.todoTask) {
-        console.log(`[Reminder Service] Deleting To Do task for RO ${roNumber}...`);
+        console.log(`[Reminder Service] Deleting To Do task "${reminder.todoTask.title}" (ID: ${reminder.todoTask.id})...`);
         results.todo = await this.deleteToDoTask(reminder.todoTask.id);
-        console.log(`[Reminder Service] To Do deletion result: ${results.todo ? 'Success' : 'Failed'}`);
+        console.log(`[Reminder Service] To Do deletion result: ${results.todo ? '✓ Success' : '✗ Failed'}`);
       } else {
         console.log(`[Reminder Service] No To Do task found for RO ${roNumber}`);
       }
 
       if (reminder.calendarEvent) {
-        console.log(`[Reminder Service] Deleting Calendar event for RO ${roNumber}...`);
+        console.log(`[Reminder Service] Deleting Calendar event "${reminder.calendarEvent.subject}" (ID: ${reminder.calendarEvent.id})...`);
         results.calendar = await this.deleteCalendarEvent(reminder.calendarEvent.id);
-        console.log(`[Reminder Service] Calendar deletion result: ${results.calendar ? 'Success' : 'Failed'}`);
+        console.log(`[Reminder Service] Calendar deletion result: ${results.calendar ? '✓ Success' : '✗ Failed'}`);
       } else {
         console.log(`[Reminder Service] No Calendar event found for RO ${roNumber}`);
       }
 
+      console.log(`[Reminder Service] Final results:`, results);
+      console.log(`[Reminder Service] ======================================`);
       return results;
 
     } catch (error: any) {
-      console.error('[Reminder Service] Error deleting RO reminder:', error);
+      console.error('[Reminder Service] ✗ Error deleting RO reminder:', error);
+      console.error('[Reminder Service] Error stack:', error.stack);
+      console.log(`[Reminder Service] ======================================`);
       return { todo: false, calendar: false };
     }
   }

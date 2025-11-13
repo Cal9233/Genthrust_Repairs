@@ -11,6 +11,14 @@ export function useROs() {
   });
 }
 
+export function useArchivedROs(sheetName: string, tableName: string) {
+  return useQuery({
+    queryKey: ["archived-ros", sheetName, tableName],
+    queryFn: () => excelService.getRepairOrdersFromSheet(sheetName, tableName),
+    enabled: !!sheetName && !!tableName, // Only run if sheet and table names are provided
+  });
+}
+
 export function useUpdateROStatus() {
   const queryClient = useQueryClient();
 
@@ -194,7 +202,9 @@ export function useDashboardStats() {
           (ro) =>
             !ro.currentStatus.includes("PAID") &&
             ro.currentStatus !== "PAYMENT SENT" &&
-            ro.currentStatus !== "BER"
+            ro.currentStatus !== "BER" &&
+            !ro.currentStatus.includes("CANCEL") &&
+            !ro.currentStatus.includes("RAI")
         ).length,
         overdue: ros.filter((ro) => ro.isOverdue).length,
         waitingQuote: ros.filter((ro) =>
@@ -214,6 +224,16 @@ export function useDashboardStats() {
         dueToday: ros.filter((ro) => isDueToday(ro.nextDateToUpdate)).length,
         overdue30Plus: ros.filter((ro) => ro.daysOverdue > 30).length,
         onTrack: ros.filter((ro) => isOnTrack(ro.nextDateToUpdate)).length,
+        // Archive stats
+        approvedPaid: ros.filter((ro) =>
+          ro.currentStatus.includes("PAID") || ro.currentStatus === "PAYMENT SENT"
+        ).length,
+        rai: ros.filter((ro) => ro.currentStatus.includes("RAI")).length,
+        ber: ros.filter((ro) => ro.currentStatus.includes("BER")).length,
+        cancel: ros.filter((ro) => ro.currentStatus.includes("CANCEL")).length,
+        approvedNet: ros.filter((ro) =>
+          ro.currentStatus.includes("NET") || ro.terms?.includes("NET")
+        ).length,
       };
 
       return stats;

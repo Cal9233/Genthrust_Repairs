@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useROs, useUpdateROStatus, useBulkUpdateStatus, useDeleteRepairOrder } from "../hooks/useROs";
+import { useROs, useArchivedROs, useUpdateROStatus, useBulkUpdateStatus, useDeleteRepairOrder } from "../hooks/useROs";
 import { useShops } from "../hooks/useShops";
 import { useROFilters } from "../hooks/useROFilters";
 import {
@@ -13,6 +13,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -38,7 +45,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function ROTable() {
+  // View selection: "active" or archive sheet names
+  const [selectedView, setSelectedView] = useState<string>("active");
+  const [archiveSheet, setArchiveSheet] = useState<string>("");
+  const [archiveTable, setArchiveTable] = useState<string>("");
+
+  // Fetch active ROs
   const { data: ros, isLoading } = useROs();
+
+  // Fetch archived ROs if archive view is selected
+  const { data: archivedRos, isLoading: isLoadingArchived } = useArchivedROs(
+    archiveSheet,
+    archiveTable
+  );
+
   const { data: shops } = useShops();
   const updateStatus = useUpdateROStatus();
   const bulkUpdateStatus = useBulkUpdateStatus();
@@ -54,6 +74,10 @@ export function ROTable() {
   const [selectedRONumbers, setSelectedRONumbers] = useState<string[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
+  // Determine which RO set to use based on selectedView
+  const currentROs = selectedView === "active" ? ros : archivedRos;
+  const currentIsLoading = selectedView === "active" ? isLoading : isLoadingArchived;
+
   // Filters
   const {
     filters,
@@ -61,10 +85,10 @@ export function ROTable() {
     clearFilters,
     filteredROs: filterAppliedROs,
     activeFilterCount,
-  } = useROFilters(ros || []);
+  } = useROFilters(currentROs || []);
 
   const filteredAndSorted = useMemo(() => {
-    if (!ros) return [];
+    if (!currentROs) return [];
 
     // Start with filter-applied ROs
     let filtered = filterAppliedROs;
@@ -209,15 +233,31 @@ export function ROTable() {
   };
 
   const handleExportSelected = () => {
-    if (!ros) return;
-    const selectedROs = ros.filter((ro) =>
+    if (!currentROs) return;
+    const selectedROs = currentROs.filter((ro) =>
       selectedRONumbers.includes(ro.roNumber)
     );
     exportToCSV(selectedROs, `selected_ros_${new Date().toISOString().split("T")[0]}.csv`);
     toast.success(`Exported ${selectedROs.length} repair orders to CSV`);
   };
 
-  if (isLoading) {
+  // Handler for changing views
+  const handleViewChange = (value: string) => {
+    setSelectedView(value);
+
+    // If selecting an archive view, set the sheet and table names
+    if (value !== "active") {
+      // Parse the value format: "sheetName:tableName"
+      const [sheet, table] = value.split(":");
+      setArchiveSheet(sheet);
+      setArchiveTable(table);
+    } else {
+      setArchiveSheet("");
+      setArchiveTable("");
+    }
+  };
+
+  if (currentIsLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
@@ -241,16 +281,31 @@ export function ROTable() {
           />
         </div>
         <div className="flex items-center justify-between gap-2 sm:gap-3">
-          <div className="text-xs sm:text-sm font-semibold text-muted-foreground bg-secondary px-3 sm:px-4 py-2 rounded-lg border border-border">
-            {filteredAndSorted.length} of {ros?.length || 0} ROs
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Select value={selectedView} onValueChange={handleViewChange}>
+              <SelectTrigger className="w-[180px] border-2 border-input focus:border-bright-blue focus:ring-4 focus:ring-bright-blue/10">
+                <SelectValue placeholder="Select view" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">📋 Active ROs</SelectItem>
+                <SelectItem value="Paid:Approved_Paid">💰 Paid Archive</SelectItem>
+                <SelectItem value="Returns:Approved_Cancel">🔄 Returns/Cancel</SelectItem>
+                <SelectItem value="NET:Approved_Net">💵 NET Archive</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="text-xs sm:text-sm font-semibold text-muted-foreground bg-secondary px-3 sm:px-4 py-2 rounded-lg border border-border">
+              {filteredAndSorted.length} of {currentROs?.length || 0} ROs
+            </div>
           </div>
-          <Button
-            onClick={() => setShowAddDialog(true)}
-            className="bg-gradient-blue text-white font-semibold shadow-[0_4px_12px_rgba(2,132,199,0.3)] button-lift transition-all duration-200 rounded-lg px-3 sm:px-4"
-          >
-            <Plus className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">New RO</span>
-          </Button>
+          {selectedView === "active" && (
+            <Button
+              onClick={() => setShowAddDialog(true)}
+              className="bg-gradient-blue text-white font-semibold shadow-[0_4px_12px_rgba(2,132,199,0.3)] button-lift transition-all duration-200 rounded-lg px-3 sm:px-4"
+            >
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">New RO</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -266,8 +321,8 @@ export function ROTable() {
           onClick={() => setFilter("overdue", !filters.overdue)}
           className={
             filters.overdue
-              ? "bg-danger text-white border-danger hover:bg-danger/90 shadow-[0_2px_8px_rgba(239,68,68,0.3)] font-semibold transition-smooth text-xs sm:text-sm px-2 sm:px-3"
-              : "bg-danger/10 text-danger border-danger/30 hover:bg-danger/15 hover:border-danger/50 transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+              ? "bg-danger text-white border-danger hover:bg-danger/90 hover:text-white shadow-[0_2px_8px_rgba(239,68,68,0.3)] font-semibold transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+              : "bg-danger/10 text-danger border-danger/30 hover:bg-danger/15 hover:border-danger/50 hover:text-danger transition-smooth text-xs sm:text-sm px-2 sm:px-3"
           }
         >
           <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
@@ -279,8 +334,8 @@ export function ROTable() {
           onClick={() => setFilter("dueThisWeek", !filters.dueThisWeek)}
           className={
             filters.dueThisWeek
-              ? "bg-warning text-white border-warning hover:bg-warning/90 shadow-[0_2px_8px_rgba(245,158,11,0.3)] font-semibold transition-smooth text-xs sm:text-sm px-2 sm:px-3"
-              : "bg-warning/10 text-warning border-warning/30 hover:bg-warning/15 hover:border-warning/50 transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+              ? "bg-warning text-white border-warning hover:bg-warning/90 hover:text-white shadow-[0_2px_8px_rgba(245,158,11,0.3)] font-semibold transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+              : "bg-warning/10 text-warning border-warning/30 hover:bg-warning/15 hover:border-warning/50 hover:text-warning transition-smooth text-xs sm:text-sm px-2 sm:px-3"
           }
         >
           <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
@@ -292,8 +347,8 @@ export function ROTable() {
           onClick={() => setFilter("highValue", !filters.highValue)}
           className={
             filters.highValue
-              ? "bg-success text-white border-success hover:bg-success/90 shadow-[0_2px_8px_rgba(16,185,129,0.3)] font-semibold transition-smooth text-xs sm:text-sm px-2 sm:px-3"
-              : "bg-success/10 text-success border-success/30 hover:bg-success/15 hover:border-success/50 transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+              ? "bg-success text-white border-success hover:bg-success/90 hover:text-white shadow-[0_2px_8px_rgba(16,185,129,0.3)] font-semibold transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+              : "bg-success/10 text-success border-success/30 hover:bg-success/15 hover:border-success/50 hover:text-success transition-smooth text-xs sm:text-sm px-2 sm:px-3"
           }
         >
           <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
@@ -305,8 +360,8 @@ export function ROTable() {
           onClick={() => setFilter("waitingAction", !filters.waitingAction)}
           className={
             filters.waitingAction
-              ? "bg-bright-blue text-white border-bright-blue hover:bg-bright-blue/90 shadow-[0_2px_8px_rgba(2,132,199,0.3)] font-semibold transition-smooth text-xs sm:text-sm px-2 sm:px-3"
-              : "bg-bright-blue/10 text-bright-blue border-bright-blue/30 hover:bg-bright-blue/15 hover:border-bright-blue/50 transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+              ? "bg-bright-blue text-white border-bright-blue hover:bg-bright-blue/90 hover:text-white shadow-[0_2px_8px_rgba(2,132,199,0.3)] font-semibold transition-smooth text-xs sm:text-sm px-2 sm:px-3"
+              : "bg-bright-blue/10 text-bright-blue border-bright-blue/30 hover:bg-bright-blue/15 hover:border-bright-blue/50 hover:text-bright-blue transition-smooth text-xs sm:text-sm px-2 sm:px-3"
           }
         >
           <ClipboardList className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
@@ -344,7 +399,7 @@ export function ROTable() {
                   <Button
                     variant="ghost"
                     onClick={() => handleSort("roNumber")}
-                    className="hover:bg-bg-hover font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] px-2 sm:px-3"
+                    className="hover:bg-bg-hover hover:text-foreground font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] px-2 sm:px-3"
                   >
                     RO #
                     <ArrowUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
@@ -354,7 +409,7 @@ export function ROTable() {
                   Part #
                 </TableHead>
                 <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
-                  Description
+                  Serial #
                 </TableHead>
                 <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
                   Status
@@ -363,9 +418,19 @@ export function ROTable() {
                   <Button
                     variant="ghost"
                     onClick={() => handleSort("nextDateToUpdate")}
-                    className="hover:bg-bg-hover font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] px-2 sm:px-3"
+                    className="hover:bg-bg-hover hover:text-foreground font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] px-2 sm:px-3"
                   >
                     Next Update
+                    <ArrowUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead className="text-right font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSort("finalCost")}
+                    className="hover:bg-bg-hover hover:text-foreground font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] px-2 sm:px-3 ml-auto"
+                  >
+                    Cost
                     <ArrowUpDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </TableHead>
@@ -414,10 +479,8 @@ export function ROTable() {
                       <TableCell className="text-muted-foreground font-medium">
                         {ro.partNumber}
                       </TableCell>
-                      <TableCell>
-                        <div className="max-w-xs truncate text-muted-foreground">
-                          {ro.partDescription}
-                        </div>
+                      <TableCell className="text-muted-foreground">
+                        {ro.serialNumber || "N/A"}
                       </TableCell>
                       <TableCell>
                         <StatusBadge
@@ -435,6 +498,9 @@ export function ROTable() {
                             {ro.daysOverdue} days overdue
                           </div>
                         )}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-foreground">
+                        {formatCurrency(ro.finalCost || ro.estimatedCost)}
                       </TableCell>
                       <TableCell className={`sticky right-0 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.1)] ${
                         ro.isOverdue ? "bg-danger/5 hover:bg-danger/10" : selectedRONumbers.includes(ro.roNumber) ? "bg-bright-blue/5" : "bg-background"
@@ -477,7 +543,7 @@ export function ROTable() {
                     </TableRow>
                     {isExpanded && (
                       <TableRow key={`${ro.id}-expanded`} className="bg-secondary/30 hover:bg-secondary/30">
-                        <TableCell colSpan={8} className="p-4">
+                        <TableCell colSpan={9} className="p-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {/* Part Information */}
                             <div className="space-y-2">
