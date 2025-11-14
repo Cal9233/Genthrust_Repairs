@@ -23,19 +23,20 @@ export interface InventoryFileInfo {
 }
 
 /**
- * Hook to search for and access the Genthrust_Inventory file
+ * Hook to access the inventory file using VITE_INVENTORY_WORKBOOK_ID
+ * No searching needed - uses the file ID directly from environment
  */
 export function useInventoryFile() {
   return useQuery({
     queryKey: ["inventoryFile"],
     queryFn: async (): Promise<InventoryFileInfo | null> => {
-      console.log("[useInventoryFile] Searching for Genthrust_Inventory file...");
+      console.log("[useInventoryFile] Fetching inventory file info...");
 
-      // Search for the file
-      const fileInfo = await excelService.searchForFile("Genthrust_Inventory");
+      // Get file info directly using VITE_INVENTORY_WORKBOOK_ID
+      const fileInfo = await excelService.getInventoryFileInfo();
 
       if (!fileInfo) {
-        console.log("[useInventoryFile] Genthrust_Inventory file not found");
+        console.log("[useInventoryFile] Inventory file not found");
         return null;
       }
 

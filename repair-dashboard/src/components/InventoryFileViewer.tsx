@@ -12,9 +12,9 @@ export function InventoryFileViewer() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
-            Genthrust Inventory File
+            Inventory File
           </CardTitle>
-          <CardDescription>Searching for inventory file in SharePoint...</CardDescription>
+          <CardDescription>Loading inventory file structure...</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
@@ -52,7 +52,7 @@ export function InventoryFileViewer() {
             Inventory File Not Found
           </CardTitle>
           <CardDescription>
-            Could not find "Genthrust_Inventory" file in SharePoint
+            Could not load inventory file from SharePoint
           </CardDescription>
         </CardHeader>
       </Card>
@@ -64,7 +64,7 @@ export function InventoryFileViewer() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileSpreadsheet className="h-5 w-5 text-green-600" />
-          Genthrust Inventory File
+          Inventory File
         </CardTitle>
         <CardDescription className="flex items-center gap-2">
           <span>{fileInfo.name}</span>

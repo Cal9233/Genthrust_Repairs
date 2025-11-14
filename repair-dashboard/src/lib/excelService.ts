@@ -356,6 +356,44 @@ class ExcelService {
   }
 
   /**
+   * Get inventory file info directly using VITE_INVENTORY_WORKBOOK_ID
+   * No searching needed - we already know the file ID
+   */
+  async getInventoryFileInfo(): Promise<{ id: string; name: string; webUrl: string } | null> {
+    try {
+      const INVENTORY_WORKBOOK_ID = import.meta.env.VITE_INVENTORY_WORKBOOK_ID;
+
+      if (!INVENTORY_WORKBOOK_ID) {
+        console.error('[Excel Service] VITE_INVENTORY_WORKBOOK_ID not set in environment');
+        return null;
+      }
+
+      // Ensure we have a drive ID
+      if (!this.driveId) {
+        await this.getFileId(); // This will set this.driveId
+      }
+
+      // Fetch file info directly by ID
+      const fileInfo = await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${INVENTORY_WORKBOOK_ID}`
+      );
+
+      console.log(`[Excel Service] Fetched inventory file: ${fileInfo.name}`);
+      console.log(`[Excel Service] File ID: ${fileInfo.id}`);
+      console.log(`[Excel Service] Web URL: ${fileInfo.webUrl}`);
+
+      return {
+        id: fileInfo.id,
+        name: fileInfo.name,
+        webUrl: fileInfo.webUrl
+      };
+    } catch (error) {
+      console.error('[Excel Service] Error fetching inventory file info:', error);
+      return null;
+    }
+  }
+
+  /**
    * List all worksheets and tables for a specific file
    */
   async listFileStructure(fileId: string, fileName: string): Promise<void> {
