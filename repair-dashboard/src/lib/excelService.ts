@@ -320,6 +320,105 @@ class ExcelService {
     return response.value;
   }
 
+  /**
+   * Search for a file by name in the SharePoint drive
+   */
+  async searchForFile(fileName: string): Promise<{ id: string; name: string; webUrl: string } | null> {
+    try {
+      // Ensure we have a drive ID
+      if (!this.driveId) {
+        await this.getFileId(); // This will set this.driveId
+      }
+
+      const searchResponse = await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/root/search(q='${fileName}')`
+      );
+
+      if (searchResponse.value.length === 0) {
+        console.log(`[Excel Service] File "${fileName}" not found`);
+        return null;
+      }
+
+      const file = searchResponse.value[0];
+      console.log(`[Excel Service] Found file: ${file.name}`);
+      console.log(`[Excel Service] File ID: ${file.id}`);
+      console.log(`[Excel Service] Web URL: ${file.webUrl}`);
+
+      return {
+        id: file.id,
+        name: file.name,
+        webUrl: file.webUrl
+      };
+    } catch (error) {
+      console.error(`[Excel Service] Error searching for file "${fileName}":`, error);
+      return null;
+    }
+  }
+
+  /**
+   * List all worksheets and tables for a specific file
+   */
+  async listFileStructure(fileId: string, fileName: string): Promise<void> {
+    try {
+      // Get all worksheets
+      const worksheetsResponse = await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets`
+      );
+
+      console.log("========================================");
+      console.log(`[Excel Service] WORKBOOK STRUCTURE: ${fileName}`);
+      console.log("========================================");
+      console.log(`Total Worksheets: ${worksheetsResponse.value.length}`);
+      console.log("");
+
+      for (const worksheet of worksheetsResponse.value) {
+        console.log(`📄 WORKSHEET: "${worksheet.name}"`);
+        console.log(`   - Position: ${worksheet.position}`);
+        console.log(`   - Visibility: ${worksheet.visibility}`);
+
+        // Get tables in this worksheet
+        try {
+          const tablesResponse = await this.callGraphAPI(
+            `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/${worksheet.name}/tables`
+          );
+
+          if (tablesResponse.value.length > 0) {
+            console.log(`   - Tables (${tablesResponse.value.length}):`);
+
+            for (const table of tablesResponse.value) {
+              console.log(`     📊 TABLE: "${table.name}"`);
+
+              // Get columns for this table
+              try {
+                const columnsResponse = await this.callGraphAPI(
+                  `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${table.name}/columns`
+                );
+
+                console.log(`        - Row Count: ${table.rowCount || 'Unknown'}`);
+                console.log(`        - Columns (${columnsResponse.value.length}):`);
+                columnsResponse.value.forEach((col: any, idx: number) => {
+                  console.log(`          [${idx}] ${col.name}`);
+                });
+              } catch (error) {
+                console.log(`        - Could not fetch columns: ${error}`);
+              }
+            }
+          } else {
+            console.log(`   - No tables in this worksheet`);
+          }
+        } catch (error) {
+          console.log(`   - Error fetching tables: ${error}`);
+        }
+
+        console.log("");
+      }
+
+      console.log("========================================");
+    } catch (error) {
+      console.error(`[Excel Service] Error listing file structure:`, error);
+    }
+  }
+
   async listAllWorksheetsAndTables(): Promise<void> {
     const fileId = await this.getFileId();
 

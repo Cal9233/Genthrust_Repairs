@@ -13,7 +13,7 @@ import { EmailComposerDialog } from "./EmailComposerDialog";
 import { ReminderTypeDialog } from "./ReminderTypeDialog";
 import { AttachmentManager } from "./AttachmentManager";
 import { useShops } from "../hooks/useShops";
-import { useUpdateROStatus } from "../hooks/useROs";
+import { useROs, useUpdateROStatus } from "../hooks/useROs";
 import type { RepairOrder } from "../types";
 import { Mail, Bell, Calendar as CalendarIcon, Info } from "lucide-react";
 import { reminderService } from "../lib/reminderService";
@@ -27,6 +27,15 @@ interface RODetailDialogProps {
 }
 
 export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
+  // Fetch the latest RO data to ensure updates are reflected
+  const { data: allROs } = useROs();
+
+  // Find the current RO from the latest data, fall back to prop if not found yet
+  const currentRO = useMemo(() => {
+    if (!allROs) return ro;
+    const latestRO = allROs.find(r => r.roNumber === ro.roNumber);
+    return latestRO || ro;
+  }, [allROs, ro]);
   const [showUpdateStatus, setShowUpdateStatus] = useState(false);
   const [showEmailComposer, setShowEmailComposer] = useState(false);
   const [showReminderTypeDialog, setShowReminderTypeDialog] = useState(false);
@@ -43,8 +52,8 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
   // Find the shop for this RO
   const currentShop = useMemo(() => {
     if (!shops) return null;
-    return shops.find((shop) => shop.shopName === ro.shopName) || null;
-  }, [shops, ro.shopName]);
+    return shops.find((shop) => shop.shopName === currentRO.shopName) || null;
+  }, [shops, currentRO.shopName]);
 
   const formatDate = (date: Date | null) => {
     if (!date) return "N/A";
@@ -67,20 +76,20 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
 
   // Handler to log email in status history
   const handleLogEmail = (subject: string, templateName: string) => {
-    const rowIndex = parseInt(ro.id.replace("row-", ""));
+    const rowIndex = parseInt(currentRO.id.replace("row-", ""));
     const emailNote = `Email sent: ${subject} (Template: ${templateName})`;
 
     // Update the RO to log the email in status history
     updateStatus.mutate({
       rowIndex,
-      status: ro.currentStatus, // Keep same status
+      status: currentRO.currentStatus, // Keep same status
       notes: emailNote,
     });
   };
 
   // Handler to create reminders with selected types
   const handleCreateReminders = async (types: { todo: boolean; calendar: boolean }) => {
-    if (!ro.nextDateToUpdate) {
+    if (!currentRO.nextDateToUpdate) {
       toast.error("No follow-up date set for this RO");
       return;
     }
@@ -90,11 +99,11 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
     try {
       const results = await reminderService.createReminders(
         {
-          roNumber: ro.roNumber,
-          shopName: ro.shopName,
-          title: `Follow up - ${ro.currentStatus}`,
-          dueDate: new Date(ro.nextDateToUpdate),
-          notes: `Follow up on repair order for ${ro.partDescription}. Current status: ${ro.currentStatus}`,
+          roNumber: currentRO.roNumber,
+          shopName: currentRO.shopName,
+          title: `Follow up - ${currentRO.currentStatus}`,
+          dueDate: new Date(currentRO.nextDateToUpdate),
+          notes: `Follow up on repair order for ${currentRO.partDescription}. Current status: ${currentRO.currentStatus}`,
         },
         types
       );
@@ -141,14 +150,14 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto bg-slate-900 rounded-[20px] shadow-[0_20px_60px_rgba(0,0,0,0.5)] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-800 [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb:hover]:bg-slate-600">
           <DialogHeader className="bg-slate-800 -mx-6 -mt-6 px-6 pt-6 pb-4 mb-4 rounded-t-[20px]">
             <DialogTitle className="flex items-center justify-between">
-              <span className="font-bold text-white text-[28px]">RO #{ro.roNumber}</span>
-              <StatusBadge status={ro.currentStatus} isOverdue={ro.isOverdue} />
+              <span className="font-bold text-white text-[28px]">RO #{currentRO.roNumber}</span>
+              <StatusBadge status={currentRO.currentStatus} isOverdue={currentRO.isOverdue} />
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-6 py-4">
             {/* First-time user help text */}
-            {isFirstTimeUser && ro.nextDateToUpdate && (
+            {isFirstTimeUser && currentRO.nextDateToUpdate && (
               <div className="bg-slate-800 rounded-lg p-4 border-2 border-purple-500/30">
                 <div className="flex items-start gap-3">
                   <Info className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
@@ -176,17 +185,17 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
               <Button
                 variant="outline"
                 onClick={() => setShowEmailComposer(true)}
-                className="gap-2 bg-slate-800 border-2 border-slate-700 text-slate-200 hover:bg-slate-700 transition-all"
+                className="gap-2 bg-slate-800 border-2 border-slate-700 text-slate-200 hover:bg-slate-700 hover:text-slate-100 transition-all"
               >
                 <Mail className="h-4 w-4" />
                 Email Shop
               </Button>
-              {ro.nextDateToUpdate && (
+              {currentRO.nextDateToUpdate && (
                 <Button
                   variant="outline"
                   onClick={() => setShowReminderTypeDialog(true)}
                   disabled={isCreatingReminder}
-                  className="gap-2 bg-slate-800 border-2 border-purple-600 text-purple-300 hover:bg-purple-950 transition-all disabled:opacity-50"
+                  className="gap-2 bg-slate-800 border-2 border-purple-600 text-purple-300 hover:bg-purple-950 hover:text-purple-200 transition-all disabled:opacity-50"
                 >
                   <Bell className="h-4 w-4" />
                   <CalendarIcon className="h-4 w-4" />
@@ -204,15 +213,15 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-slate-400 font-semibold">Shop:</span>{" "}
-                  <span className="font-normal text-slate-200">{ro.shopName}</span>
+                  <span className="font-normal text-slate-200">{currentRO.shopName}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold">Shop Ref:</span>{" "}
-                  <span className="text-slate-200">{ro.shopReferenceNumber || "N/A"}</span>
+                  <span className="text-slate-200">{currentRO.shopReferenceNumber || "N/A"}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold">Terms:</span>{" "}
-                  <span className="text-slate-200">{ro.terms || "N/A"}</span>
+                  <span className="text-slate-200">{currentRO.terms || "N/A"}</span>
                 </div>
               </div>
             </div>
@@ -226,21 +235,21 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
               <div className="space-y-3 text-sm">
                 <div>
                   <span className="text-slate-400 font-semibold">Description:</span>{" "}
-                  <span className="font-normal text-slate-200">{ro.partDescription}</span>
+                  <span className="font-normal text-slate-200">{currentRO.partDescription}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <span className="text-slate-400 font-semibold">Part #:</span>{" "}
-                    <span className="text-slate-200">{ro.partNumber || "N/A"}</span>
+                    <span className="text-slate-200">{currentRO.partNumber || "N/A"}</span>
                   </div>
                   <div>
                     <span className="text-slate-400 font-semibold">Serial #:</span>{" "}
-                    <span className="text-slate-200">{ro.serialNumber || "N/A"}</span>
+                    <span className="text-slate-200">{currentRO.serialNumber || "N/A"}</span>
                   </div>
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold">Required Work:</span>{" "}
-                  <span className="text-slate-200">{ro.requiredWork || "N/A"}</span>
+                  <span className="text-slate-200">{currentRO.requiredWork || "N/A"}</span>
                 </div>
               </div>
             </div>
@@ -254,27 +263,27 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-slate-400 font-semibold">Date Made:</span>{" "}
-                  <span className="text-slate-200">{formatDate(ro.dateMade)}</span>
+                  <span className="text-slate-200">{formatDate(currentRO.dateMade)}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold">Dropped Off:</span>{" "}
-                  <span className="text-slate-200">{formatDate(ro.dateDroppedOff)}</span>
+                  <span className="text-slate-200">{formatDate(currentRO.dateDroppedOff)}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold">Est. Delivery:</span>{" "}
-                  <span className="text-slate-200">{formatDate(ro.estimatedDeliveryDate)}</span>
+                  <span className="text-slate-200">{formatDate(currentRO.estimatedDeliveryDate)}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold">Last Updated:</span>{" "}
-                  <span className="text-slate-200">{formatDate(ro.lastDateUpdated)}</span>
+                  <span className="text-slate-200">{formatDate(currentRO.lastDateUpdated)}</span>
                 </div>
                 <div
-                  className={ro.isOverdue ? "font-semibold" : ""}
+                  className={currentRO.isOverdue ? "font-semibold" : ""}
                 >
                   <span className="text-slate-400 font-semibold">Next Update:</span>{" "}
-                  <span className={ro.isOverdue ? "text-red-400" : "text-slate-200"}>
-                    {formatDate(ro.nextDateToUpdate)}
-                    {ro.isOverdue && ` (${ro.daysOverdue} days overdue)`}
+                  <span className={currentRO.isOverdue ? "text-red-400" : "text-slate-200"}>
+                    {formatDate(currentRO.nextDateToUpdate)}
+                    {currentRO.isOverdue && ` (${currentRO.daysOverdue} days overdue)`}
                   </span>
                 </div>
               </div>
@@ -289,19 +298,19 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-slate-400 font-semibold">Estimated:</span>{" "}
-                  <span className="text-slate-200 font-normal">{formatCurrency(ro.estimatedCost)}</span>
+                  <span className="text-slate-200 font-normal">{formatCurrency(currentRO.estimatedCost)}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold">Final:</span>{" "}
                   <span className="font-normal text-slate-200">
-                    {formatCurrency(ro.finalCost)}
+                    {formatCurrency(currentRO.finalCost)}
                   </span>
                 </div>
               </div>
             </div>
 
             {/* Tracking */}
-            {ro.trackingNumber && (
+            {currentRO.trackingNumber && (
               <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
                 <h3 className="font-semibold text-white text-lg mb-3 flex items-center gap-2">
                   <div className="h-1.5 w-10 bg-indigo-600 rounded"></div>
@@ -310,35 +319,35 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
                 <div className="text-sm">
                   <span className="text-slate-400 font-semibold">Tracking:</span>{" "}
                   <a
-                    href={getTrackingInfo(ro.trackingNumber).url}
+                    href={getTrackingInfo(currentRO.trackingNumber).url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-cyan-400 hover:text-cyan-300 hover:underline font-normal"
                   >
-                    {ro.trackingNumber}
+                    {currentRO.trackingNumber}
                   </a>
                   <span className="text-slate-500 ml-2 text-xs">
-                    ({getTrackingInfo(ro.trackingNumber).carrier})
+                    ({getTrackingInfo(currentRO.trackingNumber).carrier})
                   </span>
                 </div>
               </div>
             )}
 
             {/* Notes */}
-            {ro.notes && (
+            {currentRO.notes && (
               <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
                 <h3 className="font-semibold text-white text-lg mb-3 flex items-center gap-2">
                   <div className="h-1.5 w-10 bg-slate-600 rounded"></div>
                   Notes
                 </h3>
                 <div className="text-sm bg-slate-900 p-3 rounded-md whitespace-pre-wrap border border-slate-700 text-slate-200">
-                  {ro.notes}
+                  {currentRO.notes}
                 </div>
               </div>
             )}
 
             {/* Attachments */}
-            <AttachmentManager roNumber={ro.roNumber} />
+            <AttachmentManager roNumber={currentRO.roNumber} />
 
             {/* Status History */}
             <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
@@ -346,7 +355,7 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
                 <div className="h-1.5 w-10 bg-slate-600 rounded"></div>
                 Status History
               </h3>
-              <StatusTimeline history={ro.statusHistory} />
+              <StatusTimeline history={currentRO.statusHistory} />
             </div>
           </div>
         </DialogContent>
@@ -354,7 +363,7 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
 
       {showUpdateStatus && (
         <UpdateStatusDialog
-          ro={ro}
+          ro={currentRO}
           open={showUpdateStatus}
           onClose={() => setShowUpdateStatus(false)}
         />
@@ -362,7 +371,7 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
 
       {showEmailComposer && (
         <EmailComposerDialog
-          ro={ro}
+          ro={currentRO}
           shop={currentShop}
           open={showEmailComposer}
           onClose={() => setShowEmailComposer(false)}
@@ -370,13 +379,13 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
         />
       )}
 
-      {showReminderTypeDialog && ro.nextDateToUpdate && (
+      {showReminderTypeDialog && currentRO.nextDateToUpdate && (
         <ReminderTypeDialog
           open={showReminderTypeDialog}
           onClose={() => setShowReminderTypeDialog(false)}
           onConfirm={handleCreateReminders}
-          roNumber={ro.roNumber}
-          dueDate={new Date(ro.nextDateToUpdate)}
+          roNumber={currentRO.roNumber}
+          dueDate={new Date(currentRO.nextDateToUpdate)}
         />
       )}
     </>

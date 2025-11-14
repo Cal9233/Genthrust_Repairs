@@ -15,6 +15,7 @@ interface ApprovalDialogProps {
   onClose: () => void;
   status: string;
   roNumber: string;
+  paymentTerms?: string;
   onConfirm: (approved: boolean) => void;
 }
 
@@ -23,9 +24,10 @@ export function ApprovalDialog({
   onClose,
   status,
   roNumber,
+  paymentTerms,
   onConfirm,
 }: ApprovalDialogProps) {
-  const message = getApprovalMessage(status);
+  const message = getApprovalMessage(status, paymentTerms);
 
   const handleYes = () => {
     onConfirm(true);

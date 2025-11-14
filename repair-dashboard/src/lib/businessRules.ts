@@ -37,6 +37,14 @@ export function calculateNextUpdateDate(
       // Follow up in 10 days for repair progress
       return addDays(baseDate, 10);
 
+    case "CURRENTLY BEING SHIPPED":
+      // Follow up in 5 days to track inbound delivery
+      return addDays(baseDate, 5);
+
+    case "RECEIVED":
+      // Part received, follow up in 3 days for payment processing
+      return addDays(baseDate, 3);
+
     case "SHIPPING":
       // Follow up in 3 days to track delivery
       return addDays(baseDate, 3);
@@ -169,6 +177,20 @@ export function getStatusColor(
         bg: "bg-purple-50",
         text: "text-purple-700",
         border: "border-purple-200",
+      };
+
+    case "CURRENTLY BEING SHIPPED":
+      return {
+        bg: "bg-cyan-50",
+        text: "text-cyan-700",
+        border: "border-cyan-200",
+      };
+
+    case "RECEIVED":
+      return {
+        bg: "bg-teal-50",
+        text: "text-teal-700",
+        border: "border-teal-200",
       };
 
     case "SHIPPING":

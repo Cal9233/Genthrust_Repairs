@@ -1,373 +1,628 @@
 # GenThrust RO Tracker
 
-A modern web application for tracking aircraft parts sent to repair stations. Replaces manual Excel tracking with a clean, responsive interface that syncs with SharePoint.
+A modern, AI-powered web application for tracking aircraft parts sent to repair stations. Replaces manual Excel tracking with an intelligent, responsive interface that syncs with SharePoint and provides automated workflows, smart reminders, and natural language command processing.
 
 ## Project Overview
 
-The GenThrust RO Tracker is a React-based dashboard that provides real-time visibility into repair orders (ROs) for aircraft parts. It connects directly to an Excel file stored in SharePoint, allowing teams to view, search, filter, and create repair orders through an intuitive web interface instead of manually editing spreadsheets.
+The GenThrust RO Tracker is a comprehensive React-based dashboard that provides real-time visibility and intelligent automation for repair orders (ROs) of aircraft parts. It seamlessly integrates with Microsoft 365 services (SharePoint, Excel, Outlook, To Do) and features an AI assistant powered by Claude for natural language interaction and automated workflows.
 
 ### Key Benefits
+- **AI-Powered Assistant**: Natural language commands via Claude AI (Ctrl+K)
 - **Real-time Data**: Directly reads from and writes to SharePoint Excel files
-- **Better UX**: Clean, responsive interface with search, sort, and filter capabilities
-- **Multi-user**: Secure Microsoft authentication with Azure AD
-- **Automatic Calculations**: Shows overdue ROs, days overdue, and status summaries
-- **Professional UI**: Modern design with Tailwind CSS and shadcn/ui components
+- **Intelligent Automation**: Smart reminders, payment tracking, automatic archiving
+- **Multi-Sheet Management**: Active, Paid, NET, and Returns tracking
+- **Shop Directory**: Complete repair facility database with contact management
+- **Email Integration**: Built-in email composer with templates
+- **File Attachments**: Upload and manage documents per RO
+- **Advanced Analytics**: Dashboard with KPIs, trends, and overdue tracking
+- **Dark Mode**: Full dark/light theme support
+- **Mobile Responsive**: Optimized for all devices
+- **Secure**: Microsoft Azure AD authentication with MFA support
 
 ## Features
 
-### Core Functionality
-- **View All Repair Orders**: Browse all active repair orders in a searchable, sortable table
-- **Dashboard Statistics**: Real-time overview of active ROs, overdue items, and status breakdowns
-- **Create New ROs**: Add new repair orders with a guided form
-- **Update Status**: Change repair order status and add notes
-- **Search & Filter**: Find specific ROs by number, shop, part, or serial number
-- **Overdue Tracking**: Visual indicators for overdue repair orders with days overdue count
+### 🤖 AI Assistant (NEW!)
+- **Natural Language Interface**: Talk to your repair orders in plain English
+- **Keyboard Shortcut**: Press `Ctrl+K` anywhere to open AI Assistant
+- **Powerful AI Tools**:
+  - Update repair orders (status, cost, tracking, notes)
+  - Query and filter ROs with natural language
+  - Send reminder emails to shops
+  - Get RO summaries and analytics
+  - Archive completed repair orders
+- **Streaming Responses**: Real-time AI feedback as you type
+- **Context-Aware**: AI understands your RO and shop data
+- **Activity Logs**: Review all AI actions in text or Excel format
 
-### Authentication
-- Microsoft Azure AD authentication
-- Single Sign-On (SSO) with organizational accounts
-- Secure token-based API access
+### 📊 Core Repair Order Management
+- **Active RO Tracking**: Real-time view of all in-progress repair orders
+- **Multi-Sheet Archiving**:
+  - **Paid Sheet**: Received and fully paid ROs
+  - **NET Sheet**: Received ROs awaiting NET payment (30/60/90 days)
+  - **Returns Sheet**: BER (Beyond Economic Repair), RAI (Return As Is), Cancelled
+- **Smart Archiving**: Automatically routes ROs based on payment terms and status
+- **Status Lifecycle Management**:
+  - TO SEND, WAITING QUOTE, APPROVED, BEING REPAIRED
+  - CURRENTLY BEING SHIPPED (inbound to shop), RECEIVED
+  - SHIPPING (outbound to customer), PAID, PAYMENT SENT
+  - RAI, BER
+- **Status History Timeline**: Visual timeline of all status changes with dates, costs, and notes
+- **Approval Gates**: Confirmation dialogs for critical archival actions
+- **Business Rules Engine**: Automatic next update date calculation per status
+
+### 🏪 Shop Directory (NEW!)
+- **Complete Shop Database**: Manage repair facilities and vendors
+- **Shop Details**:
+  - Customer number, business name, full address
+  - Phone, toll-free, fax, email, website
+  - Primary contact person
+  - Payment terms (NET, COD, Prepaid, etc.)
+  - ILS code, last sale date, YTD sales
+- **Search & Filter**: Find shops by name, contact, email, location
+- **CRUD Operations**: Add, edit, delete shop records
+- **Integration**: Link ROs to shops with automatic lookup
+
+### 📧 Email Integration (NEW!)
+- **Built-in Email Composer**: Send emails directly from the dashboard
+- **Dynamic Templates**:
+  - Quote request emails
+  - Follow-up status updates
+  - Approval confirmations
+  - Custom templates per RO status
+- **Template Customization**: Edit subject, body, recipients before sending
+- **Email from RO Details**: One-click email to shop from RO view
+- **Email Logging**: Track sent emails (planned)
+
+### 📎 File Attachments (NEW!)
+- **RO Document Management**: Upload files to any repair order
+- **Drag-and-Drop Upload**: Easy file attachment
+- **Multi-File Upload**: Batch upload multiple documents
+- **Storage Options**:
+  - OneDrive (simple setup)
+  - SharePoint (enterprise organization)
+- **File Operations**: Upload, download, delete, view metadata
+- **Organized Folders**: Files auto-organized by RO number
+- **Metadata Tracking**: Created/modified dates, user, file size
+
+### ⏰ Smart Reminders (NEW!)
+- **Multiple Reminder Types**:
+  - Microsoft To Do tasks
+  - Outlook Calendar events
+  - Combined (both To Do and Calendar)
+- **Automatic Scheduling**: Next update date calculated by business rules
+- **NET Payment Reminders**: Auto-create calendar events for NET30/60/90 payments
+- **Status-Based Follow-ups**:
+  - TO SEND: 3 days
+  - WAITING QUOTE: 14 days
+  - APPROVED: 7 days
+  - BEING REPAIRED: 10 days
+  - CURRENTLY BEING SHIPPED: 5 days
+  - RECEIVED: 3 days
+  - SHIPPING: 3 days
+  - PAID: Based on payment terms
+
+### 📈 Dashboard & Analytics
+- **Real-time Statistics**:
+  - Total Active ROs, Overdue count
+  - Waiting for Quote, Approved, Being Repaired, Shipping
+  - Today's Due, 30+ Days Overdue
+  - On Track count
+  - Total & Estimated Values
+- **Archive Statistics**:
+  - Approved/Paid, Approved/NET
+  - RAI, BER, Cancelled
+- **Visual KPI Cards**: Color-coded cards with icons
+- **Trend Indicators**: See changes at a glance
+
+### 🔍 Advanced Search & Filtering
+- **Multi-Column Search**: Search across RO number, shop, part, serial number, description
+- **Smart Filters**:
+  - Overdue ROs only
+  - Due this week
+  - High value (>$5000)
+  - Filter by shop
+  - Waiting for action
+  - Clear all filters
+- **Active Filter Count**: See how many filters applied
+- **Column Sorting**: Sort by RO number, status, date, cost
+
+### 📦 Inventory File Viewer (NEW!)
+- **Genthrust Inventory Access**: View and access company inventory file
+- **File Discovery**: Automatic SharePoint file search
+- **Workbook Structure**: Display worksheets, tables, and columns
+- **External Link**: Open inventory directly in Excel Online
+
+### 🎨 User Experience
+- **Dark/Light Mode**: Full theme support with system preference detection
+- **Responsive Design**: Optimized for desktop, tablet, and mobile
+- **Toast Notifications**: User-friendly feedback with Sonner
+- **Loading States**: Skeleton loaders and spinners
+- **Confirmation Dialogs**: Prevent accidental actions
+- **Keyboard Shortcuts**: Ctrl+K for AI Assistant
+- **Smooth Animations**: Modern transitions and effects
+
+### 🔐 Authentication & Security
+- **Microsoft Azure AD**: Enterprise-grade authentication
+- **Single Sign-On (SSO)**: Use your organization account
+- **Multi-Factor Authentication (MFA)**: Additional security layer
+- **Scope-Based Permissions**: Granular API access control
+- **Token Management**: Automatic refresh, silent acquisition
+- **No Hardcoded Secrets**: All credentials in environment variables
+
+### 🔧 Bulk Operations
+- **Multi-Select**: Select multiple ROs with checkboxes
+- **Batch Actions**:
+  - Bulk status updates
+  - Batch archiving
+  - Export to CSV
+  - Bulk delete (planned)
 
 ## Tech Stack
 
 ### Frontend
-- **React 18**: Modern React with hooks
-- **TypeScript**: Type-safe development
-- **Vite**: Fast build tool and dev server
-- **Tailwind CSS v3.4.1**: Utility-first CSS framework
-- **shadcn/ui**: High-quality React component library
+- **React 19.1** - Latest React with concurrent features
+- **TypeScript 5.9** - Type-safe development
+- **Vite 7** - Lightning-fast build tool and dev server
+- **Tailwind CSS 3.4** - Utility-first CSS framework
+- **Shadcn/UI** - High-quality, accessible React components
+- **Radix UI** - Headless UI primitives for accessibility
+
+### AI & LLM
+- **Anthropic Claude** - Claude Sonnet 4 AI model
+- **Streaming SDK** - Real-time response streaming
+- **Tool Use API** - Structured function calling
+- **Context Management** - Maintains conversation history
 
 ### Backend/Data
-- **Microsoft Graph API**: SharePoint and Excel file access
-- **Azure AD / MSAL**: Authentication and authorization
-- **Excel Tables**: Data stored in SharePoint Excel file
+- **Microsoft Graph API** - SharePoint, Excel, OneDrive, Outlook access
+- **Azure AD / MSAL** - Authentication and authorization
+- **Excel Tables** - Structured data in SharePoint Excel files
+- **Microsoft To Do API** - Task reminders
+- **Microsoft Calendar API** - Calendar event reminders
 
 ### State Management & Data Fetching
-- **TanStack Query (React Query)**: Server state management, caching, and synchronization
-- **Sonner**: Toast notifications for user feedback
+- **TanStack Query (React Query) 5.90** - Server state, caching, synchronization
+- **Sonner** - Beautiful toast notifications
 
-### UI Components
-- **Lucide React**: Icon library
-- **Radix UI**: Headless UI primitives for accessibility
+### UI Libraries
+- **Lucide React** - Beautiful icon library (550+ icons)
+- **class-variance-authority** - Component variant management
+- **tailwind-merge** - Intelligent class merging
+
+### Development Tools
+- **Vitest** - Fast unit test runner
+- **React Testing Library** - Component testing
+- **ESLint** - Code quality and consistency
+- **TypeScript ESLint** - TypeScript-specific linting
 
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      User's Browser                          │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              React Application                          │ │
-│  │  ├─ Components (UI)                                     │ │
-│  │  ├─ Hooks (Data fetching with React Query)             │ │
-│  │  ├─ Services (Excel/Graph API logic)                   │ │
-│  │  └─ MSAL (Authentication)                              │ │
-│  └────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│                  Microsoft Azure AD                          │
-│             (Authentication & Authorization)                 │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│                  Microsoft Graph API                         │
-│      (API Gateway for SharePoint & Office 365)              │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    SharePoint Online                         │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │          Book.xlsx (Excel File)                         │ │
-│  │  └─ RepairTable (Excel Table with all RO data)         │ │
-│  └────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                          User's Browser                              │
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │                   React Application                             │ │
+│  │  ├─ Components (UI, Dialogs, Tables)                           │ │
+│  │  ├─ Hooks (Data fetching with React Query)                     │ │
+│  │  ├─ Services (Excel, SharePoint, AI, Email, Reminders)        │ │
+│  │  ├─ AI Agent (Claude Sonnet 4 with tool use)                  │ │
+│  │  └─ MSAL (Authentication)                                      │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
+                                │
+                                ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                       Microsoft Azure AD                             │
+│                (Authentication & Authorization)                      │
+│                     Multi-Factor Authentication                      │
+└─────────────────────────────────────────────────────────────────────┘
+                                │
+                ┌───────────────┼───────────────┬──────────────────┐
+                ↓               ↓               ↓                  ↓
+    ┌──────────────────┐ ┌────────────┐ ┌─────────────┐ ┌────────────────┐
+    │  Anthropic API   │ │  Graph API │ │  To Do API  │ │  Calendar API  │
+    │  (Claude AI)     │ │ (SharePoint│ │ (Reminders) │ │  (Events)      │
+    └──────────────────┘ │  & Excel)  │ └─────────────┘ └────────────────┘
+                         └────────────┘
+                              │
+                              ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                        SharePoint Online                             │
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │  Book.xlsx (Main Excel File)                                   │ │
+│  │    ├─ RepairTable (Active repair orders)                       │ │
+│  │    ├─ Paid (Completed & paid ROs)                              │ │
+│  │    ├─ NET (Received, awaiting NET payment)                     │ │
+│  │    └─ Returns (BER, RAI, Cancelled)                            │ │
+│  │                                                                  │ │
+│  │  Shops.xlsx (Shop Directory)                                    │ │
+│  │    └─ ShopsTable (All repair facilities)                       │ │
+│  │                                                                  │ │
+│  │  Genthrust_Inventory.xlsx (Inventory File)                      │ │
+│  │                                                                  │ │
+│  │  RO Attachments/ (Document folders by RO number)               │ │
+│  │    ├─ RO-12345/ (files for RO 12345)                           │ │
+│  │    ├─ RO-12346/ (files for RO 12346)                           │ │
+│  │    └─ ...                                                       │ │
+│  │                                                                  │ │
+│  │  AI_Logs/ (Daily AI activity logs)                             │ │
+│  │    ├─ AI_Log_2025-01-13.xlsx                                   │ │
+│  │    └─ ...                                                       │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Component Structure
 
-### Main Components
+### Main Views
+- **`App.tsx`** - Root component, authentication, navigation
+- **`Dashboard.tsx`** - KPI cards, statistics, analytics
+- **`ROTable.tsx`** - Main repair orders table with search, filter, sort
+- **`ShopDirectory.tsx`** - Shop management interface
 
-#### `App.tsx`
-- Root component
-- Handles authentication state with MSAL
-- Renders login page or dashboard based on auth state
-- Displays company logo and header
+### Dialogs & Modals
+- **`RODetailDialog.tsx`** - Comprehensive RO details with tabs
+- **`AddRODialog.tsx`** - Create new RO or edit existing
+- **`UpdateStatusDialog.tsx`** - Change status with validation and archiving
+- **`ApprovalDialog.tsx`** - Confirm archival decisions
+- **`ArchiveDestinationDialog.tsx`** - Choose PAID vs NET for unclear payment terms
+- **`EmailComposerDialog.tsx`** - Draft and send emails to shops
+- **`ReminderTypeDialog.tsx`** - Choose reminder type (To Do, Calendar, Both)
+- **`ShopManagementDialog.tsx`** - Add/edit shop information
+- **`LogsDialog.tsx`** - View AI activity logs
 
-#### `Dashboard.tsx`
-- Shows summary statistics cards
-- Displays: Total Active ROs, Overdue, Waiting Quote, Approved, Being Repaired, Shipping, Total Value
-- Each stat card has color-coded backgrounds and icons
-- Auto-refreshes when data changes
+### Feature Components
+- **`AIAgentDialog.tsx`** - Main AI assistant interface with streaming
+- **`AttachmentManager.tsx`** - File upload, download, delete interface
+- **`StatusTimeline.tsx`** - Visual status history timeline
+- **`StatusBadge.tsx`** - Color-coded status indicators
+- **`BulkActionsBar.tsx`** - Multi-select action toolbar
+- **`InventoryFileViewer.tsx`** - Inventory file display
+- **`ThemeToggle.tsx`** - Dark/light mode switcher
 
-#### `ROTable.tsx`
-- Main table component displaying all repair orders
-- Features:
-  - Search functionality (RO number, shop, part, serial)
-  - Column sorting (RO number, next update date)
-  - Overdue highlighting (red background)
-  - "View Details" and "New RO" buttons
-  - Shows count of filtered vs total ROs
-
-#### `RODetailDialog.tsx`
-- Modal dialog for viewing full RO details
-- Shows all fields including dates, costs, status, notes
-- "Update Status" button opens status update dialog
-- Displays tracking information and shop references
-
-#### `UpdateStatusDialog.tsx`
-- Modal for updating RO status
-- Status dropdown with predefined options (TO SEND, WAITING QUOTE, APPROVED, etc.)
-- Optional notes field
-- Auto-updates last updated date
-
-#### `AddRODialog.tsx`
-- Modal form for creating new repair orders
-- Required fields: RO Number, Shop Name, Part Number, Serial Number, Part Description, Required Work
-- Optional fields: Estimated Cost, Terms, Shop Reference Number
-- Form validation
-- Auto-sets initial status to "TO SEND"
-
-#### `StatusBadge.tsx`
-- Color-coded status badges
-- Different colors and icons for each status type
-- Overdue indicator with warning icon
+### UI Components (shadcn/ui)
+- Button, Card, Badge, Input, Label, Checkbox
+- Dialog, Textarea, Table, Select, Dropdown Menu
 
 ### Custom Hooks
 
-#### `useROs.ts`
-- `useROs()`: Fetches all repair orders using React Query
-- `useUpdateROStatus()`: Mutation for updating RO status
-- `useAddRepairOrder()`: Mutation for creating new ROs
-- `useDashboardStats()`: Calculates dashboard statistics from RO data
-- Handles loading states, caching, and automatic refetching
+#### Data Fetching
+- **`useROs()`** - Fetch all active repair orders
+- **`useArchivedROs(sheetName)`** - Fetch from specific archive
+- **`useShops()`** - Fetch all shops
+- **`useDashboardStats()`** - Calculate dashboard metrics
+- **`useInventoryFile()`** - Search and access inventory file
+- **`useAttachments(roNumber)`** - Fetch RO attachments
 
-## Code Logic Flow
+#### Data Mutations
+- **`useUpdateROStatus()`** - Update RO status
+- **`useAddRepairOrder()`** - Create new RO
+- **`useUpdateRepairOrder()`** - Edit existing RO
+- **`useBulkUpdateStatus()`** - Batch status updates
+- **`useArchiveRO()`** - Move RO to archive sheet
+- **`useDeleteRepairOrder()`** - Delete RO
+- **`useAddShop()`, `useUpdateShop()`, `useDeleteShop()`** - Shop CRUD
+- **`useUploadAttachment()`, `useDeleteAttachment()`** - File operations
 
-### Authentication Flow
+#### Filters & State
+- **`useROFilters()`** - Manage filter state and active count
+- **`useTheme()`** - Theme state and toggle
 
-```
-1. User opens app
-   ↓
-2. App checks if user is authenticated (MSAL)
-   ↓
-3a. NOT authenticated:
-    - Show login page with company logo
-    - User clicks "Sign in with Microsoft"
-    - MSAL opens Microsoft login popup
-    - User enters credentials
-    - Azure AD validates and returns token
-    - App stores token and redirects to dashboard
-    ↓
-3b. IS authenticated:
-    - Skip to dashboard
-    ↓
-4. MSAL instance is passed to excelService
-5. App ready to make Graph API calls
-```
+## Services
 
-### Data Fetching Flow (Reading ROs)
+### Core Services
 
-```
-1. ROTable or Dashboard component mounts
-   ↓
-2. useROs() hook triggers
-   ↓
-3. React Query checks cache
-   - If fresh data exists, return immediately
-   - If stale or no data, continue
-   ↓
-4. excelService.getRepairOrders() called
-   ↓
-5. excelService.getFileId():
-   - Get SharePoint site info
-   - Get drive ID (cached)
-   - Search for Book.xlsx
-   - Return file ID (cached)
-   ↓
-6. Graph API call: GET /workbook/tables/RepairTable/rows
-   ↓
-7. Response contains array of rows
-   ↓
-8. Parse each row:
-   - Map Excel columns to RepairOrder type
-   - Parse dates (Excel serial dates → Date objects)
-   - Parse currency values
-   - Calculate isOverdue and daysOverdue
-   ↓
-9. Return array of RepairOrder objects
-   ↓
-10. React Query caches result
-    ↓
-11. Component receives data and renders
-```
-
-### Creating a New RO Flow
-
-```
-1. User clicks "New RO" button
-   ↓
-2. AddRODialog opens
-   ↓
-3. User fills form and clicks "Create Repair Order"
-   ↓
-4. Form validation checks required fields
-   ↓
-5. useAddRepairOrder mutation triggers
-   ↓
-6. excelService.addRepairOrder(data) called
-   ↓
-7. Create Excel workbook session:
-   - POST /workbook/createSession
-   - Returns session ID
-   - Session allows isolated edits
-   ↓
-8. Prepare new row data (22 columns):
-   - Set RO Number, Shop, Part info (from form)
-   - Set Date Made, Status Date (today)
-   - Set Current Status ("TO SEND")
-   - Set Last Updated (today)
-   - Leave optional fields empty
-   ↓
-9. Graph API call with session:
-   - POST /workbook/tables/RepairTable/rows/add
-   - Header: workbook-session-id
-   - Body: { values: [newRow] }
-   ↓
-10. Excel adds row to table
-    ↓
-11. Close workbook session:
-    - POST /workbook/closeSession
-    ↓
-12. React Query invalidates cache
-    ↓
-13. Automatic refetch of all ROs
-    ↓
-14. Dashboard and table update with new RO
-    ↓
-15. Show success toast notification
-    ↓
-16. Close dialog and reset form
-```
-
-### Updating RO Status Flow
-
-```
-1. User clicks "View Details" on RO
-   ↓
-2. RODetailDialog opens
-   ↓
-3. User clicks "Update Status"
-   ↓
-4. UpdateStatusDialog opens
-   ↓
-5. User selects new status and optionally adds notes
-   ↓
-6. User clicks "Update Status"
-   ↓
-7. useUpdateROStatus mutation triggers
-   ↓
-8. excelService.updateROStatus(rowIndex, status, notes)
-   ↓
-9. Create workbook session
-   ↓
-10. Get current row data:
-    - GET /workbook/tables/RepairTable/rows/itemAt(index=X)
-    ↓
-11. Modify specific columns:
-    - Column 13: New status
-    - Column 14: Status date (today)
-    - Column 18: Notes (if provided)
-    - Column 19: Last updated (today)
-    ↓
-12. Update row:
-    - PATCH /workbook/tables/RepairTable/rows/itemAt(index=X)
-    - Body: { values: [modifiedRow] }
-    ↓
-13. Close workbook session
-    ↓
-14. React Query invalidates cache
-    ↓
-15. Automatic refetch of all ROs
-    ↓
-16. UI updates with new status
-    ↓
-17. Show success toast
-    ↓
-18. Close dialogs
-```
-
-## Excel Service Details
-
-### `excelService.ts`
-The core service that handles all SharePoint/Excel operations.
+#### `excelService.ts`
+Handles all SharePoint/Excel operations for repair orders.
 
 **Key Methods:**
-
-- `setMsalInstance(instance)`: Initialize with MSAL for auth
-- `getAccessToken()`: Gets Azure AD access token for Graph API calls
-- `callGraphAPI(endpoint, method, body, useSession)`: Generic API caller with session support
-- `getFileId()`: Finds and caches the Excel file ID
-- `createSession()`: Creates isolated workbook edit session
-- `closeSession()`: Closes workbook session
-- `getRepairOrders()`: Fetches all ROs from Excel table
-- `addRepairOrder(data)`: Adds new row to Excel table
-- `updateROStatus(rowIndex, status, notes)`: Updates existing row
+- `getRepairOrders()` - Fetch all ROs from Excel table
+- `addRepairOrder(data)` - Add new RO row
+- `updateROStatus(rowIndex, status, notes, cost, deliveryDate)` - Update RO fields
+- `appendNote(rowIndex, note)` - Add note to existing RO
+- `moveROToArchive(rowIndex, targetSheet, targetTable)` - Archive RO
+- `deleteRepairOrder(rowIndex)` - Delete RO
+- `searchForFile(fileName)` - Find file in SharePoint
+- `listFileStructure(fileId)` - Get workbook structure
 
 **Session Management:**
-- Sessions provide isolated edit contexts
-- Prevents conflicts with other users
-- Uses `workbook-session-id` header
-- Auto-closes in finally block
-
-**Caching:**
-- File ID cached to avoid repeated lookups
-- Drive ID cached for performance
-- Reduces API calls
+- Creates isolated workbook sessions for write operations
+- Prevents conflicts with concurrent users
+- Auto-closes in finally blocks
 
 **Date Handling:**
-- Excel stores dates as serial numbers (days since 1/1/1900)
+- Excel serial dates ↔ JavaScript Date conversion
 - Formula: `(serialDate - 25569) * 86400 * 1000`
-- Converts to JavaScript Date objects
 
-**Column Mapping:**
+#### `shopService.ts`
+Manages shop/repair facility data.
+
+**Methods:**
+- `getShops()` - Fetch all shops
+- `addShop(data)` - Create new shop
+- `updateShop(rowIndex, data)` - Edit shop
+- `deleteShop(rowIndex)` - Remove shop
+
+#### `sharePointService.ts`
+Handles file attachments and document management.
+
+**Methods:**
+- `uploadFile(roNumber, file)` - Upload attachment
+- `uploadMultipleFiles(roNumber, files)` - Batch upload
+- `listFiles(roNumber)` - Get RO attachments
+- `deleteFile(fileId)` - Remove attachment
+- `downloadFile(fileId)` - Download file
+- `getROFolderUrl(roNumber)` - Get SharePoint folder URL
+
+**Storage Options:**
+- SharePoint: Enterprise document libraries
+- OneDrive: Simple setup for small teams
+
+#### `reminderService.ts`
+Creates reminders and calendar events.
+
+**Methods:**
+- `createToDoTask(title, dueDate, notes)` - Microsoft To Do task
+- `createCalendarEvent(title, startDate, notes)` - Outlook calendar event
+- `createPaymentDueCalendarEvent({roNumber, shopName, amount, netDays})` - NET payment reminder
+
+#### `loggingService.ts`
+Logs AI interactions to SharePoint/OneDrive.
+
+**Methods:**
+- `logAIInteraction(action, details, result)` - Log AI action
+- `getAILogs(date)` - Retrieve daily logs
+- Automatic Excel file creation with formatted entries
+
+#### `anthropicAgent.ts`
+Claude AI integration for natural language processing.
+
+**Features:**
+- Claude Sonnet 4 model
+- Streaming responses
+- Tool use with structured schemas
+- Multi-turn conversations
+- Context-aware with RO and shop data
+
+**Methods:**
+- `processCommand(userMessage, context)` - Process natural language command
+- `continueConversation(messages)` - Multi-turn chat
+- Handles tool execution and response streaming
+
+#### `aiTools.ts`
+Defines AI tool schemas and executors.
+
+**Available Tools:**
+1. **`update_repair_order`** - Update status, cost, tracking, notes, dates
+2. **`query_repair_orders`** - Filter ROs by status, shop, date, cost, overdue
+3. **`send_reminder_email`** - Email shops for status updates
+4. **`get_repair_order_summary`** - Summarize RO details
+5. **`archive_repair_order`** - Move completed ROs to archive
+6. **`create_repair_order`** - Add new RO (planned)
+
+## Business Rules
+
+### Status-Based Next Update Calculation
+
+Implemented in `businessRules.ts`:
+
+- **TO SEND**: Follow up in 3 days to confirm shipment
+- **WAITING QUOTE**: Follow up in 14 days for quote
+- **APPROVED**: Follow up in 7 days to check repair start
+- **BEING REPAIRED**: Follow up in 10 days for progress
+- **CURRENTLY BEING SHIPPED**: Follow up in 5 days for inbound delivery
+- **RECEIVED**: Follow up in 3 days for payment processing
+- **SHIPPING**: Follow up in 3 days to track delivery
+- **PAID**: Based on payment terms
+  - NET 30/60/90: Payment due in X days
+  - COD/Prepaid/Credit Card: No follow-up (complete)
+  - Wire Transfer: 3 days for processing
+  - Unknown terms: Default 30 days
+- **PAYMENT SENT**: Order complete, no follow-up
+- **BER**: No follow-up needed
+
+### Payment Terms Processing
+
+Implemented in `excelSheets.ts`:
+
+- **NET Detection**: Regex pattern `NET\s*(\d+)` extracts days
+  - "NET 30", "NET30", "Net 60" → 30, 30, 60 days
+- **Term Types**:
+  - COD (Cash on Delivery)
+  - Prepaid
+  - Credit Card
+  - Wire Transfer / XFER
+  - NET 30/60/90
+
+### Archival Rules
+
+Determined by status and payment terms:
+
+- **RECEIVED Status**:
+  - NET payment terms → NET archive (with payment reminder)
+  - Other payment terms → PAID archive
+  - Unclear/no terms → Prompt user to choose
+- **PAID/PAYMENT SENT**:
+  - PAID archive
+- **BER/RAI**:
+  - Returns archive
+- **Other Statuses**:
+  - Remain in Active sheet
+
+### Status Colors
+
+- **TO SEND**: Blue
+- **WAITING QUOTE**: Yellow
+- **APPROVED**: Green
+- **BEING REPAIRED**: Purple
+- **CURRENTLY BEING SHIPPED**: Cyan
+- **RECEIVED**: Teal
+- **SHIPPING**: Indigo
+- **PAID/PAYMENT SENT**: Gray
+- **BER**: Slate
+- **Overdue**: Red (overrides status color)
+
+## Data Models
+
+### RepairOrder
+```typescript
+interface RepairOrder {
+  // Identifiers
+  id: string;
+  roNumber: string;
+
+  // Dates
+  dateMade: Date;
+  dateDroppedOff?: Date;
+  estimatedDeliveryDate?: Date;
+  currentStatusDate: Date;
+  lastDateUpdated: Date;
+  nextDateToUpdate: Date | null;
+
+  // Shop & Part Info
+  shopName: string;
+  partNumber: string;
+  serialNumber: string;
+  partDescription: string;
+  requiredWork: string;
+  shopReferenceNumber?: string;
+
+  // Costs
+  estimatedCost?: number;
+  finalCost?: number;
+  terms?: string; // Payment terms
+
+  // Status
+  currentStatus: string;
+  genThrustStatus?: string;
+  shopStatus?: string;
+  trackingNumber?: string;
+
+  // Notes & History
+  notes?: string;
+  statusHistory?: StatusHistoryEntry[];
+
+  // Calculated
+  isOverdue: boolean;
+  daysOverdue: number;
+  checked?: boolean;
+}
 ```
-0:  RO Number
-1:  Date Made
-2:  Shop Name
-3:  Part Number
-4:  Serial Number
-5:  Part Description
-6:  Required Work
-7:  Date Dropped Off
-8:  Estimated Cost
-9:  Final Cost
-10: Terms
-11: Shop Reference Number
-12: Estimated Delivery Date
-13: Current Status
-14: Current Status Date
-15: GenThrust Status
-16: Shop Status
-17: Tracking Number
-18: Notes
-19: Last Date Updated
-20: Next Date to Update
-21: Checked
+
+### Shop
+```typescript
+interface Shop {
+  id: string;
+  customerNumber: string;
+  businessName: string;
+
+  // Address
+  addressLines: string[];
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+
+  // Contact
+  phone: string;
+  tollFree?: string;
+  fax?: string;
+  email: string;
+  website?: string;
+  contact: string; // Primary contact name
+
+  // Business
+  paymentTerms: string;
+  ilsCode?: string;
+  lastSaleDate?: Date;
+  ytdSales?: number;
+}
+```
+
+### StatusHistoryEntry
+```typescript
+interface StatusHistoryEntry {
+  status: string;
+  date: Date;
+  user: string;
+  cost?: number;
+  notes?: string;
+  deliveryDate?: Date;
+}
+```
+
+### DashboardStats
+```typescript
+interface DashboardStats {
+  // Active RO Metrics
+  totalActive: number;
+  overdue: number;
+  waitingQuote: number;
+  approved: number;
+  beingRepaired: number;
+  shipping: number;
+  dueToday: number;
+  overdue30Plus: number;
+  onTrack: number;
+
+  // Financial
+  totalValue: number;
+  estimatedValue: number;
+
+  // Archive Stats
+  archiveStats: {
+    approvedPaid: number;
+    approvedNet: number;
+    rai: number;
+    ber: number;
+    cancelled: number;
+  };
+}
+```
+
+## Excel Column Mapping
+
+### RepairTable (Active Sheet)
+```
+Column Index  Field Name
+────────────────────────────────────────
+0             RO Number
+1             Date Made
+2             Shop Name
+3             Part Number
+4             Serial Number
+5             Part Description
+6             Required Work
+7             Date Dropped Off
+8             Estimated Cost
+9             Final Cost
+10            Terms (Payment Terms)
+11            Shop Reference Number
+12            Estimated Delivery Date
+13            Current Status
+14            Current Status Date
+15            GenThrust Status
+16            Shop Status
+17            Tracking Number
+18            Notes
+19            Last Date Updated
+20            Next Date to Update
+21            Checked
 ```
 
 ## Setup Instructions
 
 ### Prerequisites
-- Node.js 18+ and npm
-- Azure AD app registration with permissions:
-  - `User.Read`
-  - `Files.ReadWrite`
-  - `Sites.Read.All` (minimum) or `Sites.ReadWrite.All` (for full write access)
-- SharePoint site with Excel file
-- Excel file must have an **Excel Table** (not just a worksheet)
+- **Node.js 18+** and npm
+- **Azure AD App Registration** with permissions:
+  - `User.Read` - User profile access
+  - `Files.ReadWrite.All` - Excel file read/write
+  - `Sites.Read.All` - SharePoint site access
+  - `Tasks.ReadWrite` - Microsoft To Do
+  - `Calendars.ReadWrite` - Outlook Calendar
+- **SharePoint Site** with Excel files
+- **Excel Tables** (not just worksheets) for data storage
+- **Anthropic API Key** for Claude AI
 
 ### Installation
 
@@ -383,11 +638,23 @@ The core service that handles all SharePoint/Excel operations.
 
 3. **Create `.env.local` file**
    ```env
+   # Azure AD / MSAL Configuration
    VITE_CLIENT_ID=your-azure-ad-client-id
    VITE_TENANT_ID=your-azure-ad-tenant-id
+
+   # SharePoint Configuration
    VITE_SHAREPOINT_SITE_URL=https://yourcompany.sharepoint.com/sites/YourSite
    VITE_EXCEL_FILE_NAME=Book.xlsx
    VITE_EXCEL_TABLE_NAME=RepairTable
+   VITE_SHOPS_FILE_NAME=Shops.xlsx
+   VITE_SHOPS_TABLE_NAME=ShopsTable
+
+   # Anthropic AI Configuration
+   VITE_ANTHROPIC_API_KEY=sk-ant-api03-...
+
+   # Storage Configuration (optional)
+   VITE_STORAGE_TYPE=sharepoint  # or "onedrive"
+   VITE_SHAREPOINT_SITE_ID=your-site-id  # if using SharePoint storage
    ```
 
 4. **Configure Azure AD App Registration**
@@ -395,35 +662,59 @@ The core service that handles all SharePoint/Excel operations.
    - Navigate to **Azure Active Directory** → **App registrations**
    - Create new registration or select existing
    - **Authentication**:
-     - Add platform: Single-page application (SPA)
-     - Redirect URI: `http://localhost:5173` (dev) and your production URL
-     - Enable implicit grant: Access tokens, ID tokens
-   - **API permissions**:
-     - Add Microsoft Graph delegated permissions:
-       - `User.Read`
-       - `Files.ReadWrite`
-       - `Sites.Read.All` or `Sites.ReadWrite.All`
-     - Grant admin consent (may require admin)
-   - Copy Client ID and Tenant ID to `.env.local`
+     - Platform: Single-page application (SPA)
+     - Redirect URIs:
+       - `http://localhost:5173` (development)
+       - Your production URL
+     - Implicit grant: Enable Access tokens and ID tokens
+   - **API permissions** (Microsoft Graph delegated):
+     - `User.Read` (default)
+     - `Files.ReadWrite.All`
+     - `Sites.Read.All`
+     - `Tasks.ReadWrite`
+     - `Calendars.ReadWrite`
+     - Click "Grant admin consent"
+   - Copy **Client ID** and **Tenant ID** to `.env.local`
 
-5. **Set up SharePoint Excel File**
+5. **Set up SharePoint Excel Files**
+
+   **Book.xlsx (Repair Orders):**
    - Upload Excel file to SharePoint document library
-   - **IMPORTANT**: Data must be in an **Excel Table**, not just cells
-   - To create Excel Table:
-     - Select your data range
-     - Insert → Table (or Ctrl+T)
+   - **IMPORTANT**: Create Excel Tables (not just worksheets):
+     - Select data range → Insert → Table (Ctrl+T)
      - Check "My table has headers"
-     - Name the table (e.g., "RepairTable")
-   - Ensure your account has **Edit** permissions on the file
+     - Name tables:
+       - Active repairs: `RepairTable`
+       - Paid archive: `Paid`
+       - NET archive: `NET`
+       - Returns archive: `Returns`
+   - Column headers must match the mapping above
 
-6. **Run development server**
+   **Shops.xlsx (Shop Directory):**
+   - Create Excel table named `ShopsTable`
+   - Required columns:
+     - Customer Number, Business Name, Address Lines
+     - City, State, Zip, Country
+     - Phone, Email, Contact, Payment Terms
+
+   **Permissions:**
+   - Ensure your account has **Edit** permissions on files
+   - All users need at least **Read** access
+
+6. **Get Anthropic API Key**
+   - Sign up at [anthropic.com](https://console.anthropic.com)
+   - Create API key
+   - Add to `.env.local` as `VITE_ANTHROPIC_API_KEY`
+
+7. **Run development server**
    ```bash
    npm run dev
    ```
 
-7. **Open browser**
+8. **Open browser**
    - Navigate to `http://localhost:5173`
    - Sign in with your Microsoft account
+   - Press **Ctrl+K** to test the AI Assistant
    - Start tracking repair orders!
 
 ### Building for Production
@@ -432,64 +723,128 @@ The core service that handles all SharePoint/Excel operations.
 npm run build
 ```
 
-Outputs to `/dist` directory. Deploy to any static hosting service (Azure Static Web Apps, Netlify, Vercel, etc.).
+Outputs to `/dist` directory. Deploy to:
+- Azure Static Web Apps (recommended)
+- Netlify
+- Vercel
+- Any static hosting service
+
+**Production Environment Variables:**
+- Set all `VITE_*` variables in your hosting platform
+- Ensure Azure AD redirect URI matches production URL
+- Update CORS settings if needed
 
 ## Project Structure
 
 ```
 repair-dashboard/
 ├── src/
-│   ├── assets/                 # Static assets
-│   │   └── GENLOGO.png        # Company logo
-│   ├── components/            # React components
-│   │   ├── ui/               # shadcn/ui base components
+│   ├── assets/                    # Static assets
+│   │   └── GENLOGO.png           # Company logo
+│   │
+│   ├── components/               # React components
+│   │   ├── ui/                  # shadcn/ui base components
 │   │   │   ├── button.tsx
-│   │   │   ├── dialog.tsx
+│   │   │   ├── card.tsx
+│   │   │   ├── badge.tsx
 │   │   │   ├── input.tsx
-│   │   │   ├── select.tsx
-│   │   │   ├── table.tsx
-│   │   │   ├── textarea.tsx
 │   │   │   ├── label.tsx
-│   │   │   └── badge.tsx
-│   │   ├── Dashboard.tsx      # Statistics dashboard
-│   │   ├── ROTable.tsx        # Main repair orders table
-│   │   ├── RODetailDialog.tsx # RO details modal
-│   │   ├── AddRODialog.tsx    # Create RO modal
-│   │   ├── UpdateStatusDialog.tsx # Update status modal
-│   │   └── StatusBadge.tsx    # Status display component
-│   ├── hooks/                 # Custom React hooks
-│   │   └── useROs.ts         # Data fetching hooks with React Query
-│   ├── lib/                   # Core libraries and utilities
-│   │   ├── excelService.ts   # Excel/SharePoint service
-│   │   ├── msalConfig.ts     # Azure AD configuration
-│   │   └── utils.ts          # Utility functions
-│   ├── types/                 # TypeScript type definitions
-│   │   └── index.ts          # RepairOrder, DashboardStats types
-│   ├── App.tsx               # Root component
-│   ├── main.tsx              # App entry point
-│   └── index.css             # Global styles (Tailwind)
-├── .env.local                # Environment variables (not committed)
-├── package.json              # Dependencies and scripts
-├── tsconfig.json             # TypeScript configuration
-├── vite.config.ts            # Vite configuration
-├── tailwind.config.js        # Tailwind CSS configuration
-├── postcss.config.js         # PostCSS configuration
+│   │   │   ├── checkbox.tsx
+│   │   │   ├── dialog.tsx
+│   │   │   ├── textarea.tsx
+│   │   │   ├── table.tsx
+│   │   │   ├── select.tsx
+│   │   │   └── dropdown-menu.tsx
+│   │   ├── Dashboard.tsx         # Statistics dashboard
+│   │   ├── ROTable.tsx          # Main repair orders table
+│   │   ├── RODetailDialog.tsx   # RO details modal
+│   │   ├── AddRODialog.tsx      # Create/edit RO modal
+│   │   ├── UpdateStatusDialog.tsx    # Update status
+│   │   ├── ApprovalDialog.tsx   # Archive approval
+│   │   ├── ArchiveDestinationDialog.tsx  # PAID vs NET
+│   │   ├── StatusBadge.tsx      # Status display
+│   │   ├── StatusTimeline.tsx   # Status history
+│   │   ├── ShopDirectory.tsx    # Shop management
+│   │   ├── ShopManagementDialog.tsx  # Add/edit shops
+│   │   ├── EmailComposerDialog.tsx   # Email interface
+│   │   ├── ReminderTypeDialog.tsx    # Reminder options
+│   │   ├── AIAgentDialog.tsx    # AI assistant
+│   │   ├── LogsDialog.tsx       # AI activity logs
+│   │   ├── AttachmentManager.tsx     # File uploads
+│   │   ├── BulkActionsBar.tsx   # Multi-select actions
+│   │   ├── InventoryFileViewer.tsx   # Inventory file
+│   │   └── ThemeToggle.tsx      # Dark/light mode
+│   │
+│   ├── hooks/                   # Custom React hooks
+│   │   ├── useROs.ts           # RO data fetching & mutations
+│   │   ├── useShops.ts         # Shop data
+│   │   ├── useROFilters.ts     # Filter state management
+│   │   ├── useInventoryFile.ts # Inventory file access
+│   │   └── useTheme.ts         # Theme state
+│   │
+│   ├── lib/                     # Core libraries
+│   │   ├── excelService.ts     # Excel/SharePoint service
+│   │   ├── shopService.ts      # Shop CRUD operations
+│   │   ├── reminderService.ts  # To Do & Calendar
+│   │   ├── loggingService.ts   # AI logging
+│   │   ├── businessRules.ts    # Status & date logic
+│   │   ├── emailTemplates.ts   # Email generation
+│   │   ├── trackingUtils.ts    # Carrier detection
+│   │   ├── exportUtils.ts      # CSV export
+│   │   ├── msalConfig.ts       # Azure AD config
+│   │   └── utils.ts            # Utility functions
+│   │
+│   ├── services/               # Backend services
+│   │   ├── anthropicAgent.ts   # Claude AI integration
+│   │   ├── aiTools.ts          # AI tool definitions
+│   │   ├── aiParser.ts         # Command parsing
+│   │   └── sharepoint.ts       # File attachments
+│   │
+│   ├── config/                 # Configuration
+│   │   ├── anthropic.ts        # AI settings
+│   │   ├── excelSheets.ts      # Sheet definitions
+│   │   └── sharepoint.ts       # Storage config
+│   │
+│   ├── types/                  # TypeScript types
+│   │   ├── index.ts           # Core types
+│   │   ├── aiAgent.ts         # AI types
+│   │   └── aiCommand.ts       # Command types
+│   │
+│   ├── App.tsx                # Root component
+│   ├── main.tsx               # App entry point
+│   └── index.css              # Global styles
+│
+├── .env.local                 # Environment variables (gitignored)
+├── package.json              # Dependencies
+├── tsconfig.json             # TypeScript config
+├── vite.config.ts            # Vite config
+├── tailwind.config.js        # Tailwind CSS config
+├── postcss.config.js         # PostCSS config
+├── components.json           # shadcn/ui config
 └── README.md                 # This file
 ```
 
 ## Key Technical Decisions
 
-### Why React Query?
+### Why Claude AI (Anthropic)?
+- State-of-the-art natural language understanding
+- Tool use API for structured function calling
+- Streaming responses for real-time feedback
+- 200K token context window (handles large datasets)
+- Strong reasoning capabilities for complex workflows
+
+### Why React Query (TanStack Query)?
 - Automatic caching and background updates
 - Built-in loading and error states
 - Automatic refetching on window focus
 - Optimistic updates support
-- Reduces boilerplate code
+- Reduces boilerplate by 80%
 
 ### Why Excel Tables vs Worksheets?
-- Microsoft Graph API only supports Excel **Tables**, not raw worksheet ranges
+- Microsoft Graph API only supports Excel **Tables**
 - Tables provide structured, queryable data
 - Automatic schema validation
+- Column name access (not just indexes)
 - Better for programmatic access
 
 ### Why Workbook Sessions?
@@ -497,70 +852,153 @@ repair-dashboard/
 - Prevents conflicts with concurrent users
 - Recommended by Microsoft for write operations
 - Ensures data consistency
+- Required for batch operations
 
-### Why Tailwind CSS v3?
-- Initial setup tried v4 but encountered PostCSS issues
-- v3 is stable, well-documented, and widely supported
-- Utility-first approach speeds up development
-- Easy to customize and maintain
+### Why Tailwind CSS?
+- Utility-first speeds up development
+- Highly customizable with CSS variables
+- Built-in dark mode support
+- Excellent performance (PurgeCSS)
+- Industry standard
 
 ### Why shadcn/ui?
-- Copy-paste component approach (full control)
-- Built on Radix UI (excellent accessibility)
+- Copy-paste approach (full control over code)
+- Built on Radix UI (world-class accessibility)
 - Highly customizable
 - No package bloat (only includes used components)
+- TypeScript-first
 
 ### Why MSAL Browser?
 - Official Microsoft authentication library
-- Handles token management automatically
-- Supports SSO and silent token refresh
+- Handles token refresh automatically
+- Supports SSO and silent acquisition
 - Industry standard for Azure AD
+- Built-in error recovery
 
 ## Common Issues & Solutions
 
 ### "Table not found" Error
 - **Cause**: Data is in worksheet cells, not an Excel Table
-- **Solution**: Select data → Insert → Table → Name it "RepairTable"
+- **Solution**: Select data → Insert → Table → Name it correctly (e.g., "RepairTable")
+- **Verify**: Table appears in Excel's Table Design tab
 
 ### "EditModeAccessDenied" Error
 - **Cause**: No edit permissions on Excel file
-- **Solution**: Check file permissions in SharePoint, ensure you have Edit access
+- **Solution**: Check SharePoint permissions, ensure you have Edit access
+- **Fix**: File → Share → Grant Edit to your account
 
 ### "access_denied" on Login
 - **Cause**: API permissions need admin consent
-- **Solution**: Azure AD admin must grant consent in App Registration
+- **Solution**: Azure AD admin must grant consent in App Registration → API permissions → Grant admin consent
 
 ### Can't Log In / Popup Blocked
 - **Cause**: Browser blocking popup window
 - **Solution**: Allow popups for localhost or your domain
+- **Alternative**: App automatically falls back to redirect flow
 
 ### Data Not Refreshing
 - **Cause**: React Query cache not invalidating
-- **Solution**: Click refresh button or wait for auto-refetch
+- **Solution**: Click refresh button (top right) or wait for auto-refetch (30 seconds)
+- **Force Refresh**: F5 (browser reload)
+
+### AI Assistant Not Responding
+- **Cause**: Invalid or missing Anthropic API key
+- **Solution**: Verify `VITE_ANTHROPIC_API_KEY` in `.env.local`
+- **Check**: API key starts with `sk-ant-api03-`
+
+### Files Not Uploading
+- **Cause**: SharePoint permissions or incorrect site ID
+- **Solution**:
+  - Check `VITE_STORAGE_TYPE` setting
+  - Verify SharePoint site ID if using SharePoint storage
+  - Ensure OneDrive access if using OneDrive storage
+
+### NET Payment Reminders Not Creating
+- **Cause**: Missing Calendar/Tasks API permissions
+- **Solution**: Add `Calendars.ReadWrite` and `Tasks.ReadWrite` to Azure AD app
+
+### Dark Mode Colors Wrong
+- **Cause**: Theme variables not loaded
+- **Solution**: Check `index.css` has `:root` and `.dark` CSS variables
+- **Reset**: Clear browser cache, reload
 
 ## Future Enhancements
 
 Potential features for future development:
-- Edit existing ROs (not just status)
-- Delete ROs
-- Export to CSV/PDF
-- Email notifications for overdue ROs
-- File attachments (photos, documents)
-- Bulk status updates
-- Advanced filtering (date ranges, cost ranges)
-- Repair history timeline
-- Integration with Power Automate for workflows
-- Mobile app version
-- Offline support with sync
+
+### High Priority
+- [ ] Global search across all 4 tables (Active, Paid, NET, Returns)
+- [ ] Responsive mobile table layout
+- [ ] Advanced PDF/CSV export with filtering
+- [ ] Bulk email sending to multiple shops
+- [ ] Email send history tracking
+- [ ] RO edit history/audit log
+
+### Medium Priority
+- [ ] Power BI integration for advanced analytics
+- [ ] Gantt chart view for repair timelines
+- [ ] Cost trend analysis and forecasting
+- [ ] Shop performance metrics and ratings
+- [ ] Automated quote reminder escalation
+- [ ] Push notifications for overdue ROs
+
+### Low Priority
+- [ ] Mobile app (React Native)
+- [ ] Offline support with sync
+- [ ] Power Automate workflow integration
+- [ ] QR code generation for ROs
+- [ ] Barcode scanning for parts
+- [ ] Multi-language support
 
 ## Contributing
 
-This is an internal GenThrust project. For questions or issues, contact the development team.
+This is an internal GenThrust project. For questions or issues:
+- Contact the development team
+- Submit issues via internal ticketing system
+- Request features via project management board
 
 ## License
 
-Proprietary - GenThrust XVII Internal Use Only
+**Proprietary - GenThrust XVII Internal Use Only**
+
+All rights reserved. This software is the property of GenThrust XVII and may not be distributed, copied, or used outside the organization without explicit written permission.
 
 ---
 
-**Built with ❤️ by Claude Code for GenThrust**
+## Quick Reference
+
+### Keyboard Shortcuts
+- **Ctrl+K** - Open AI Assistant
+- **Esc** - Close dialogs
+- **Ctrl+F** - Focus search (browser default)
+
+### AI Assistant Examples
+```
+"Update RO 12345 to RECEIVED status"
+"Show me all overdue ROs from Duncan Aviation"
+"Send a reminder email to StandardAero for RO 12346"
+"What's the summary for RO 12347?"
+"Archive RO 12348 to PAID"
+"Show high value ROs over $10000"
+```
+
+### Status Flow
+```
+TO SEND → WAITING QUOTE → APPROVED → BEING REPAIRED →
+CURRENTLY BEING SHIPPED → RECEIVED → SHIPPING → PAID → PAYMENT SENT
+
+Alternative endings:
+→ BER (Beyond Economic Repair)
+→ RAI (Return As Is)
+```
+
+### Archive Routing
+- **PAID Sheet**: Received + non-NET payment terms
+- **NET Sheet**: Received + NET30/60/90 terms (creates reminder)
+- **Returns Sheet**: BER, RAI, Cancelled statuses
+
+---
+
+**Built with ❤️ using Claude Code & Claude AI for GenThrust XVII**
+
+*Last Updated: January 2025*

@@ -1,31 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm create:*)",
-      "Bash(npm install)",
-      "Bash(npm install:*)",
-      "Bash(npx tailwindcss init:*)",
-      "Bash(./node_modules/.bin/tailwindcss:*)",
-      "Bash(npm run build:*)",
-      "Bash(npm run:*)",
-      "Bash(cat:*)",
-      "Bash(node:*)",
-      "Bash(npm:*)",
-      "Bash(mkdir -p repair-dashboard/docs)",
-      "Bash(npx shadcn@latest init -y)",
-      "Bash(npx shadcn@latest add button)",
-      "Bash(npx shadcn@latest add card badge input select table dialog textarea label)",
-      "Bash(npx shadcn@latest add:*)",
-      "mcp__ide__getDiagnostics",
-      "Bash(netstat:*)",
-      "Bash(findstr:*)",
-      "Bash(taskkill:*)",
-      "Bash(timeout /t 2)",
-      "Bash(echo:*)",
-      "Bash(ShopDirectory.tsx)",
-      "Bash(ShopManagementDialog.tsx)",
-      "Bash(find:*)",
-      "Bash(tree:*)"
+      "Bash(wc:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

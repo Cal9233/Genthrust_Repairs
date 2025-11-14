@@ -3,6 +3,7 @@ import { excelService } from '@/lib/excelService';
 import { reminderService } from '@/lib/reminderService';
 import { generateEmailForAI } from '@/lib/emailTemplates';
 import { getFinalSheetForStatus } from '@/config/excelSheets';
+import { inventoryService } from '@/services/inventoryService';
 
 // Tool definitions
 export const tools: Tool[] = [
@@ -250,6 +251,81 @@ export const tools: Tool[] = [
         }
       },
       required: ["ro_number", "status"]
+    }
+  },
+  {
+    name: "search_inventory",
+    description: "Search inventory for a specific part number across all warehouse locations. Returns quantity, condition, location, and availability for all matching inventory items.",
+    input_schema: {
+      type: "object",
+      properties: {
+        part_number: {
+          type: "string",
+          description: "The part number to search for (e.g., 'MS20470AD4-6', 'AN470AD4-6'). Can include dashes, which are preserved in search."
+        }
+      },
+      required: ["part_number"]
+    }
+  },
+  {
+    name: "check_inventory_quantity",
+    description: "Quick check of current total quantity for a part number across all locations. Faster than full search when only the total quantity is needed.",
+    input_schema: {
+      type: "object",
+      properties: {
+        part_number: {
+          type: "string",
+          description: "The part number to check quantity for"
+        }
+      },
+      required: ["part_number"]
+    }
+  },
+  {
+    name: "create_ro_from_inventory",
+    description: "Create a new repair order using a part from inventory. This will automatically decrement the inventory quantity by 1 and create an RO with pre-filled part information. Only use this if the user explicitly wants to create an RO from inventory.",
+    input_schema: {
+      type: "object",
+      properties: {
+        part_number: {
+          type: "string",
+          description: "Part number from inventory to use for the RO"
+        },
+        shop_name: {
+          type: "string",
+          description: "Name of the repair shop"
+        },
+        ro_number: {
+          type: "string",
+          description: "Repair order number"
+        },
+        serial_number: {
+          type: "string",
+          description: "Serial number for the part"
+        },
+        required_work: {
+          type: "string",
+          description: "Description of repair work needed"
+        },
+        estimated_cost: {
+          type: "number",
+          description: "Estimated or quoted cost for the repair (optional)"
+        },
+        terms: {
+          type: "string",
+          description: "Payment terms (optional)"
+        }
+      },
+      required: ["part_number", "shop_name", "ro_number", "serial_number", "required_work"]
+    }
+  },
+  {
+    name: "check_low_stock",
+    description: "Get a list of all parts in inventory that are below the low stock threshold (< 2 units). Useful for reordering checks and inventory management.",
+    input_schema: {
+      type: "object",
+      properties: {},
+      required: []
     }
   }
 ];
@@ -789,13 +865,20 @@ export const toolExecutors: Record<string, ToolExecutor> = {
     try {
       const rowIndex = parseInt(ro.id.replace("row-", ""));
 
-      // Determine target sheet based on status
-      const targetSheet = getFinalSheetForStatus(status);
+      // Determine target sheet based on status and payment terms
+      const targetSheet = getFinalSheetForStatus(status, ro.terms);
 
       if (!targetSheet) {
         return {
           success: false,
           error: `Status ${status} does not have an archive sheet configured`
+        };
+      }
+
+      if (targetSheet === 'prompt') {
+        return {
+          success: false,
+          error: `RO ${ro_number} has unclear payment terms. Please archive manually through the UI to choose destination (PAID or NET).`
         };
       }
 
@@ -817,6 +900,188 @@ export const toolExecutors: Record<string, ToolExecutor> = {
       return {
         success: false,
         error: error.message || 'Failed to archive RO'
+      };
+    }
+  },
+
+  search_inventory: async (input, _context) => {
+    const { part_number } = input;
+
+    try {
+      const results = await inventoryService.searchInventory(part_number);
+
+      if (results.length === 0) {
+        return {
+          success: true,
+          found: false,
+          part_number,
+          message: `Part ${part_number} not found in inventory`
+        };
+      }
+
+      // Calculate totals
+      const totalQty = results.reduce((sum, item) => sum + item.qty, 0);
+      const locations = results.length;
+      const lowStock = results.filter(item => item.qty < 2).length;
+
+      return {
+        success: true,
+        found: true,
+        part_number,
+        total_quantity: totalQty,
+        locations_count: locations,
+        low_stock_locations: lowStock,
+        inventory_items: results.map(item => ({
+          quantity: item.qty,
+          condition: item.condition || 'Unknown',
+          location: item.location || 'Unknown',
+          source_table: item.tableName,
+          serial_number: item.serialNumber || 'N/A',
+          description: item.description || 'N/A',
+          is_low_stock: item.qty < 2
+        }))
+      };
+
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to search inventory'
+      };
+    }
+  },
+
+  check_inventory_quantity: async (input, _context) => {
+    const { part_number } = input;
+
+    try {
+      const results = await inventoryService.searchInventory(part_number);
+
+      const totalQty = results.reduce((sum, item) => sum + item.qty, 0);
+      const locations = results.length;
+
+      if (results.length === 0) {
+        return {
+          success: true,
+          found: false,
+          part_number,
+          total_quantity: 0,
+          locations: 0,
+          message: `Part ${part_number} not found in inventory`
+        };
+      }
+
+      return {
+        success: true,
+        found: true,
+        part_number,
+        total_quantity: totalQty,
+        locations,
+        is_low_stock: totalQty < 2,
+        message: `Found ${totalQty} unit${totalQty !== 1 ? 's' : ''} across ${locations} location${locations !== 1 ? 's' : ''}`
+      };
+
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to check inventory quantity'
+      };
+    }
+  },
+
+  create_ro_from_inventory: async (input, _context) => {
+    const { part_number, shop_name, ro_number, serial_number, required_work, estimated_cost, terms } = input;
+
+    try {
+      // First, search inventory to get part details
+      const inventoryResults = await inventoryService.searchInventory(part_number);
+
+      if (inventoryResults.length === 0) {
+        return {
+          success: false,
+          error: `Part ${part_number} not found in inventory`
+        };
+      }
+
+      // Find first available item with qty > 0
+      const availableItem = inventoryResults.find(item => item.qty > 0);
+
+      if (!availableItem) {
+        return {
+          success: false,
+          error: `Part ${part_number} found but no inventory available (all locations have 0 qty)`
+        };
+      }
+
+      // Create the RO
+      const roData = {
+        roNumber: ro_number,
+        shopName: shop_name,
+        partNumber: part_number,
+        serialNumber: serial_number,
+        partDescription: availableItem.description || 'No description',
+        requiredWork: required_work,
+        estimatedCost: estimated_cost,
+        terms: terms
+      };
+
+      await excelService.addRepairOrder(roData);
+
+      // Decrement inventory
+      const decrementResult = await inventoryService.decrementInventory(
+        availableItem.indexId,
+        part_number,
+        availableItem.tableName,
+        availableItem.rowId,
+        ro_number,
+        `Created RO ${ro_number} for ${shop_name}`
+      );
+
+      if (!decrementResult.success) {
+        return {
+          success: false,
+          error: `RO created but inventory decrement failed: ${decrementResult.message}`,
+          ro_created: true,
+          ro_number
+        };
+      }
+
+      return {
+        success: true,
+        ro_number,
+        part_number,
+        shop_name,
+        inventory_decremented: true,
+        new_quantity: decrementResult.newQty,
+        is_low_stock: decrementResult.isLowStock,
+        location: availableItem.location,
+        message: `RO ${ro_number} created successfully. Inventory decremented from ${decrementResult.newQty + 1} to ${decrementResult.newQty}${decrementResult.isLowStock ? ' (LOW STOCK WARNING)' : ''}`
+      };
+
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to create RO from inventory'
+      };
+    }
+  },
+
+  check_low_stock: async (_input, _context) => {
+    try {
+      // We need to query the index for all parts with qty < 2
+      // Since we don't have a direct API for this, we'll need to implement it
+      // For now, we'll return a message indicating this needs manual implementation
+      // TODO: Implement direct index query or add a getLowStockParts method to inventoryService
+
+      return {
+        success: false,
+        error: 'Low stock check requires direct index access. Please use the Inventory Search tab to filter by quantity manually.',
+        todo: 'Implement inventoryService.getLowStockParts() method'
+      };
+
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to check low stock'
       };
     }
   }

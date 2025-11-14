@@ -6,16 +6,18 @@ import { shopService } from "./lib/shopService";
 import { reminderService } from "./lib/reminderService";
 import { sharePointService } from "./services/sharepoint";
 import { loggingService } from "./lib/loggingService";
+import { inventoryService } from "./services/inventoryService";
 import { Dashboard } from "./components/Dashboard";
 import { ROTable } from "./components/ROTable";
 import { ShopDirectory } from "./components/ShopDirectory";
+import { InventorySearchTab } from "./components/InventorySearchTab";
 import { AICommandBar } from "./components/AICommandBar";
 import { AIAgentDialog } from "./components/AIAgentDialog";
 import { LogsDialog } from "./components/LogsDialog";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
-import { LogOut, RefreshCw, ClipboardList, Store, Sparkles, FileText } from "lucide-react";
+import { LogOut, RefreshCw, ClipboardList, Store, Sparkles, FileText, Package } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import logo from "./assets/GENLOGO.png";
 
@@ -23,7 +25,7 @@ function App() {
   const { instance, accounts } = useMsal();
   const isAuthenticated = useIsAuthenticated();
   const queryClient = useQueryClient();
-  const [currentView, setCurrentView] = useState<"repairs" | "shops">("repairs");
+  const [currentView, setCurrentView] = useState<"repairs" | "inventory" | "shops">("repairs");
   const [showAICommand, setShowAICommand] = useState(false);
   const [showAIAgent, setShowAIAgent] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
@@ -35,6 +37,7 @@ function App() {
       reminderService.setMsalInstance(instance);
       sharePointService.setMsalInstance(instance);
       loggingService.setMsalInstance(instance);
+      inventoryService.setMsalInstance(instance);
       console.log("[App] MSAL instance set for services");
     }
   }, [instance]);
@@ -235,6 +238,20 @@ function App() {
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => setCurrentView("inventory")}
+              className={
+                currentView === "inventory"
+                  ? "bg-white text-deep-blue hover:bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-200 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 font-semibold text-xs sm:text-sm whitespace-nowrap"
+                  : "bg-white/15 text-white hover:bg-white/25 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 transition-all duration-200 text-xs sm:text-sm whitespace-nowrap"
+              }
+            >
+              <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Inventory Search</span>
+              <span className="sm:hidden ml-1.5">Inventory</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setCurrentView("shops")}
               className={
                 currentView === "shops"
@@ -262,6 +279,8 @@ function App() {
                 <ROTable />
               </div>
             </>
+          ) : currentView === "inventory" ? (
+            <InventorySearchTab />
           ) : (
             <ShopDirectory />
           )}
