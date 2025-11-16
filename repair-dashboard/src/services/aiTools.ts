@@ -354,6 +354,7 @@ export const toolExecutors: Record<string, ToolExecutor> = {
       const costToUpdate = updates.cost;
       const deliveryDate = updates.estimated_delivery_date ? new Date(updates.estimated_delivery_date) : undefined;
       const notes = updates.notes;
+      const trackingNumber = updates.tracking_number;
 
       // Execute update via excelService
       await excelService.updateROStatus(
@@ -361,8 +362,12 @@ export const toolExecutors: Record<string, ToolExecutor> = {
         statusToUpdate,
         notes,
         costToUpdate,
-        deliveryDate
+        deliveryDate,
+        trackingNumber
       );
+
+      // Invalidate React Query cache to refresh UI
+      context.queryClient.invalidateQueries({ queryKey: ['repairOrders'] });
 
       const updatedFields = [];
       if (updates.status) updatedFields.push('status');
@@ -889,6 +894,9 @@ export const toolExecutors: Record<string, ToolExecutor> = {
         targetSheet.tableName
       );
 
+      // Invalidate React Query cache to refresh UI
+      context.queryClient.invalidateQueries({ queryKey: ['repairOrders'] });
+
       return {
         success: true,
         ro_number: ro.roNumber,
@@ -988,7 +996,7 @@ export const toolExecutors: Record<string, ToolExecutor> = {
     }
   },
 
-  create_ro_from_inventory: async (input, _context) => {
+  create_ro_from_inventory: async (input, context) => {
     const { part_number, shop_name, ro_number, serial_number, required_work, estimated_cost, terms } = input;
 
     try {
@@ -1025,6 +1033,9 @@ export const toolExecutors: Record<string, ToolExecutor> = {
       };
 
       await excelService.addRepairOrder(roData);
+
+      // Invalidate React Query cache to refresh UI
+      context.queryClient.invalidateQueries({ queryKey: ['repairOrders'] });
 
       // Decrement inventory
       const decrementResult = await inventoryService.decrementInventory(

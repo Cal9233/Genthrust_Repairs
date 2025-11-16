@@ -248,7 +248,7 @@ export function CreateROFromInventoryDialog({
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-gray-900">
+            <DialogTitle className="text-2xl font-bold text-foreground">
               Create RO from Inventory
             </DialogTitle>
             <DialogDescription>
@@ -266,7 +266,7 @@ export function CreateROFromInventoryDialog({
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <Label className="text-xs text-blue-700">Part Number</Label>
-                <div className="font-mono font-semibold text-gray-900 mt-1">
+                <div className="font-mono font-semibold text-foreground mt-1">
                   {inventoryItem.partNumber}
                 </div>
               </div>
@@ -286,7 +286,7 @@ export function CreateROFromInventoryDialog({
               </div>
               <div className="col-span-2">
                 <Label className="text-xs text-blue-700">Description</Label>
-                <div className="text-gray-900 mt-1">
+                <div className="text-foreground mt-1">
                   {inventoryItem.description || "-"}
                 </div>
               </div>
@@ -295,13 +295,13 @@ export function CreateROFromInventoryDialog({
                   <MapPin className="h-3 w-3" />
                   Location
                 </Label>
-                <div className="text-gray-900 mt-1">
+                <div className="text-foreground mt-1">
                   {inventoryItem.location || "-"}
                 </div>
               </div>
               <div>
                 <Label className="text-xs text-blue-700">Condition</Label>
-                <div className="text-gray-900 mt-1">
+                <div className="text-foreground mt-1">
                   {inventoryItem.condition || "-"}
                 </div>
               </div>
@@ -347,7 +347,7 @@ export function CreateROFromInventoryDialog({
                     placeholder="🔍 Type to search shops..."
                     value={shopSearch}
                     onChange={(e) => setShopSearch(e.target.value)}
-                    className="bg-white border-2 border-blue-300 pl-10 focus:border-blue-500 shadow-sm"
+                    className="bg-background border-2 border-input pl-10 focus:border-blue-500 shadow-sm"
                   />
                   {shopSearch && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">
@@ -396,7 +396,7 @@ export function CreateROFromInventoryDialog({
             {/* Form Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="roNumber" className="text-sm font-semibold text-gray-700">
+                <Label htmlFor="roNumber" className="text-sm font-semibold text-foreground">
                   RO Number <span className="text-red-600">*</span>
                 </Label>
                 <Input
@@ -406,12 +406,12 @@ export function CreateROFromInventoryDialog({
                   onChange={handleChange}
                   required
                   placeholder="e.g., RO-2024-001"
-                  className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
+                  className="border-input bg-background focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="shopName" className="text-sm font-semibold text-gray-700">
+                <Label htmlFor="shopName" className="text-sm font-semibold text-foreground">
                   Shop Name <span className="text-red-600">*</span>
                 </Label>
                 <Input
@@ -421,12 +421,12 @@ export function CreateROFromInventoryDialog({
                   onChange={handleChange}
                   required
                   placeholder="Repair station name"
-                  className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
+                  className="border-input bg-background focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="serialNumber" className="text-sm font-semibold text-gray-700">
+                <Label htmlFor="serialNumber" className="text-sm font-semibold text-foreground">
                   Serial Number <span className="text-red-600">*</span>
                 </Label>
                 <Input
@@ -436,12 +436,12 @@ export function CreateROFromInventoryDialog({
                   onChange={handleChange}
                   required
                   placeholder="Serial #"
-                  className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
+                  className="border-input bg-background focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="estimatedCost" className="text-sm font-semibold text-gray-700">
+                <Label htmlFor="estimatedCost" className="text-sm font-semibold text-foreground">
                   Estimated Cost
                 </Label>
                 <Input
@@ -452,12 +452,12 @@ export function CreateROFromInventoryDialog({
                   value={formData.estimatedCost}
                   onChange={handleChange}
                   placeholder="0.00"
-                  className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
+                  className="border-input bg-background focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="requiredWork" className="text-sm font-semibold text-gray-700">
+                <Label htmlFor="requiredWork" className="text-sm font-semibold text-foreground">
                   Required Work <span className="text-red-600">*</span>
                 </Label>
                 <Textarea
@@ -468,12 +468,12 @@ export function CreateROFromInventoryDialog({
                   required
                   placeholder="Describe the work needed..."
                   rows={3}
-                  className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
+                  className="border-input bg-background focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="terms" className="text-sm font-semibold text-gray-700">
+                <Label htmlFor="terms" className="text-sm font-semibold text-foreground">
                   Terms
                 </Label>
                 <Input
@@ -482,14 +482,14 @@ export function CreateROFromInventoryDialog({
                   value={formData.terms}
                   onChange={handleChange}
                   placeholder="Payment terms"
-                  className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
+                  className="border-input bg-background focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label
                   htmlFor="shopReferenceNumber"
-                  className="text-sm font-semibold text-gray-700"
+                  className="text-sm font-semibold text-foreground"
                 >
                   Shop Reference Number
                 </Label>
@@ -499,7 +499,7 @@ export function CreateROFromInventoryDialog({
                   value={formData.shopReferenceNumber}
                   onChange={handleChange}
                   placeholder="Shop's reference #"
-                  className="border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
+                  className="border-input bg-background focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -510,7 +510,7 @@ export function CreateROFromInventoryDialog({
                 variant="outline"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="border-gray-300 hover:bg-gray-100"
+                className="border-input hover:bg-accent"
               >
                 Cancel
               </Button>

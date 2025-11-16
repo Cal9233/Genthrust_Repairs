@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { Sparkles, Send, Loader2, User, Bot, Zap, MessageSquare, TrendingUp, Package, X } from 'lucide-react';
+import { Sparkles, Send, Loader2, User, Bot, Zap, MessageSquare, TrendingUp, Package, X, Mic, MicOff } from 'lucide-react';
 import { useROs } from '@/hooks/useROs';
 import { useShops } from '@/hooks/useShops';
 import { anthropicAgent } from '@/services/anthropicAgent';
@@ -11,11 +11,16 @@ import type { CommandContext, AIMessage } from '@/types/aiAgent';
 import { toast } from 'sonner';
 import { useMsal } from '@azure/msal-react';
 import { loggingService } from '@/lib/loggingService';
+import { useQueryClient } from '@tanstack/react-query';
+import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
 
 interface AIAgentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+const CONVERSATION_STORAGE_KEY = 'genthrust-ai-conversation-history';
+const MAX_STORED_MESSAGES = 50; // Limit stored messages to prevent localStorage overflow
 
 export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
   const [input, setInput] = useState('');
@@ -29,6 +34,18 @@ export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
   const { data: ros = [] } = useROs();
   const { data: shops = [] } = useShops();
   const { accounts } = useMsal();
+  const queryClient = useQueryClient();
+
+  // Voice recognition
+  const {
+    transcript,
+    isListening,
+    isSupported: isVoiceSupported,
+    error: voiceError,
+    startListening,
+    stopListening,
+    resetTranscript,
+  } = useVoiceRecognition({ continuous: false, interimResults: true });
 
   // Helper to extract text content from message
   interface ContentBlock {
@@ -47,6 +64,37 @@ export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
       .join('\n');
   };
 
+  // Load conversation history from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(CONVERSATION_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Reconstruct Date objects
+        const messagesWithDates = parsed.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }));
+        setMessages(messagesWithDates);
+      }
+    } catch (error) {
+      console.error('[AI Agent] Failed to load conversation history:', error);
+    }
+  }, []);
+
+  // Save conversation history to localStorage whenever messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        // Only store last MAX_STORED_MESSAGES messages
+        const messagesToStore = messages.slice(-MAX_STORED_MESSAGES);
+        localStorage.setItem(CONVERSATION_STORAGE_KEY, JSON.stringify(messagesToStore));
+      } catch (error) {
+        console.error('[AI Agent] Failed to save conversation history:', error);
+      }
+    }
+  }, [messages]);
+
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -58,6 +106,35 @@ useEffect(() => {
     textareaRef.current?.focus();
   }
 }, [open]);
+
+  // Update input when transcript changes
+  useEffect(() => {
+    if (transcript && !isListening) {
+      // Only update when recording stops (final transcript)
+      setInput(prev => prev + (prev ? ' ' : '') + transcript);
+      resetTranscript();
+    }
+  }, [transcript, isListening, resetTranscript]);
+
+  // Show toast if voice error occurs
+  useEffect(() => {
+    if (voiceError) {
+      toast.error(voiceError);
+    }
+  }, [voiceError]);
+
+  const handleVoiceToggle = () => {
+    if (!isVoiceSupported) {
+      toast.error('Voice recognition is not supported in your browser');
+      return;
+    }
+
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,16 +162,18 @@ useEffect(() => {
       const context: CommandContext = {
         allROs: ros,
         allShops: shops,
-        currentUser
+        currentUser,
+        queryClient
       };
 
-      // Process command with streaming
+      // Process command with streaming and conversation history
       const response = await anthropicAgent.processCommand(
         userMessage,
         context,
         (text) => {
           setStreamingText(prev => prev + text);
-        }
+        },
+        messages // Pass conversation history for context
       );
 
       // Add assistant response
@@ -112,7 +191,7 @@ useEffect(() => {
 
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Error processing command:', error);
+      // Error processing command
       toast.error('Failed to process command', {
         description: errorMessage
       });
@@ -152,6 +231,8 @@ useEffect(() => {
   const clearHistory = () => {
     setMessages([]);
     setStreamingText('');
+    localStorage.removeItem(CONVERSATION_STORAGE_KEY);
+    toast.success('Conversation history cleared');
   };
 
   return (
@@ -310,7 +391,7 @@ useEffect(() => {
                     : 'bg-secondary border border-border text-foreground'
                 }`}
               >
-                <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                <div className="whitespace-pre-wrap break-words text-sm leading-relaxed select-text cursor-text">
                   {typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}
                 </div>
                 <div className={`text-xs mt-2 flex items-center gap-1 ${
@@ -339,7 +420,7 @@ useEffect(() => {
                 </div>
               </div>
               <div className="max-w-[75%] rounded-2xl px-4 py-3 bg-secondary border border-border shadow-sm">
-                <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+                <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground select-text cursor-text">
                   {streamingText}
                   <span className="inline-block w-0.5 h-4 bg-bright-blue ml-1 animate-pulse" />
                 </div>
@@ -352,40 +433,67 @@ useEffect(() => {
 
         {/* Input Area with Professional Design */}
         <div className="border-t border-border bg-background p-3 sm:p-4">
-          <form onSubmit={handleSubmit} className="flex gap-2 sm:gap-3">
-            <div className="flex-1 relative">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {/* Modern Chat Input with Integrated Buttons */}
+            <div className="relative">
               <Textarea
                 ref={textareaRef}
-                value={input}
+                value={isListening ? (input + (input && transcript ? ' ' : '') + transcript) : input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask me anything about your repair orders..."
-                className="flex-1 min-h-[70px] max-h-[140px] resize-none border-2 border-input focus:border-bright-blue focus:ring-4 focus:ring-bright-blue/10 rounded-[10px] shadow-sm pr-12 text-sm"
-                disabled={isProcessing}
+                placeholder={
+                  isListening
+                    ? '🎤 Listening... Speak now'
+                    : 'Ask me anything about your repair orders...'
+                }
+                className="w-full min-h-[80px] sm:min-h-[100px] max-h-[200px] resize-none border-2 border-input focus:border-bright-blue focus:ring-4 focus:ring-bright-blue/10 rounded-xl shadow-sm pr-24 sm:pr-28 pb-12 sm:pb-14 text-sm leading-relaxed transition-all"
+                disabled={isProcessing || isListening}
               />
-              <div className="absolute bottom-3 right-3 text-xs text-muted-foreground">
-                {input.length > 0 && `${input.length} chars`}
-              </div>
-            </div>
 
-            <div className="flex flex-col gap-2">
-              <Button
-                type="submit"
-                disabled={!input.trim() || isProcessing}
-                className="h-[70px] px-4 sm:px-6 bg-gradient-blue text-white shadow-[0_4px_12px_rgba(2,132,199,0.3)] hover:shadow-[0_6px_20px_rgba(2,132,199,0.4)] button-lift transition-all duration-200 rounded-lg font-medium"
-              >
-                {isProcessing ? (
-                  <div className="flex flex-col items-center gap-1">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span className="text-xs">Thinking...</span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-1">
-                    <Send className="h-5 w-5" />
-                    <span className="text-xs">Send</span>
-                  </div>
+              {/* Character Count */}
+              <div className="absolute top-3 right-3 text-xs text-muted-foreground pointer-events-none">
+                {input.length > 0 && `${input.length}`}
+              </div>
+
+              {/* Action Buttons - Bottom Right Inside Input */}
+              <div className="absolute bottom-2 right-2 flex items-center gap-1.5 sm:gap-2">
+                {/* Voice Button */}
+                {isVoiceSupported && (
+                  <Button
+                    type="button"
+                    onClick={handleVoiceToggle}
+                    disabled={isProcessing}
+                    size="sm"
+                    className={`h-9 w-9 sm:h-10 sm:w-10 p-0 rounded-lg transition-all duration-200 shadow-sm ${
+                      isListening
+                        ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-500/30 animate-pulse'
+                        : 'bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground'
+                    }`}
+                    title={isListening ? 'Stop recording' : 'Start voice input'}
+                  >
+                    {isListening ? (
+                      <MicOff className="h-4 w-4 sm:h-5 sm:w-5" />
+                    ) : (
+                      <Mic className="h-4 w-4 sm:h-5 sm:w-5" />
+                    )}
+                  </Button>
                 )}
-              </Button>
+
+                {/* Send Button */}
+                <Button
+                  type="submit"
+                  disabled={!input.trim() || isProcessing}
+                  size="sm"
+                  className="h-9 w-9 sm:h-10 sm:w-10 p-0 bg-gradient-blue hover:bg-bright-blue text-white shadow-[0_2px_8px_rgba(2,132,199,0.3)] hover:shadow-[0_4px_12px_rgba(2,132,199,0.4)] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all duration-200"
+                  title={isProcessing ? 'Processing...' : 'Send message'}
+                >
+                  {isProcessing ? (
+                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4 sm:h-5 sm:w-5" />
+                  )}
+                </Button>
+              </div>
             </div>
           </form>
 

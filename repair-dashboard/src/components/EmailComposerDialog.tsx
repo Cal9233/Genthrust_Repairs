@@ -182,8 +182,8 @@ export function EmailComposerDialog({
           {/* Preview */}
           <div className="space-y-2">
             <Label>Preview</Label>
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm">
-              <div className="space-y-1 mb-3 pb-3 border-b border-gray-300">
+            <div className="bg-muted border border-border rounded-lg p-4 text-sm">
+              <div className="space-y-1 mb-3 pb-3 border-b border-border">
                 <div>
                   <span className="font-semibold">To:</span> {to || "(no recipient)"}
                 </div>
@@ -192,7 +192,7 @@ export function EmailComposerDialog({
                   {subject || "(no subject)"}
                 </div>
               </div>
-              <div className="whitespace-pre-wrap text-gray-700">{body}</div>
+              <div className="whitespace-pre-wrap text-foreground">{body}</div>
             </div>
           </div>
 

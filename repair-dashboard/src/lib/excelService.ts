@@ -35,18 +35,17 @@ class ExcelService {
       });
       return response.accessToken;
     } catch (silentError) {
-      console.log("[Excel Service] Silent token acquisition failed, using popup");
+      // Silent token acquisition failed, using popup
       try {
         const response = await this.msalInstance.acquireTokenPopup({
           ...loginRequest,
-          account,
         });
         return response.accessToken;
       } catch (popupError: any) {
-        console.error("[Excel Service] Popup token acquisition failed:", popupError);
+        // Popup token acquisition failed
         // If popup fails due to CORS/COOP, try redirect
         if (popupError.message?.includes("popup") || popupError.message?.includes("CORS")) {
-          console.log("[Excel Service] Using redirect flow...");
+          // Using redirect flow
           await this.msalInstance.acquireTokenRedirect({
             ...loginRequest,
             account,
@@ -91,8 +90,7 @@ class ExcelService {
         errorDetails = errorText;
       }
 
-      console.error(`[Excel Service] ${method} ${endpoint} failed:`, errorDetails);
-
+      // API call failed - error details included in thrown error
       throw new Error(
         `Graph API error: ${response.status} ${response.statusText}\n${JSON.stringify(errorDetails, null, 2)}`
       );
@@ -143,8 +141,7 @@ class ExcelService {
       );
       this.sessionId = null;
     } catch (error) {
-      console.error("[Excel Service] Failed to close session:", error);
-      // Don't throw - just clear the session ID
+      // Failed to close session - just clear the session ID
       this.sessionId = null;
     }
   }
@@ -203,7 +200,7 @@ class ExcelService {
 
         return { notes: userNotes, statusHistory };
       } catch (error) {
-        console.error("[Excel Service] Failed to parse status history:", error);
+        // Failed to parse status history - returning notes only
         return { notes: notesValue, statusHistory: [] };
       }
     }
@@ -237,7 +234,7 @@ class ExcelService {
 
   private getCurrentUser(): string {
     if (!this.msalInstance) {
-      console.warn("[ExcelService] MSAL instance not available for getCurrentUser");
+      // MSAL instance not available
       return "Unknown User";
     }
 
@@ -251,13 +248,12 @@ class ExcelService {
     }
 
     if (!account) {
-      console.warn("[ExcelService] No account found");
+      // No account found
       return "Unknown User";
     }
 
     // Return the best available identifier
     const userName = account.name || account.username || account.idTokenClaims?.preferred_username || "Unknown User";
-    console.log("[ExcelService] Current user:", userName);
     return userName;
   }
 
@@ -316,7 +312,6 @@ class ExcelService {
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables`
     );
 
-    console.log("[Excel Service] Available tables in workbook:", response.value);
     return response.value;
   }
 
@@ -335,22 +330,18 @@ class ExcelService {
       );
 
       if (searchResponse.value.length === 0) {
-        console.log(`[Excel Service] File "${fileName}" not found`);
+        // File not found
         return null;
       }
 
       const file = searchResponse.value[0];
-      console.log(`[Excel Service] Found file: ${file.name}`);
-      console.log(`[Excel Service] File ID: ${file.id}`);
-      console.log(`[Excel Service] Web URL: ${file.webUrl}`);
-
       return {
         id: file.id,
         name: file.name,
         webUrl: file.webUrl
       };
     } catch (error) {
-      console.error(`[Excel Service] Error searching for file "${fileName}":`, error);
+      // Error searching for file
       return null;
     }
   }
@@ -364,7 +355,7 @@ class ExcelService {
       const INVENTORY_WORKBOOK_ID = import.meta.env.VITE_INVENTORY_WORKBOOK_ID;
 
       if (!INVENTORY_WORKBOOK_ID) {
-        console.error('[Excel Service] VITE_INVENTORY_WORKBOOK_ID not set in environment');
+        // VITE_INVENTORY_WORKBOOK_ID not set in environment
         return null;
       }
 
@@ -378,27 +369,24 @@ class ExcelService {
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${INVENTORY_WORKBOOK_ID}`
       );
 
-      console.log(`[Excel Service] Fetched inventory file: ${fileInfo.name}`);
-      console.log(`[Excel Service] File ID: ${fileInfo.id}`);
-      console.log(`[Excel Service] Web URL: ${fileInfo.webUrl}`);
-
       return {
         id: fileInfo.id,
         name: fileInfo.name,
         webUrl: fileInfo.webUrl
       };
     } catch (error) {
-      console.error('[Excel Service] Error fetching inventory file info:', error);
+      // Error fetching inventory file info
       return null;
     }
   }
 
   /**
-   * List all worksheets and tables for a specific file
+   * DEBUG ONLY: List all worksheets and tables for a specific file
+   * COMMENTED OUT to prevent console spam - uncomment only for troubleshooting
    */
+  /*
   async listFileStructure(fileId: string, fileName: string): Promise<void> {
     try {
-      // Get all worksheets
       const worksheetsResponse = await this.callGraphAPI(
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets`
       );
@@ -414,7 +402,6 @@ class ExcelService {
         console.log(`   - Position: ${worksheet.position}`);
         console.log(`   - Visibility: ${worksheet.visibility}`);
 
-        // Get tables in this worksheet
         try {
           const tablesResponse = await this.callGraphAPI(
             `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/${worksheet.name}/tables`
@@ -422,16 +409,12 @@ class ExcelService {
 
           if (tablesResponse.value.length > 0) {
             console.log(`   - Tables (${tablesResponse.value.length}):`);
-
             for (const table of tablesResponse.value) {
               console.log(`     📊 TABLE: "${table.name}"`);
-
-              // Get columns for this table
               try {
                 const columnsResponse = await this.callGraphAPI(
                   `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${table.name}/columns`
                 );
-
                 console.log(`        - Row Count: ${table.rowCount || 'Unknown'}`);
                 console.log(`        - Columns (${columnsResponse.value.length}):`);
                 columnsResponse.value.forEach((col: any, idx: number) => {
@@ -447,20 +430,22 @@ class ExcelService {
         } catch (error) {
           console.log(`   - Error fetching tables: ${error}`);
         }
-
         console.log("");
       }
-
       console.log("========================================");
     } catch (error) {
       console.error(`[Excel Service] Error listing file structure:`, error);
     }
   }
+  */
 
+  /**
+   * DEBUG ONLY: List all worksheets and tables
+   * COMMENTED OUT to prevent console spam - uncomment only for troubleshooting
+   */
+  /*
   async listAllWorksheetsAndTables(): Promise<void> {
     const fileId = await this.getFileId();
-
-    // Get all worksheets
     const worksheetsResponse = await this.callGraphAPI(
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets`
     );
@@ -476,7 +461,6 @@ class ExcelService {
       console.log(`   - Position: ${worksheet.position}`);
       console.log(`   - Visibility: ${worksheet.visibility}`);
 
-      // Get tables in this worksheet
       try {
         const tablesResponse = await this.callGraphAPI(
           `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/${worksheet.name}/tables`
@@ -484,16 +468,12 @@ class ExcelService {
 
         if (tablesResponse.value.length > 0) {
           console.log(`   - Tables (${tablesResponse.value.length}):`);
-
           for (const table of tablesResponse.value) {
             console.log(`     📊 TABLE: "${table.name}"`);
-
-            // Get columns for this table
             try {
               const columnsResponse = await this.callGraphAPI(
                 `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${table.name}/columns`
               );
-
               console.log(`        - Row Count: ${table.rowCount || 'Unknown'}`);
               console.log(`        - Columns (${columnsResponse.value.length}):`);
               columnsResponse.value.forEach((col: any, idx: number) => {
@@ -509,22 +489,22 @@ class ExcelService {
       } catch (error) {
         console.log(`   - Error fetching tables: ${error}`);
       }
-
       console.log("");
     }
-
     console.log("========================================");
   }
+  */
 
   async getRepairOrders(): Promise<RepairOrder[]> {
     const fileId = await this.getFileId();
 
-    // Debug: List all worksheets, tables, and columns
-    try {
-      await this.listAllWorksheetsAndTables();
-    } catch (error) {
-      console.error("[Excel Service] Could not list worksheets and tables:", error);
-    }
+    // Debug code removed - was causing console spam on every load
+    // Uncomment only for troubleshooting:
+    // try {
+    //   await this.listAllWorksheetsAndTables();
+    // } catch (error) {
+    //   // Debug error
+    // }
 
     const response = await this.callGraphAPI(
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows`
@@ -584,8 +564,6 @@ class ExcelService {
 
   async getRepairOrdersFromSheet(sheetName: string, tableName: string): Promise<RepairOrder[]> {
     const fileId = await this.getFileId();
-
-    console.log(`[Excel Service] Fetching ROs from sheet "${sheetName}", table "${tableName}"`);
 
     const response = await this.callGraphAPI(
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/${sheetName}/tables/${tableName}/rows`
@@ -664,7 +642,8 @@ class ExcelService {
     status: string,
     statusNotes?: string,
     cost?: number,
-    deliveryDate?: Date
+    deliveryDate?: Date,
+    trackingNumber?: string
   ): Promise<void> {
     const fileId = await this.getFileId();
     const today = new Date();
@@ -734,6 +713,11 @@ class ExcelService {
         }
       }
 
+      // Update tracking number if provided
+      if (trackingNumber !== undefined) {
+        currentValues[17] = trackingNumber; // Tracking Number (column 17)
+      }
+
       await this.callGraphAPI(
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
         "PATCH",
@@ -759,12 +743,10 @@ class ExcelService {
             invoiceDate: today,
             amount: cost,
             netDays
-          }).catch((error) => {
-            console.error('[Excel Service] Failed to create payment due calendar event:', error);
+          }).catch(() => {
+            // Failed to create payment due calendar event - non-critical error
             // Don't throw - we don't want to fail the whole update if calendar creation fails
           });
-
-          console.log(`[Excel Service] Payment due calendar event will be created for RO ${roNumber}: NET ${netDays} (due ${new Date(today.getTime() + netDays * 24 * 60 * 60 * 1000).toLocaleDateString()})`);
         }
       }
     } finally {
@@ -975,8 +957,6 @@ class ExcelService {
         undefined,
         true
       );
-
-      console.log(`[Excel Service] Moved RO from row ${rowIndex} to ${targetSheetName}/${targetTableName}`);
     } finally {
       await this.closeSession();
     }
@@ -1016,10 +996,9 @@ class ExcelService {
       await this.callGraphAPI(
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs`
       );
-      console.log('[Excel Service] Logs worksheet already exists');
+      // Logs worksheet already exists
     } catch (error) {
       // Worksheet doesn't exist, create it
-      console.log('[Excel Service] Creating Logs worksheet');
       await this.callGraphAPI(
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/add`,
         'POST',
@@ -1041,38 +1020,11 @@ class ExcelService {
       await this.callGraphAPI(
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/tables/AILogs`
       );
-      console.log('[Excel Service] AILogs table already exists');
+      // AILogs table already exists
     } catch (error) {
       // Table doesn't exist, create it
-      console.log('[Excel Service] Creating AILogs table');
 
-      // Create table with headers
-      // Columns: Timestamp, Date, User, User Message, AI Response, Context, Model, Duration, Success, Error
-      await this.callGraphAPI(
-        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/tables/add`,
-        'POST',
-        {
-          address: 'A1:J1',
-          hasHeaders: true
-        }
-      );
-
-      // Set the table name
-      await this.callGraphAPI(
-        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/tables`,
-        'GET'
-      ).then(async (response) => {
-        const tableId = response.value[0]?.id;
-        if (tableId) {
-          await this.callGraphAPI(
-            `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${tableId}`,
-            'PATCH',
-            { name: 'AILogs' }
-          );
-        }
-      });
-
-      // Set column headers
+      // Step 1: Write header row to cells first
       await this.callGraphAPI(
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/range(address='A1:J1')`,
         'PATCH',
@@ -1091,6 +1043,27 @@ class ExcelService {
           ]]
         }
       );
+
+      // Step 2: Create table with the header row (A1:J1 range)
+      // Using proper Excel table creation - must include at least the header row
+      const createTableResponse = await this.callGraphAPI(
+        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/tables/add`,
+        'POST',
+        {
+          address: 'Logs!A1:J1',
+          hasHeaders: true
+        }
+      );
+
+      // Step 3: Set the table name to 'AILogs'
+      const tableId = createTableResponse.id;
+      if (tableId) {
+        await this.callGraphAPI(
+          `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${tableId}`,
+          'PATCH',
+          { name: 'AILogs' }
+        );
+      }
     }
   }
 
@@ -1140,14 +1113,11 @@ class ExcelService {
           { values: [rowData] },
           true
         );
-
-        console.log('[Excel Service] Successfully logged to Excel table');
       } finally {
         await this.closeSession();
       }
     } catch (error) {
-      console.error('[Excel Service] Failed to log to Excel table:', error);
-      // Don't throw - logging failures shouldn't break the app
+      // Failed to log to Excel table - logging failures shouldn't break the app
     }
   }
 
@@ -1198,7 +1168,7 @@ class ExcelService {
         };
       }).sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime()); // Newest first
     } catch (error) {
-      console.error('[Excel Service] Failed to get logs from Excel table:', error);
+      // Failed to get logs from Excel table
       return [];
     }
   }
@@ -1219,13 +1189,11 @@ class ExcelService {
           undefined,
           true
         );
-
-        console.log('[Excel Service] Successfully deleted Excel log entry');
       } finally {
         await this.closeSession();
       }
     } catch (error) {
-      console.error('[Excel Service] Failed to delete Excel log entry:', error);
+      // Failed to delete Excel log entry
       throw error;
     }
   }

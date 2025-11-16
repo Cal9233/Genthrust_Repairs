@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useROs, useArchivedROs, useUpdateROStatus, useBulkUpdateStatus, useDeleteRepairOrder } from "../hooks/useROs";
 import { useShops } from "../hooks/useShops";
 import { useROFilters } from "../hooks/useROFilters";
+import { buildShopAnalytics, predictCompletion } from "../services/analyticsEngine";
 import {
   Table,
   TableBody,
@@ -86,6 +87,12 @@ export function ROTable() {
     filteredROs: filterAppliedROs,
     activeFilterCount,
   } = useROFilters(currentROs || []);
+
+  // Build shop analytics profiles for predictions
+  const shopProfiles = useMemo(() => {
+    if (!currentROs) return new Map();
+    return buildShopAnalytics(currentROs);
+  }, [currentROs]);
 
   const filteredAndSorted = useMemo(() => {
     if (!currentROs) return [];
@@ -415,6 +422,9 @@ export function ROTable() {
                   Status
                 </TableHead>
                 <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
+                  Est. Completion
+                </TableHead>
+                <TableHead className="font-semibold text-muted-foreground text-[11px] sm:text-[12px] md:text-[13px] uppercase">
                   <Button
                     variant="ghost"
                     onClick={() => handleSort("nextDateToUpdate")}
@@ -487,6 +497,35 @@ export function ROTable() {
                           status={ro.currentStatus}
                           isOverdue={ro.isOverdue}
                         />
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const prediction = predictCompletion(ro, shopProfiles);
+                          if (!prediction) {
+                            return <span className="text-muted-foreground text-xs">N/A</span>;
+                          }
+
+                          const statusColor =
+                            prediction.status === 'on-track'
+                              ? 'text-green-600'
+                              : prediction.status === 'at-risk'
+                              ? 'text-yellow-600'
+                              : 'text-red-600';
+
+                          return (
+                            <div>
+                              <div className={`font-semibold ${statusColor}`}>
+                                {prediction.estimatedDate.toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                ±{prediction.confidenceDays}d
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <div className="text-foreground">

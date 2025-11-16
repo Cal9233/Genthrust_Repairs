@@ -1,4 +1,5 @@
 import type { RepairOrder, Shop } from './index';
+import type { QueryClient } from '@tanstack/react-query';
 
 // Tool definitions
 export interface Tool {
@@ -40,6 +41,7 @@ export interface CommandContext {
   allROs: RepairOrder[];
   allShops: Shop[];
   currentUser: string;
+  queryClient: QueryClient;
 }
 
 // Query filters

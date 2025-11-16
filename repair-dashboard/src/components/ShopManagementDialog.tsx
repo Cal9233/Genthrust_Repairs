@@ -191,7 +191,7 @@ export function ShopManagementDialog({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="border-b pb-4">
-          <DialogTitle className="text-2xl font-bold text-gray-900">
+          <DialogTitle className="text-2xl font-bold text-foreground">
             {isEditing ? `Edit Vendor - ${shop?.businessName}` : "Add New Vendor"}
           </DialogTitle>
         </DialogHeader>
@@ -199,9 +199,9 @@ export function ShopManagementDialog({
         <div className="space-y-6 py-4">
           {/* Basic Information Section */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+            <div className="flex items-center gap-2 pb-2 border-b border-border">
               <div className="h-6 w-1 bg-blue-600 rounded"></div>
-              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
                 Basic Information
               </h3>
             </div>
@@ -250,9 +250,9 @@ export function ShopManagementDialog({
 
           {/* Address Section */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+            <div className="flex items-center gap-2 pb-2 border-b border-border">
               <div className="h-6 w-1 bg-green-600 rounded"></div>
-              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
                 Address
               </h3>
             </div>
@@ -272,7 +272,7 @@ export function ShopManagementDialog({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="addressLine2" className="text-sm font-medium text-gray-600">
+                <Label htmlFor="addressLine2" className="text-sm font-medium text-muted-foreground">
                   Address Line 2
                 </Label>
                 <Input
@@ -285,7 +285,7 @@ export function ShopManagementDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="addressLine3" className="text-sm font-medium text-gray-600">
+                <Label htmlFor="addressLine3" className="text-sm font-medium text-muted-foreground">
                   Address Line 3
                 </Label>
                 <Input
@@ -300,7 +300,7 @@ export function ShopManagementDialog({
 
             {addressLine3 && (
               <div className="space-y-2">
-                <Label htmlFor="addressLine4" className="text-sm font-medium text-gray-600">
+                <Label htmlFor="addressLine4" className="text-sm font-medium text-muted-foreground">
                   Address Line 4
                 </Label>
                 <Input
@@ -370,9 +370,9 @@ export function ShopManagementDialog({
 
           {/* Contact Information Section */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+            <div className="flex items-center gap-2 pb-2 border-b border-border">
               <div className="h-6 w-1 bg-purple-600 rounded"></div>
-              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
                 Contact Information
               </h3>
             </div>
@@ -422,7 +422,7 @@ export function ShopManagementDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tollFree" className="text-sm font-medium text-gray-600">
+                <Label htmlFor="tollFree" className="text-sm font-medium text-muted-foreground">
                   Toll Free
                 </Label>
                 <Input
@@ -436,7 +436,7 @@ export function ShopManagementDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="fax" className="text-sm font-medium text-gray-600">
+                <Label htmlFor="fax" className="text-sm font-medium text-muted-foreground">
                   Fax
                 </Label>
                 <Input
@@ -467,9 +467,9 @@ export function ShopManagementDialog({
 
           {/* Payment Terms Section */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+            <div className="flex items-center gap-2 pb-2 border-b border-border">
               <div className="h-6 w-1 bg-orange-600 rounded"></div>
-              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
                 Payment Terms
               </h3>
             </div>
@@ -499,7 +499,7 @@ export function ShopManagementDialog({
             variant="outline"
             onClick={onClose}
             disabled={isPending}
-            className="min-w-[100px] border-gray-300 hover:bg-gray-50"
+            className="min-w-[100px] border-input hover:bg-accent"
           >
             Cancel
           </Button>

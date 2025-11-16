@@ -51,7 +51,7 @@ export function ReminderTypeDialog({
             <Bell className="h-5 w-5 text-purple-600" />
             Set Reminder
           </DialogTitle>
-          <DialogDescription className="text-sm text-gray-600">
+          <DialogDescription className="text-sm text-muted-foreground">
             Choose where to create reminders for RO #{roNumber} on{" "}
             <span className="font-semibold">{formatDate(dueDate)}</span>
           </DialogDescription>
@@ -64,7 +64,7 @@ export function ReminderTypeDialog({
             className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
               selectedTodo
                 ? "border-blue-500 bg-blue-50"
-                : "border-gray-200 bg-white hover:border-gray-300"
+                : "border-border bg-card hover:border-accent"
             }`}
           >
             <div className="flex items-start gap-3">
@@ -72,17 +72,17 @@ export function ReminderTypeDialog({
                 {selectedTodo ? (
                   <CheckCircle2 className="h-5 w-5 text-blue-600" />
                 ) : (
-                  <div className="h-5 w-5 border-2 border-gray-300 rounded-full"></div>
+                  <div className="h-5 w-5 border-2 border-border rounded-full"></div>
                 )}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <ClipboardList className="h-4 w-4 text-blue-600" />
-                  <span className="font-semibold text-gray-900">
+                  <span className="font-semibold text-foreground">
                     Microsoft To Do
                   </span>
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   Creates a task in your To Do list with high priority and
                   reminder notification
                 </p>
@@ -96,7 +96,7 @@ export function ReminderTypeDialog({
             className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
               selectedCalendar
                 ? "border-purple-500 bg-purple-50"
-                : "border-gray-200 bg-white hover:border-gray-300"
+                : "border-border bg-card hover:border-accent"
             }`}
           >
             <div className="flex items-start gap-3">
@@ -104,17 +104,17 @@ export function ReminderTypeDialog({
                 {selectedCalendar ? (
                   <CheckCircle2 className="h-5 w-5 text-purple-600" />
                 ) : (
-                  <div className="h-5 w-5 border-2 border-gray-300 rounded-full"></div>
+                  <div className="h-5 w-5 border-2 border-border rounded-full"></div>
                 )}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <Calendar className="h-4 w-4 text-purple-600" />
-                  <span className="font-semibold text-gray-900">
+                  <span className="font-semibold text-foreground">
                     Outlook Calendar
                   </span>
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   Creates a 30-min event at 9 AM (marked as "Free" - won't
                   block your schedule)
                 </p>
@@ -136,7 +136,7 @@ export function ReminderTypeDialog({
           <Button
             variant="outline"
             onClick={onClose}
-            className="flex-1 border-gray-300"
+            className="flex-1 border-input"
           >
             Cancel
           </Button>

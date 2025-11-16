@@ -143,7 +143,6 @@ class LoggingService {
       await this.callGraphAPI(`/me/drive/root:${this.logsBasePath}`);
     } catch (error) {
       // Folder doesn't exist, create it
-      console.log('[LoggingService] Creating AI_Logs folder');
       await this.callGraphAPI('/me/drive/root/children', 'POST', {
         name: 'AI_Logs',
         folder: {},
@@ -172,7 +171,7 @@ class LoggingService {
       if (error.message?.includes('404')) {
         return '';
       }
-      console.error('[LoggingService] Error reading log file:', error);
+      // Error reading log file
       return '';
     }
   }
@@ -209,8 +208,6 @@ class LoggingService {
    */
   async logInteraction(entry: LogEntry): Promise<void> {
     try {
-      console.log('[LoggingService] Logging AI interaction');
-
       // Ensure date field is populated (YYYY-MM-DD format)
       if (!entry.date) {
         const timestamp = entry.timestamp;
@@ -233,11 +230,8 @@ class LoggingService {
 
         // Write back to file
         await this.writeLogFile(updatedContent);
-
-        console.log('[LoggingService] Successfully logged to text file');
       } catch (textFileError) {
-        console.error('[LoggingService] Failed to log to text file:', textFileError);
-        // Continue to Excel logging even if text file fails
+        // Failed to log to text file - continue to Excel logging
       }
 
       // Write to Excel table (new functionality)
@@ -254,17 +248,11 @@ class LoggingService {
           success: entry.success,
           error: entry.error
         });
-
-        console.log('[LoggingService] Successfully logged to Excel table');
       } catch (excelError) {
-        console.error('[LoggingService] Failed to log to Excel:', excelError);
-        // Don't throw - Excel logging failure shouldn't break the app
+        // Failed to log to Excel - logging failure shouldn't break the app
       }
-
-      console.log('[LoggingService] Successfully logged interaction');
     } catch (error) {
-      console.error('[LoggingService] Failed to log interaction:', error);
-      // Don't throw - logging failures shouldn't break the app
+      // Failed to log interaction - logging failures shouldn't break the app
     }
   }
 
@@ -294,7 +282,7 @@ class LoggingService {
 
       return files;
     } catch (error) {
-      console.error('[LoggingService] Failed to get log files:', error);
+      // Failed to get log files
       return [];
     }
   }
@@ -322,7 +310,7 @@ class LoggingService {
 
       return await response.text();
     } catch (error) {
-      console.error('[LoggingService] Failed to read log file:', error);
+      // Failed to read log file
       throw error;
     }
   }
@@ -334,9 +322,8 @@ class LoggingService {
     try {
       const filePath = `${this.logsBasePath}/${fileName}`;
       await this.callGraphAPI(`/me/drive/root:${filePath}`, 'DELETE');
-      console.log('[LoggingService] Deleted log file:', fileName);
     } catch (error) {
-      console.error('[LoggingService] Failed to delete log file:', error);
+      // Failed to delete log file
       throw error;
     }
   }

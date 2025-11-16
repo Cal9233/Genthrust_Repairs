@@ -10,12 +10,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Send, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Sparkles, Send, AlertCircle, CheckCircle2, Loader2, Mic, MicOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { aiParserService } from '../services/aiParser';
 import { commandProcessorService } from '../services/commandProcessor';
 import type { ParsedCommand, CommandValidation } from '../types/aiCommand';
 import { useQueryClient } from '@tanstack/react-query';
+import { useVoiceRecognition } from '../hooks/useVoiceRecognition';
 
 interface AICommandBarProps {
   isOpen: boolean;
@@ -31,6 +32,17 @@ export function AICommandBar({ isOpen, onClose }: AICommandBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
+  // Voice recognition
+  const {
+    transcript,
+    isListening,
+    isSupported: isVoiceSupported,
+    error: voiceError,
+    startListening,
+    stopListening,
+    resetTranscript,
+  } = useVoiceRecognition({ continuous: false, interimResults: true });
+
   // Focus input when opened
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -38,8 +50,37 @@ export function AICommandBar({ isOpen, onClose }: AICommandBarProps) {
     }
   }, [isOpen]);
 
+  // Update input when transcript changes
+  useEffect(() => {
+    if (transcript && !isListening) {
+      // Only update when recording stops (final transcript)
+      setInput(transcript);
+      resetTranscript();
+    }
+  }, [transcript, isListening, resetTranscript]);
+
+  // Show toast if voice error occurs
+  useEffect(() => {
+    if (voiceError) {
+      toast.error(voiceError);
+    }
+  }, [voiceError]);
+
   // Check if AI is configured
   const configStatus = aiParserService.getConfigStatus();
+
+  const handleVoiceToggle = () => {
+    if (!isVoiceSupported) {
+      toast.error('Voice recognition is not supported in your browser');
+      return;
+    }
+
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,18 +193,51 @@ export function AICommandBar({ isOpen, onClose }: AICommandBarProps) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Input
-                ref={inputRef}
-                type="text"
-                placeholder='e.g., "RO G38462 Scheduled Completion Date: 11/18/25"'
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                disabled={isProcessing || !configStatus.configured}
-                className="text-base h-12 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
-              />
+              <div className="relative">
+                <Input
+                  ref={inputRef}
+                  type="text"
+                  placeholder={
+                    isListening
+                      ? '🎤 Listening...'
+                      : 'e.g., "RO G38462 Scheduled Completion Date: 11/18/25"'
+                  }
+                  value={isListening ? transcript : input}
+                  onChange={(e) => setInput(e.target.value)}
+                  disabled={isProcessing || !configStatus.configured || isListening}
+                  className="text-base h-12 border-input focus:border-purple-500 focus:ring-purple-500 pr-12"
+                />
+                <Button
+                  type="button"
+                  onClick={handleVoiceToggle}
+                  disabled={isProcessing || !configStatus.configured}
+                  variant="ghost"
+                  size="icon"
+                  className={`absolute right-1 top-1 h-10 w-10 ${
+                    isListening
+                      ? 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  title={isListening ? 'Stop recording' : 'Start voice input'}
+                >
+                  {isListening ? (
+                    <MicOff className="h-5 w-5 animate-pulse" />
+                  ) : (
+                    <Mic className="h-5 w-5" />
+                  )}
+                </Button>
+              </div>
 
-              <div className="text-xs text-gray-500 space-y-1">
-                <p className="font-medium">Examples:</p>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium">Examples:</p>
+                  {isVoiceSupported && (
+                    <span className="text-purple-600 font-medium flex items-center gap-1">
+                      <Mic className="h-3 w-3" />
+                      Voice input available
+                    </span>
+                  )}
+                </div>
                 <ul className="list-disc list-inside space-y-0.5 ml-2">
                   <li>RO G38462 scheduled for 11/18/25</li>
                   <li>Update RO 12345 status to being repaired</li>
@@ -216,14 +290,14 @@ export function AICommandBar({ isOpen, onClose }: AICommandBarProps) {
           {parsedCommand && (
             <div className="space-y-4">
               {/* Original Command */}
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs font-medium text-gray-500 mb-1">Original Command</p>
-                <p className="text-sm text-gray-900">{parsedCommand.originalText}</p>
+              <div className="bg-muted rounded-lg p-3">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Original Command</p>
+                <p className="text-sm text-foreground">{parsedCommand.originalText}</p>
               </div>
 
               {/* Parsed Action */}
               <div className="space-y-2">
-                <p className="text-xs font-medium text-gray-500">Will perform:</p>
+                <p className="text-xs font-medium text-muted-foreground">Will perform:</p>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <p className="text-sm font-medium text-blue-900">
                     {commandProcessorService.getCommandSummary(parsedCommand)}
@@ -233,7 +307,7 @@ export function AICommandBar({ isOpen, onClose }: AICommandBarProps) {
 
               {/* Confidence Badge */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-500">Confidence:</span>
+                <span className="text-xs font-medium text-muted-foreground">Confidence:</span>
                 <Badge
                   variant={
                     parsedCommand.confidence >= 0.8

@@ -147,18 +147,28 @@ async function clearIndex(client, sessionId) {
       .get();
 
     const rows = response.value || [];
+    const rowCount = rows.length;
 
-    // Delete all rows
-    for (const row of rows) {
-      await client
-        .api(`/drives/${drive}/items/${WORKBOOK_ID}/workbook/tables/${INDEX_TABLE}/rows/${row.index}`)
-        .header('workbook-session-id', sessionId)
-        .delete();
+    if (rowCount === 0) {
+      console.log('   Index is already empty\n');
+      return;
     }
 
-    console.log(`   Cleared ${rows.length} existing rows\n`);
+    // Delete rows from bottom to top to avoid index shifting issues
+    for (let i = rows.length - 1; i >= 0; i--) {
+      try {
+        await client
+          .api(`/drives/${drive}/items/${WORKBOOK_ID}/workbook/tables/${INDEX_TABLE}/rows/itemAt(index=${i})`)
+          .header('workbook-session-id', sessionId)
+          .delete();
+      } catch (err) {
+        // Continue on error
+      }
+    }
+
+    console.log(`   ✅ Cleared ${rowCount} existing rows\n`);
   } catch (error) {
-    console.log('   Index is empty or error occurred, continuing...\n');
+    console.log('   Index is already empty\n');
   }
 }
 
@@ -228,9 +238,10 @@ async function processTable(client, sessionId, tableName) {
       const description = indices.description !== -1 ? values[indices.description] || '' : '';
 
       // Create index entry
+      // Force part number as text by prepending apostrophe to prevent scientific notation
       const indexEntry = [
         uuidv4(),                    // IndexId
-        normalized,                   // PartNumber (normalized)
+        `'${normalized}`,             // PartNumber (force text format with apostrophe)
         tableName,                    // TableName
         String(row.index),           // RowId
         String(serial),              // SerialNumber

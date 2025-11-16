@@ -147,10 +147,10 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto bg-slate-900 rounded-[20px] shadow-[0_20px_60px_rgba(0,0,0,0.5)] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-800 [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb:hover]:bg-slate-600">
-          <DialogHeader className="bg-slate-800 -mx-6 -mt-6 px-6 pt-6 pb-4 mb-4 rounded-t-[20px]">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto bg-background rounded-[20px] shadow-[0_20px_60px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-muted [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb:hover]:bg-muted-foreground/50">
+          <DialogHeader className="bg-card -mx-6 -mt-6 px-6 pt-6 pb-4 mb-4 rounded-t-[20px] border-b border-border">
             <DialogTitle className="flex items-center justify-between">
-              <span className="font-bold text-white text-[28px]">RO #{currentRO.roNumber}</span>
+              <span className="font-bold text-foreground text-[28px]">RO #{currentRO.roNumber}</span>
               <StatusBadge status={currentRO.currentStatus} isOverdue={currentRO.isOverdue} />
             </DialogTitle>
           </DialogHeader>
@@ -158,14 +158,14 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
           <div className="space-y-6 py-4">
             {/* First-time user help text */}
             {isFirstTimeUser && currentRO.nextDateToUpdate && (
-              <div className="bg-slate-800 rounded-lg p-4 border-2 border-purple-500/30">
+              <div className="bg-card rounded-lg p-4 border-2 border-accent/30">
                 <div className="flex items-start gap-3">
-                  <Info className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
+                  <Info className="h-5 w-5 text-accent mt-0.5 flex-shrink-0" />
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold text-purple-300">
+                    <p className="text-sm font-semibold text-accent">
                       First time using reminders?
                     </p>
-                    <p className="text-xs text-slate-300">
+                    <p className="text-xs text-muted-foreground">
                       Clicking "Set Reminder" will ask for permission to access your Microsoft To Do and Calendar.
                       This is secure and only happens once. You can choose to create reminders in one or both apps.
                     </p>
@@ -185,7 +185,7 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
               <Button
                 variant="outline"
                 onClick={() => setShowEmailComposer(true)}
-                className="gap-2 bg-slate-800 border-2 border-slate-700 text-slate-200 hover:bg-slate-700 hover:text-slate-100 transition-all"
+                className="gap-2 bg-card border-2 border-border text-foreground hover:bg-accent hover:text-accent-foreground transition-all"
               >
                 <Mail className="h-4 w-4" />
                 Email Shop
@@ -195,7 +195,7 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
                   variant="outline"
                   onClick={() => setShowReminderTypeDialog(true)}
                   disabled={isCreatingReminder}
-                  className="gap-2 bg-slate-800 border-2 border-purple-600 text-purple-300 hover:bg-purple-950 hover:text-purple-200 transition-all disabled:opacity-50"
+                  className="gap-2 bg-card border-2 border-accent text-accent hover:bg-accent/10 hover:text-accent transition-all disabled:opacity-50"
                 >
                   <Bell className="h-4 w-4" />
                   <CalendarIcon className="h-4 w-4" />
@@ -205,83 +205,83 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
             </div>
 
             {/* Shop Info */}
-            <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
-              <h3 className="font-semibold text-white text-lg mb-3 flex items-center gap-2">
+            <div className="bg-card rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+              <h3 className="font-semibold text-foreground text-lg mb-3 flex items-center gap-2">
                 <div className="h-1.5 w-10 bg-cyan-600 rounded"></div>
                 Shop Information
               </h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-slate-400 font-semibold">Shop:</span>{" "}
-                  <span className="font-normal text-slate-200">{currentRO.shopName}</span>
+                  <span className="text-muted-foreground font-semibold">Shop:</span>{" "}
+                  <span className="font-normal text-foreground">{currentRO.shopName}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold">Shop Ref:</span>{" "}
-                  <span className="text-slate-200">{currentRO.shopReferenceNumber || "N/A"}</span>
+                  <span className="text-muted-foreground font-semibold">Shop Ref:</span>{" "}
+                  <span className="text-foreground">{currentRO.shopReferenceNumber || "N/A"}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold">Terms:</span>{" "}
-                  <span className="text-slate-200">{currentRO.terms || "N/A"}</span>
+                  <span className="text-muted-foreground font-semibold">Terms:</span>{" "}
+                  <span className="text-foreground">{currentRO.terms || "N/A"}</span>
                 </div>
               </div>
             </div>
 
             {/* Part Info */}
-            <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
-              <h3 className="font-semibold text-white text-lg mb-3 flex items-center gap-2">
-                <div className="h-1.5 w-10 bg-purple-600 rounded"></div>
+            <div className="bg-card rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+              <h3 className="font-semibold text-foreground text-lg mb-3 flex items-center gap-2">
+                <div className="h-1.5 w-10 bg-accent rounded"></div>
                 Part Information
               </h3>
               <div className="space-y-3 text-sm">
                 <div>
-                  <span className="text-slate-400 font-semibold">Description:</span>{" "}
-                  <span className="font-normal text-slate-200">{currentRO.partDescription}</span>
+                  <span className="text-muted-foreground font-semibold">Description:</span>{" "}
+                  <span className="font-normal text-foreground">{currentRO.partDescription}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <span className="text-slate-400 font-semibold">Part #:</span>{" "}
-                    <span className="text-slate-200">{currentRO.partNumber || "N/A"}</span>
+                    <span className="text-muted-foreground font-semibold">Part #:</span>{" "}
+                    <span className="text-foreground">{currentRO.partNumber || "N/A"}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 font-semibold">Serial #:</span>{" "}
-                    <span className="text-slate-200">{currentRO.serialNumber || "N/A"}</span>
+                    <span className="text-muted-foreground font-semibold">Serial #:</span>{" "}
+                    <span className="text-foreground">{currentRO.serialNumber || "N/A"}</span>
                   </div>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold">Required Work:</span>{" "}
-                  <span className="text-slate-200">{currentRO.requiredWork || "N/A"}</span>
+                  <span className="text-muted-foreground font-semibold">Required Work:</span>{" "}
+                  <span className="text-foreground">{currentRO.requiredWork || "N/A"}</span>
                 </div>
               </div>
             </div>
 
             {/* Dates */}
-            <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
-              <h3 className="font-semibold text-white text-lg mb-3 flex items-center gap-2">
+            <div className="bg-card rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+              <h3 className="font-semibold text-foreground text-lg mb-3 flex items-center gap-2">
                 <div className="h-1.5 w-10 bg-green-600 rounded"></div>
                 Timeline
               </h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-slate-400 font-semibold">Date Made:</span>{" "}
-                  <span className="text-slate-200">{formatDate(currentRO.dateMade)}</span>
+                  <span className="text-muted-foreground font-semibold">Date Made:</span>{" "}
+                  <span className="text-foreground">{formatDate(currentRO.dateMade)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold">Dropped Off:</span>{" "}
-                  <span className="text-slate-200">{formatDate(currentRO.dateDroppedOff)}</span>
+                  <span className="text-muted-foreground font-semibold">Dropped Off:</span>{" "}
+                  <span className="text-foreground">{formatDate(currentRO.dateDroppedOff)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold">Est. Delivery:</span>{" "}
-                  <span className="text-slate-200">{formatDate(currentRO.estimatedDeliveryDate)}</span>
+                  <span className="text-muted-foreground font-semibold">Est. Delivery:</span>{" "}
+                  <span className="text-foreground">{formatDate(currentRO.estimatedDeliveryDate)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold">Last Updated:</span>{" "}
-                  <span className="text-slate-200">{formatDate(currentRO.lastDateUpdated)}</span>
+                  <span className="text-muted-foreground font-semibold">Last Updated:</span>{" "}
+                  <span className="text-foreground">{formatDate(currentRO.lastDateUpdated)}</span>
                 </div>
                 <div
                   className={currentRO.isOverdue ? "font-semibold" : ""}
                 >
-                  <span className="text-slate-400 font-semibold">Next Update:</span>{" "}
-                  <span className={currentRO.isOverdue ? "text-red-400" : "text-slate-200"}>
+                  <span className="text-muted-foreground font-semibold">Next Update:</span>{" "}
+                  <span className={currentRO.isOverdue ? "text-red-400" : "text-foreground"}>
                     {formatDate(currentRO.nextDateToUpdate)}
                     {currentRO.isOverdue && ` (${currentRO.daysOverdue} days overdue)`}
                   </span>
@@ -290,19 +290,19 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
             </div>
 
             {/* Costs */}
-            <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
-              <h3 className="font-semibold text-white text-lg mb-3 flex items-center gap-2">
+            <div className="bg-card rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+              <h3 className="font-semibold text-foreground text-lg mb-3 flex items-center gap-2">
                 <div className="h-1.5 w-10 bg-orange-600 rounded"></div>
                 Costs
               </h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-slate-400 font-semibold">Estimated:</span>{" "}
-                  <span className="text-slate-200 font-normal">{formatCurrency(currentRO.estimatedCost)}</span>
+                  <span className="text-muted-foreground font-semibold">Estimated:</span>{" "}
+                  <span className="text-foreground font-normal">{formatCurrency(currentRO.estimatedCost)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold">Final:</span>{" "}
-                  <span className="font-normal text-slate-200">
+                  <span className="text-muted-foreground font-semibold">Final:</span>{" "}
+                  <span className="font-normal text-foreground">
                     {formatCurrency(currentRO.finalCost)}
                   </span>
                 </div>
@@ -311,13 +311,13 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
 
             {/* Tracking */}
             {currentRO.trackingNumber && (
-              <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
-                <h3 className="font-semibold text-white text-lg mb-3 flex items-center gap-2">
+              <div className="bg-card rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+                <h3 className="font-semibold text-foreground text-lg mb-3 flex items-center gap-2">
                   <div className="h-1.5 w-10 bg-indigo-600 rounded"></div>
                   Shipping
                 </h3>
                 <div className="text-sm">
-                  <span className="text-slate-400 font-semibold">Tracking:</span>{" "}
+                  <span className="text-muted-foreground font-semibold">Tracking:</span>{" "}
                   <a
                     href={getTrackingInfo(currentRO.trackingNumber).url}
                     target="_blank"
@@ -326,7 +326,7 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
                   >
                     {currentRO.trackingNumber}
                   </a>
-                  <span className="text-slate-500 ml-2 text-xs">
+                  <span className="text-muted-foreground ml-2 text-xs">
                     ({getTrackingInfo(currentRO.trackingNumber).carrier})
                   </span>
                 </div>
@@ -335,12 +335,12 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
 
             {/* Notes */}
             {currentRO.notes && (
-              <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
-                <h3 className="font-semibold text-white text-lg mb-3 flex items-center gap-2">
-                  <div className="h-1.5 w-10 bg-slate-600 rounded"></div>
+              <div className="bg-card rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+                <h3 className="font-semibold text-foreground text-lg mb-3 flex items-center gap-2">
+                  <div className="h-1.5 w-10 bg-accent rounded"></div>
                   Notes
                 </h3>
-                <div className="text-sm bg-slate-900 p-3 rounded-md whitespace-pre-wrap border border-slate-700 text-slate-200">
+                <div className="text-sm bg-card p-3 rounded-md whitespace-pre-wrap border border-border text-foreground">
                   {currentRO.notes}
                 </div>
               </div>
@@ -350,9 +350,9 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
             <AttachmentManager roNumber={currentRO.roNumber} />
 
             {/* Status History */}
-            <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
-              <h3 className="font-semibold text-white text-lg mb-4 flex items-center gap-2">
-                <div className="h-1.5 w-10 bg-slate-600 rounded"></div>
+            <div className="bg-card rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+              <h3 className="font-semibold text-foreground text-lg mb-4 flex items-center gap-2">
+                <div className="h-1.5 w-10 bg-accent rounded"></div>
                 Status History
               </h3>
               <StatusTimeline history={currentRO.statusHistory} />

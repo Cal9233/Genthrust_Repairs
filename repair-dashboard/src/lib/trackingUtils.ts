@@ -16,7 +16,9 @@ export interface TrackingInfo {
  * - UPS: Starts with "1Z" followed by 16 more characters (18 total)
  * - FedEx: 12 digits, 15 digits, 20 digits, or starts with "96" (SmartPost)
  *
- * @param trackingNumber - The tracking number to analyze
+ * Note: Spaces and dashes are automatically removed before detection
+ *
+ * @param trackingNumber - The tracking number to analyze (spaces/dashes allowed)
  * @returns The detected carrier: 'UPS', 'FedEx', or 'Unknown'
  */
 export function detectCarrier(trackingNumber: string): Carrier {
@@ -24,10 +26,11 @@ export function detectCarrier(trackingNumber: string): Carrier {
     return 'Unknown';
   }
 
-  const trimmed = trackingNumber.trim().toUpperCase();
+  // Remove all spaces, dashes, and other common separators
+  const normalized = trackingNumber.trim().replace(/[\s\-]/g, '').toUpperCase();
 
   // UPS: Starts with "1Z" and has 18 total characters
-  if (/^1Z[A-Z0-9]{16}$/i.test(trimmed)) {
+  if (/^1Z[A-Z0-9]{16}$/i.test(normalized)) {
     return 'UPS';
   }
 
@@ -38,10 +41,10 @@ export function detectCarrier(trackingNumber: string): Carrier {
   // - Starts with "96" and 20+ digits: SmartPost
   // Note: FedEx tracking numbers are numeric only (no letters)
   if (
-    /^\d{12}$/.test(trimmed) ||
-    /^\d{15}$/.test(trimmed) ||
-    /^\d{20}$/.test(trimmed) ||
-    /^96\d{20,}$/.test(trimmed)
+    /^\d{12}$/.test(normalized) ||
+    /^\d{15}$/.test(normalized) ||
+    /^\d{20}$/.test(normalized) ||
+    /^96\d{20,}$/.test(normalized)
   ) {
     return 'FedEx';
   }

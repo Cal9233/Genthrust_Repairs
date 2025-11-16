@@ -108,7 +108,7 @@ export function AttachmentManager({ roNumber }: AttachmentManagerProps) {
 
   if (isError) {
     return (
-      <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+      <div className="bg-card rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
         <h3 className="text-white text-xl font-semibold mb-2">Attachments</h3>
         <p className="text-red-400 text-sm">
           Failed to load attachments. Please try again.
@@ -118,16 +118,16 @@ export function AttachmentManager({ roNumber }: AttachmentManagerProps) {
   }
 
   return (
-    <div className="bg-slate-800 rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
+    <div className="bg-card rounded-xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-white text-xl font-semibold">Attachments</h3>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-muted-foreground text-sm mt-1">
             Upload and manage documents for RO-{roNumber}
           </p>
         </div>
         {attachments && attachments.length > 0 && (
-          <Badge variant="secondary" className="bg-slate-700 text-slate-200">{attachments.length} file(s)</Badge>
+          <Badge variant="secondary" className="bg-accent text-foreground">{attachments.length} file(s)</Badge>
         )}
       </div>
       <div className="space-y-4">
@@ -135,7 +135,7 @@ export function AttachmentManager({ roNumber }: AttachmentManagerProps) {
         <div
           className={`
             border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200
-            ${isDragging ? 'border-cyan-400 bg-slate-800' : 'bg-slate-900 border-slate-700 hover:border-cyan-500'}
+            ${isDragging ? 'border-cyan-400 bg-card' : 'bg-muted border-border hover:border-cyan-500'}
           `}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
@@ -153,15 +153,15 @@ export function AttachmentManager({ roNumber }: AttachmentManagerProps) {
           {uploadMutation.isPending ? (
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
-              <p className="text-sm text-slate-400">Uploading files...</p>
+              <p className="text-sm text-muted-foreground">Uploading files...</p>
             </div>
           ) : (
             <>
-              <Upload className="h-12 w-12 mx-auto mb-4 text-slate-600" />
-              <p className="text-sm font-medium text-slate-400 mb-1">
+              <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-sm font-medium text-muted-foreground mb-1">
                 Drop files here or click to browse
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Support for all file types. Max 10MB per file.
               </p>
             </>
@@ -172,27 +172,27 @@ export function AttachmentManager({ roNumber }: AttachmentManagerProps) {
         {isLoading && (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
-            <span className="ml-2 text-sm text-slate-400">Loading attachments...</span>
+            <span className="ml-2 text-sm text-muted-foreground">Loading attachments...</span>
           </div>
         )}
 
         {/* Attachments List */}
         {!isLoading && attachments && attachments.length > 0 && (
           <div className="space-y-2">
-            <h3 className="text-sm font-medium text-slate-300">Uploaded Files</h3>
+            <h3 className="text-sm font-medium text-foreground">Uploaded Files</h3>
             <div className="space-y-2">
               {attachments.map((attachment) => (
                 <div
                   key={attachment.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 transition-colors"
+                  className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted hover:bg-card transition-colors"
                 >
-                  <div className="text-slate-400">{getFileIcon(attachment.mimeType)}</div>
+                  <div className="text-muted-foreground">{getFileIcon(attachment.mimeType)}</div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-200 truncate">
+                    <p className="text-sm font-medium text-foreground truncate">
                       {attachment.name}
                     </p>
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>{formatBytes(attachment.size)}</span>
                       <span>•</span>
                       <span>
@@ -210,7 +210,7 @@ export function AttachmentManager({ roNumber }: AttachmentManagerProps) {
                       onClick={() => handleDownload(attachment.id, attachment.name)}
                       disabled={downloadMutation.isPending}
                       title="Download"
-                      className="text-slate-400 hover:text-cyan-400 hover:bg-slate-700"
+                      className="text-muted-foreground hover:text-cyan-400 hover:bg-accent"
                     >
                       <Download className="h-4 w-4" />
                     </Button>
@@ -220,7 +220,7 @@ export function AttachmentManager({ roNumber }: AttachmentManagerProps) {
                       size="sm"
                       onClick={() => window.open(attachment.webUrl, '_blank')}
                       title="Open in browser"
-                      className="text-slate-400 hover:text-cyan-400 hover:bg-slate-700"
+                      className="text-muted-foreground hover:text-cyan-400 hover:bg-accent"
                     >
                       <ExternalLink className="h-4 w-4" />
                     </Button>
@@ -231,7 +231,7 @@ export function AttachmentManager({ roNumber }: AttachmentManagerProps) {
                       onClick={() => handleDelete(attachment.id, attachment.name)}
                       disabled={deleteMutation.isPending}
                       title="Delete"
-                      className="text-slate-400 hover:text-red-400 hover:bg-red-950"
+                      className="text-muted-foreground hover:text-red-400 hover:bg-red-950"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -245,9 +245,9 @@ export function AttachmentManager({ roNumber }: AttachmentManagerProps) {
         {/* Empty State */}
         {!isLoading && attachments && attachments.length === 0 && (
           <div className="text-center py-8">
-            <File className="h-12 w-12 mx-auto mb-2 text-slate-600" />
-            <p className="text-sm text-slate-400">No attachments yet</p>
-            <p className="text-xs text-slate-500 mt-1">
+            <File className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">No attachments yet</p>
+            <p className="text-xs text-muted-foreground mt-1">
               Upload files using the area above
             </p>
           </div>

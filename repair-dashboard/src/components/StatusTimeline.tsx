@@ -61,8 +61,8 @@ const formatCurrency = (amount: number): string => {
 export function StatusTimeline({ history }: StatusTimelineProps) {
   if (!history || history.length === 0) {
     return (
-      <div className="text-center py-8 text-slate-400">
-        <MessageSquare className="w-12 h-12 mx-auto mb-2 text-slate-600 opacity-50" />
+      <div className="text-center py-8 text-muted-foreground">
+        <MessageSquare className="w-12 h-12 mx-auto mb-2 text-muted-foreground opacity-50" />
         <p>No status history available</p>
       </div>
     );
@@ -82,7 +82,7 @@ export function StatusTimeline({ history }: StatusTimelineProps) {
           <div key={index} className="relative flex gap-4 pb-8">
             {/* Timeline line */}
             {!isLast && (
-              <div className="absolute left-[15px] top-[32px] bottom-0 w-[2px] bg-slate-700" />
+              <div className="absolute left-[15px] top-[32px] bottom-0 w-[2px] bg-border" />
             )}
 
             {/* Icon circle */}
@@ -94,7 +94,7 @@ export function StatusTimeline({ history }: StatusTimelineProps) {
 
             {/* Content */}
             <div className="flex-1 min-w-0">
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-700">
+              <div className="bg-card rounded-lg p-4 border border-border">
                 {/* Header */}
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex-1">
@@ -102,37 +102,37 @@ export function StatusTimeline({ history }: StatusTimelineProps) {
                       {entry.status}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-muted-foreground">
                     {formatDate(entry.date)}
                   </div>
                 </div>
 
                 {/* User */}
-                <div className="flex items-center gap-1.5 text-sm text-slate-300 mb-2">
+                <div className="flex items-center gap-1.5 text-sm text-foreground mb-2">
                   <User className="w-3.5 h-3.5" />
                   <span>{entry.user}</span>
                 </div>
 
                 {/* Additional details */}
                 {(entry.cost !== undefined || entry.deliveryDate || entry.notes) && (
-                  <div className="mt-3 space-y-1.5 border-t border-slate-700 pt-3">
+                  <div className="mt-3 space-y-1.5 border-t border-border pt-3">
                     {entry.cost !== undefined && (
-                      <div className="flex items-center gap-1.5 text-sm text-slate-200">
-                        <DollarSign className="w-3.5 h-3.5 text-slate-400" />
+                      <div className="flex items-center gap-1.5 text-sm text-foreground">
+                        <DollarSign className="w-3.5 h-3.5 text-muted-foreground" />
                         <span className="font-medium">{formatCurrency(entry.cost)}</span>
                       </div>
                     )}
 
                     {entry.deliveryDate && (
-                      <div className="flex items-center gap-1.5 text-sm text-slate-200">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                      <div className="flex items-center gap-1.5 text-sm text-foreground">
+                        <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
                         <span>Delivery: {formatDate(entry.deliveryDate)}</span>
                       </div>
                     )}
 
                     {entry.notes && (
-                      <div className="flex items-start gap-1.5 text-sm text-slate-200">
-                        <MessageSquare className="w-3.5 h-3.5 text-slate-400 mt-0.5" />
+                      <div className="flex items-start gap-1.5 text-sm text-foreground">
+                        <MessageSquare className="w-3.5 h-3.5 text-muted-foreground mt-0.5" />
                         <span>{entry.notes}</span>
                       </div>
                     )}

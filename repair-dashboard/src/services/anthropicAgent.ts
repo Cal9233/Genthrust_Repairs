@@ -24,10 +24,18 @@ export class AnthropicAgent {
   async processCommand(
     userMessage: string,
     context: CommandContext,
-    onStream?: (text: string) => void
+    onStream?: (text: string) => void,
+    conversationHistory: AIMessage[] = []
   ): Promise<AIMessage> {
 
+    // Build messages array with conversation history for context
+    // Only include last 10 messages to avoid token limits
+    const recentHistory = conversationHistory.slice(-10);
     const messages: any[] = [
+      ...recentHistory.map(msg => ({
+        role: msg.role,
+        content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
+      })),
       {
         role: 'user',
         content: userMessage
@@ -126,7 +134,7 @@ export class AnthropicAgent {
         }
 
       } catch (error: any) {
-        console.error('Error calling Anthropic API:', error);
+        // Error calling Anthropic API
         throw new Error(`AI Agent Error: ${error.message}`);
       }
     }
@@ -139,7 +147,16 @@ export class AnthropicAgent {
   }
 
   private getSystemPrompt(context: CommandContext): string {
-    return `You are an AI assistant for the GenThrust Repair Order Tracker system. Your role is to help users manage aircraft component repair orders efficiently through natural language commands.
+    return `You are a professional AI assistant for the GenThrust Repair Order Tracker system. Your role is to help users manage aircraft component repair orders efficiently through natural language commands.
+
+## CRITICAL: Professional Communication Standards
+
+- Use ONLY professional business language
+- NO emojis, emoticons, or casual symbols (✓, ✨, #, etc.)
+- Use simple bullet points with "-" or numbered lists "1."
+- Keep responses clear, concise, and professional
+- Use proper grammar and punctuation
+- Avoid exclamation marks unless truly exceptional
 
 ## Your Capabilities
 
@@ -178,20 +195,21 @@ When a user mentions "BER" or "Beyond Economical Repair", use the status "BER".
 
 ## Response Guidelines
 
-1. **Be Conversational**: Respond naturally, like a helpful colleague
+1. **Be Professional**: Respond in clear, professional business language
 2. **Confirm Actions**: After executing updates, confirm what was done
 3. **Provide Context**: When returning query results, add helpful summary info
 4. **Handle Ambiguity**: If a command is unclear, ask for clarification before acting
-5. **Format Results**: Present data in a clear, scannable format
+5. **Format Results**: Present data in a clear, scannable format using simple formatting
 6. **Suggest Follow-ups**: Offer related actions that might be helpful
+7. **No Repetition**: Never repeat or echo the user's message back to them
 
 ## Example Interactions
 
 User: "update RO39643 as delivered and mark RO40321 as paid"
 You: [Execute updates using tools, then respond]
-"✓ Done! I've updated:
-- RO39643 → Status changed to SHIPPING (delivered)
-- RO40321 → Status changed to PAID
+"Done. I have updated:
+- RO39643: Status changed to SHIPPING (delivered)
+- RO40321: Status changed to PAID
 
 Both ROs have been updated in the system."
 
@@ -207,7 +225,7 @@ Would you like me to set reminders for these?"
 
 User: "show me details for RO38451"
 You: [Query using tools, then respond]
-"**RO 38451 Details:**
+"RO 38451 Details:
 - Shop: Delta Tech Ops
 - Part: ECU
 - Status: APPROVED

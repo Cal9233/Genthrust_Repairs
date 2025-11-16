@@ -8,16 +8,15 @@ import { sharePointService } from "./services/sharepoint";
 import { loggingService } from "./lib/loggingService";
 import { inventoryService } from "./services/inventoryService";
 import { Dashboard } from "./components/Dashboard";
-import { ROTable } from "./components/ROTable";
 import { ShopDirectory } from "./components/ShopDirectory";
 import { InventorySearchTab } from "./components/InventorySearchTab";
-import { AICommandBar } from "./components/AICommandBar";
+import { ShopAnalyticsTab } from "./components/ShopAnalyticsTab";
 import { AIAgentDialog } from "./components/AIAgentDialog";
 import { LogsDialog } from "./components/LogsDialog";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
-import { LogOut, RefreshCw, ClipboardList, Store, Sparkles, FileText, Package } from "lucide-react";
+import { LogOut, RefreshCw, ClipboardList, Store, Sparkles, FileText, Package, BarChart3 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import logo from "./assets/GENLOGO.png";
 
@@ -25,10 +24,12 @@ function App() {
   const { instance, accounts } = useMsal();
   const isAuthenticated = useIsAuthenticated();
   const queryClient = useQueryClient();
-  const [currentView, setCurrentView] = useState<"repairs" | "inventory" | "shops">("repairs");
-  const [showAICommand, setShowAICommand] = useState(false);
+  const [currentView, setCurrentView] = useState<"repairs" | "inventory" | "shops" | "analytics">("repairs");
   const [showAIAgent, setShowAIAgent] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
+
+  // Check if current user has access to advanced features (Shop Analytics)
+  const hasAdvancedAccess = accounts[0]?.username?.toLowerCase() === 'cmalagon@genthrust.net';
 
   useEffect(() => {
     if (instance) {
@@ -38,12 +39,11 @@ function App() {
       sharePointService.setMsalInstance(instance);
       loggingService.setMsalInstance(instance);
       inventoryService.setMsalInstance(instance);
-      console.log("[App] MSAL instance set for services");
     }
   }, [instance]);
 
   useEffect(() => {
-    console.log("[App] Authentication status:", isAuthenticated);
+    // Authentication status changed
   }, [isAuthenticated]);
 
   // Keyboard shortcut for AI agent (Ctrl/Cmd + K)
@@ -63,16 +63,15 @@ function App() {
     try {
       await instance.loginPopup(loginRequest);
     } catch (e: any) {
-      console.error("Login error:", e);
+      // Login error occurred
 
       // If interaction is in progress, clear it and retry
       if (e.errorCode === "interaction_in_progress") {
-        console.log("Clearing stuck authentication session...");
+        // Clearing stuck authentication session
         await instance.clearCache();
         window.location.reload();
       } else if (e.message?.includes("popup") || e.message?.includes("CORS")) {
         // CORS/popup issues - try redirect flow instead
-        console.log("Popup blocked, using redirect flow...");
         await instance.loginRedirect(loginRequest);
       }
     }
@@ -84,7 +83,7 @@ function App() {
       await instance.clearCache();
       await instance.logoutPopup();
     } catch (e: any) {
-      console.error("Logout error:", e);
+      // Logout error occurred
       // If logout fails, try clearing cache and reloading
       if (e.errorCode === "interaction_in_progress") {
         await instance.clearCache();
@@ -183,7 +182,7 @@ function App() {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowAIAgent(true)}
-                className="relative group bg-gradient-blue border-electric text-white font-semibold shadow-[0_2px_8px_rgba(6,182,212,0.3)] hover:shadow-[0_4px_16px_rgba(6,182,212,0.4)] transition-all duration-200 rounded-lg button-lift px-2 sm:px-3"
+                className="relative group bg-gradient-blue border-electric !text-white font-semibold shadow-[0_2px_8px_rgba(6,182,212,0.3)] hover:shadow-[0_4px_16px_rgba(6,182,212,0.4)] transition-all duration-200 rounded-lg button-lift px-2 sm:px-3"
                 title="AI Assistant (Ctrl+K)"
               >
                 <Sparkles className="h-4 w-4 sm:mr-1.5" />
@@ -193,7 +192,7 @@ function App() {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowLogs(true)}
-                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 rounded-lg px-2 sm:px-3"
+                className="bg-white/10 hover:bg-white/20 !text-white border border-white/20 hover:border-white/40 rounded-lg px-2 sm:px-3"
                 title="View AI Activity Logs"
               >
                 <FileText className="h-4 w-4 sm:mr-1.5" />
@@ -204,7 +203,7 @@ function App() {
                 variant="ghost"
                 size="sm"
                 onClick={handleRefresh}
-                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 rounded-lg px-2 sm:px-3"
+                className="bg-white/10 hover:bg-white/20 !text-white border border-white/20 hover:border-white/40 rounded-lg px-2 sm:px-3"
               >
                 <RefreshCw className="h-4 w-4" />
               </Button>
@@ -212,7 +211,7 @@ function App() {
                 variant="ghost"
                 size="sm"
                 onClick={handleLogout}
-                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 rounded-lg px-2 sm:px-3 hidden sm:flex"
+                className="bg-white/10 hover:bg-white/20 !text-white border border-white/20 hover:border-white/40 rounded-lg px-2 sm:px-3 hidden sm:flex"
               >
                 <LogOut className="h-4 w-4" />
               </Button>
@@ -227,7 +226,7 @@ function App() {
               onClick={() => setCurrentView("repairs")}
               className={
                 currentView === "repairs"
-                  ? "bg-white text-deep-blue hover:bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-200 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 font-semibold text-xs sm:text-sm whitespace-nowrap"
+                  ? "bg-white text-deep-blue hover:text-deep-blue hover:bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-200 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 font-semibold text-xs sm:text-sm whitespace-nowrap"
                   : "bg-white/15 text-white hover:bg-white/25 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 transition-all duration-200 text-xs sm:text-sm whitespace-nowrap"
               }
             >
@@ -241,7 +240,7 @@ function App() {
               onClick={() => setCurrentView("inventory")}
               className={
                 currentView === "inventory"
-                  ? "bg-white text-deep-blue hover:bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-200 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 font-semibold text-xs sm:text-sm whitespace-nowrap"
+                  ? "bg-white text-deep-blue hover:text-deep-blue hover:bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-200 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 font-semibold text-xs sm:text-sm whitespace-nowrap"
                   : "bg-white/15 text-white hover:bg-white/25 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 transition-all duration-200 text-xs sm:text-sm whitespace-nowrap"
               }
             >
@@ -255,7 +254,7 @@ function App() {
               onClick={() => setCurrentView("shops")}
               className={
                 currentView === "shops"
-                  ? "bg-white text-deep-blue hover:bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-200 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 font-semibold text-xs sm:text-sm whitespace-nowrap"
+                  ? "bg-white text-deep-blue hover:text-deep-blue hover:bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-200 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 font-semibold text-xs sm:text-sm whitespace-nowrap"
                   : "bg-white/15 text-white hover:bg-white/25 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 transition-all duration-200 text-xs sm:text-sm whitespace-nowrap"
               }
             >
@@ -263,36 +262,51 @@ function App() {
               <span className="hidden sm:inline">Shop Directory</span>
               <span className="sm:hidden ml-1.5">Shops</span>
             </Button>
+            {hasAdvancedAccess && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentView("analytics")}
+                className={
+                  currentView === "analytics"
+                    ? "bg-white text-deep-blue hover:text-deep-blue hover:bg-white/95 shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-200 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 font-semibold text-xs sm:text-sm whitespace-nowrap"
+                    : "bg-white/15 text-white hover:bg-white/25 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 transition-all duration-200 text-xs sm:text-sm whitespace-nowrap"
+                }
+              >
+                <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Shop Analytics</span>
+                <span className="sm:hidden ml-1.5">Analytics</span>
+              </Button>
+            )}
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
           {currentView === "repairs" ? (
             <>
+              {/* Dashboard Summary - Top metrics and RO table */}
               <Dashboard />
-              <div className="bg-background rounded-xl shadow-vibrant-lg border border-border p-6">
-                <h2 className="text-2xl font-bold text-foreground mb-6">
-                  Repair Orders
-                </h2>
-                <ROTable />
-              </div>
             </>
           ) : currentView === "inventory" ? (
             <InventorySearchTab />
-          ) : (
+          ) : currentView === "shops" ? (
             <ShopDirectory />
+          ) : currentView === "analytics" && hasAdvancedAccess ? (
+            <ShopAnalyticsTab />
+          ) : (
+            <>
+              {/* Fallback to Dashboard if unauthorized access attempted */}
+              <Dashboard />
+            </>
           )}
         </div>
       </main>
 
       <Toaster position="bottom-right" />
 
-      {/* AI Command Bar (legacy) */}
-      <AICommandBar isOpen={showAICommand} onClose={() => setShowAICommand(false)} />
-
-      {/* AI Agent Dialog */}
+      {/* AI Assistant */}
       <AIAgentDialog open={showAIAgent} onOpenChange={setShowAIAgent} />
 
       {/* Logs Dialog */}

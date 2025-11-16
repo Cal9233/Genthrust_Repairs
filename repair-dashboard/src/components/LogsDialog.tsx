@@ -107,7 +107,7 @@ export function LogsDialog({ open, onOpenChange }: LogsDialogProps) {
         setSelectedExcelLog(todayLog);
       }
     } catch (error) {
-      console.error('Failed to load Excel logs:', error);
+      // Failed to load Excel logs
       toast.error('Failed to load Excel logs');
     } finally {
       setIsLoading(false);
