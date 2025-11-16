@@ -226,21 +226,39 @@ function buildShopProfile(
     }
   }
 
-  // Calculate recent median (last 30 days)
-  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-  const recentTurnarounds = ros
+  // Calculate recent median (last 30 days) and older median (30-90 days ago)
+  const now = Date.now();
+  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+  const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
+
+  const recentTurnarounds = completedROs
     .filter((ro) => {
       const statusDate = ro.currentStatusDate ? new Date(ro.currentStatusDate).getTime() : 0;
-      return statusDate > thirtyDaysAgo && (ro.currentStatus?.includes('COMPLETED') || ro.currentStatus?.includes('RECEIVED'));
+      return statusDate > thirtyDaysAgo;
     })
     .map(calculateTurnaround)
-    .filter((t): t is number => t !== null);
+    .filter((t): t is number => t !== null && t > 0);
 
-  const recentMedian = recentTurnarounds.length > 0 ? median(recentTurnarounds) : medianTurnaround;
-  const overallMedian = medianTurnaround;
+  const olderTurnarounds = completedROs
+    .filter((ro) => {
+      const statusDate = ro.currentStatusDate ? new Date(ro.currentStatusDate).getTime() : 0;
+      return statusDate > ninetyDaysAgo && statusDate <= thirtyDaysAgo;
+    })
+    .map(calculateTurnaround)
+    .filter((t): t is number => t !== null && t > 0);
 
-  // Calculate trend
-  const trend = calculateTrend(recentMedian, overallMedian);
+  // Only calculate trend if we have sufficient data in both periods (at least 2 data points each)
+  let recentMedian = medianTurnaround;
+  let overallMedian = medianTurnaround;
+  let trend: 'improving' | 'stable' | 'declining' = 'stable';
+
+  if (recentTurnarounds.length >= 2 && olderTurnarounds.length >= 2) {
+    recentMedian = median(recentTurnarounds);
+    overallMedian = median(olderTurnarounds);
+    trend = calculateTrend(recentMedian, overallMedian);
+  } else if (recentTurnarounds.length > 0) {
+    recentMedian = median(recentTurnarounds);
+  }
 
   // Calculate segment times (simplified - using status history if available)
   const medianSegmentTimes = {
