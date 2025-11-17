@@ -1,6 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { excelService } from "../lib/excelService";
 import { createLogger, measureAsync } from "../utils/logger";
+import type {
+  GraphAPIResponse,
+  GraphWorksheetResponse,
+  GraphTableResponse,
+  GraphTableColumnResponse,
+  WorksheetData,
+  TableData,
+  ColumnData
+} from "../types/graphApi";
 
 // Create logger instance for this hook
 const logger = createLogger('useInventoryFile');
@@ -10,20 +19,26 @@ export interface InventoryFileInfo {
   name: string;
   webUrl: string;
   structure?: {
-    worksheets: Array<{
-      name: string;
-      position: number;
-      visibility: string;
-      tables: Array<{
-        name: string;
-        rowCount?: number;
-        columns: Array<{
-          name: string;
-          index: number;
-        }>;
-      }>;
-    }>;
+    worksheets: WorksheetData[];
   };
+}
+
+/**
+ * Type-safe wrapper for accessing excelService private methods
+ *
+ * @description
+ * ExcelService methods callGraphAPI and driveId are marked private but need to be
+ * accessed for inventory file structure operations. This interface provides type-safe
+ * access without using "as any".
+ */
+interface ExcelServicePrivateAPI {
+  callGraphAPI<T = unknown>(
+    endpoint: string,
+    method?: string,
+    body?: unknown,
+    sessionId?: string
+  ): Promise<T>;
+  driveId: string | null;
 }
 
 /**
@@ -50,19 +65,22 @@ export function useInventoryFile() {
           fileName: fileInfo.name
         });
 
+        // Type-safe access to private excelService methods
+        const privateAPI = excelService as unknown as ExcelServicePrivateAPI;
+
         // Get the file structure
         try {
-          const worksheetsResponse = await (excelService as any).callGraphAPI(
-            `https://graph.microsoft.com/v1.0/drives/${(excelService as any).driveId}/items/${fileInfo.id}/workbook/worksheets`
+          const worksheetsResponse = await privateAPI.callGraphAPI<GraphAPIResponse<GraphWorksheetResponse>>(
+            `https://graph.microsoft.com/v1.0/drives/${privateAPI.driveId}/items/${fileInfo.id}/workbook/worksheets`
           );
 
-          const worksheets = [];
+          const worksheets: WorksheetData[] = [];
 
           for (const worksheet of worksheetsResponse.value) {
             // Create child logger for this worksheet
             const worksheetLogger = logger.child(`worksheet:${worksheet.name}`);
 
-            const worksheetData: any = {
+            const worksheetData: WorksheetData = {
               name: worksheet.name,
               position: worksheet.position,
               visibility: worksheet.visibility,
@@ -71,8 +89,8 @@ export function useInventoryFile() {
 
             // Get tables in this worksheet
             try {
-              const tablesResponse = await (excelService as any).callGraphAPI(
-                `https://graph.microsoft.com/v1.0/drives/${(excelService as any).driveId}/items/${fileInfo.id}/workbook/worksheets/${worksheet.name}/tables`
+              const tablesResponse = await privateAPI.callGraphAPI<GraphAPIResponse<GraphTableResponse>>(
+                `https://graph.microsoft.com/v1.0/drives/${privateAPI.driveId}/items/${fileInfo.id}/workbook/worksheets/${worksheet.name}/tables`
               );
 
               worksheetLogger.debug('Tables fetched', {
@@ -80,7 +98,7 @@ export function useInventoryFile() {
               });
 
               for (const table of tablesResponse.value) {
-                const tableData: any = {
+                const tableData: TableData = {
                   name: table.name,
                   rowCount: table.rowCount,
                   columns: [],
@@ -88,11 +106,11 @@ export function useInventoryFile() {
 
                 // Get columns for this table
                 try {
-                  const columnsResponse = await (excelService as any).callGraphAPI(
-                    `https://graph.microsoft.com/v1.0/drives/${(excelService as any).driveId}/items/${fileInfo.id}/workbook/tables/${table.name}/columns`
+                  const columnsResponse = await privateAPI.callGraphAPI<GraphAPIResponse<GraphTableColumnResponse>>(
+                    `https://graph.microsoft.com/v1.0/drives/${privateAPI.driveId}/items/${fileInfo.id}/workbook/tables/${table.name}/columns`
                   );
 
-                  tableData.columns = columnsResponse.value.map((col: any, idx: number) => ({
+                  tableData.columns = columnsResponse.value.map((col, idx): ColumnData => ({
                     name: col.name,
                     index: idx,
                   }));
