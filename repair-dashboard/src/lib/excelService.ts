@@ -3,6 +3,10 @@ import { loginRequest } from "./msalConfig";
 import type { RepairOrder, StatusHistoryEntry } from "../types";
 import { calculateNextUpdateDate } from "./businessRules";
 import { reminderService, ReminderService } from "./reminderService";
+import { ExcelSessionManager } from "./excelSession";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger('ExcelService');
 
 const SITE_URL = import.meta.env.VITE_SHAREPOINT_SITE_URL;
 const FILE_NAME = import.meta.env.VITE_EXCEL_FILE_NAME;
@@ -12,7 +16,7 @@ class ExcelService {
   private msalInstance: IPublicClientApplication | null = null;
   private driveId: string | null = null;
   private fileId: string | null = null;
-  private sessionId: string | null = null;
+  private sessionManager: ExcelSessionManager | null = null;
 
   setMsalInstance(instance: IPublicClientApplication) {
     this.msalInstance = instance;
@@ -57,7 +61,7 @@ class ExcelService {
     }
   }
 
-  private async callGraphAPI(endpoint: string, method = "GET", body?: any, useSession = false) {
+  private async callGraphAPI(endpoint: string, method = "GET", body?: any, sessionId?: string) {
     const token = await this.getAccessToken();
 
     const headers: Record<string, string> = {
@@ -65,9 +69,9 @@ class ExcelService {
       "Content-Type": "application/json",
     };
 
-    // Add session header if using session mode
-    if (useSession && this.sessionId) {
-      headers["workbook-session-id"] = this.sessionId;
+    // Add session header if sessionId provided
+    if (sessionId) {
+      headers["workbook-session-id"] = sessionId;
     }
 
     const options: RequestInit = {
@@ -90,10 +94,14 @@ class ExcelService {
         errorDetails = errorText;
       }
 
-      // API call failed - error details included in thrown error
-      throw new Error(
+      const error: any = new Error(
         `Graph API error: ${response.status} ${response.statusText}\n${JSON.stringify(errorDetails, null, 2)}`
       );
+      error.status = response.status;
+      error.statusCode = response.status;
+      error.response = errorDetails;
+
+      throw error;
     }
 
     // Handle empty responses (like 204 No Content from closeSession)
@@ -110,40 +118,38 @@ class ExcelService {
     return JSON.parse(text);
   }
 
-  private async createSession(): Promise<string> {
-    if (!this.fileId) {
-      this.fileId = await this.getFileId();
+  /**
+   * Get or create session manager instance
+   */
+  private async getSessionManager(): Promise<ExcelSessionManager> {
+    if (this.sessionManager) {
+      return this.sessionManager;
     }
 
-    const response = await this.callGraphAPI(
-      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${this.fileId}/workbook/createSession`,
-      "POST",
+    // Ensure we have driveId and fileId
+    if (!this.fileId) {
+      await this.getFileId();
+    }
+
+    // Create session manager with bound callGraphAPI
+    this.sessionManager = new ExcelSessionManager(
+      this.driveId!,
+      this.fileId!,
+      this.callGraphAPI.bind(this),
       {
+        maxRetries: 3,
+        retryDelayMs: 1000,
+        sessionTimeoutMs: 30 * 60 * 1000, // 30 minutes
         persistChanges: true,
       }
     );
 
-    this.sessionId = response.id;
-    return response.id;
-  }
+    logger.debug('Session manager created', {
+      driveId: this.driveId,
+      fileId: this.fileId,
+    });
 
-  private async closeSession(): Promise<void> {
-    if (!this.sessionId || !this.fileId) {
-      return;
-    }
-
-    try {
-      await this.callGraphAPI(
-        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${this.fileId}/workbook/closeSession`,
-        "POST",
-        {},
-        true // use session
-      );
-      this.sessionId = null;
-    } catch (error) {
-      // Failed to close session - just clear the session ID
-      this.sessionId = null;
-    }
+    return this.sessionManager;
   }
 
   private parseExcelDate(value: any): Date | null {
@@ -652,16 +658,15 @@ class ExcelService {
     // Get current user
     const currentUser = this.getCurrentUser();
 
-    try {
-      // Create a workbook session for this operation
-      await this.createSession();
+    const sessionManager = await this.getSessionManager();
 
+    await sessionManager.withSession(async (sessionId) => {
       // Get current row data first
       const response = await this.callGraphAPI(
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
         "GET",
         undefined,
-        true // use session
+        sessionId
       );
 
       const currentValues = response.values[0];
@@ -722,7 +727,7 @@ class ExcelService {
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
         "PATCH",
         { values: [currentValues] },
-        true // use session
+        sessionId
       );
 
       // Create payment due calendar event for NET payment terms
@@ -749,10 +754,7 @@ class ExcelService {
           });
         }
       }
-    } finally {
-      // Always close the session, even if there was an error
-      await this.closeSession();
-    }
+    });
   }
 
   async addRepairOrder(data: {
@@ -788,10 +790,9 @@ class ExcelService {
 
     const serializedNotes = this.serializeNotesWithHistory("", initialHistory);
 
-    try {
-      // Create a workbook session for this operation
-      await this.createSession();
+    const sessionManager = await this.getSessionManager();
 
+    await sessionManager.withSession(async (sessionId) => {
       // Create row with all columns (22 columns total based on RepairOrder type)
       const newRow = [
         data.roNumber, // 0: RO Number
@@ -824,12 +825,9 @@ class ExcelService {
         {
           values: [newRow],
         },
-        true // use session
+        sessionId
       );
-    } finally {
-      // Always close the session, even if there was an error
-      await this.closeSession();
-    }
+    });
   }
 
   async updateRepairOrder(
@@ -851,16 +849,15 @@ class ExcelService {
     }
 
     const fileId = await this.getFileId();
+    const sessionManager = await this.getSessionManager();
 
-    try {
-      await this.createSession();
-
+    await sessionManager.withSession(async (sessionId) => {
       // Get current row to preserve other fields
       const response = await this.callGraphAPI(
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
         "GET",
         undefined,
-        true
+        sessionId
       );
 
       const currentValues = response.values[0];
@@ -882,11 +879,9 @@ class ExcelService {
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
         "PATCH",
         { values: [currentValues] },
-        true
+        sessionId
       );
-    } finally {
-      await this.closeSession();
-    }
+    });
   }
 
   async deleteRepairOrder(rowIndex: number): Promise<void> {
@@ -895,19 +890,16 @@ class ExcelService {
     }
 
     const fileId = await this.getFileId();
+    const sessionManager = await this.getSessionManager();
 
-    try {
-      await this.createSession();
-
+    await sessionManager.withSession(async (sessionId) => {
       await this.callGraphAPI(
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
         "DELETE",
         undefined,
-        true
+        sessionId
       );
-    } finally {
-      await this.closeSession();
-    }
+    });
   }
 
   /**
@@ -926,16 +918,15 @@ class ExcelService {
     }
 
     const fileId = await this.getFileId();
+    const sessionManager = await this.getSessionManager();
 
-    try {
-      await this.createSession();
-
+    await sessionManager.withSession(async (sessionId) => {
       // Step 1: Get the row data from the active table
       const rowResponse = await this.callGraphAPI(
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
         "GET",
         undefined,
-        true
+        sessionId
       );
 
       const rowData = rowResponse.values[0];
@@ -947,7 +938,7 @@ class ExcelService {
         {
           values: [rowData],
         },
-        true
+        sessionId
       );
 
       // Step 3: Delete the row from the active table
@@ -955,11 +946,9 @@ class ExcelService {
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
         "DELETE",
         undefined,
-        true
+        sessionId
       );
-    } finally {
-      await this.closeSession();
-    }
+    });
   }
 
   /**
@@ -1088,10 +1077,9 @@ class ExcelService {
       // Ensure table exists
       await this.ensureAILogsTableExists();
 
-      // Create a session for this operation
-      await this.createSession();
+      const sessionManager = await this.getSessionManager();
 
-      try {
+      await sessionManager.withSession(async (sessionId) => {
         // Prepare row data
         const rowData = [
           entry.timestamp.toISOString(),
@@ -1111,11 +1099,9 @@ class ExcelService {
           `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/tables/AILogs/rows/add`,
           'POST',
           { values: [rowData] },
-          true
+          sessionId
         );
-      } finally {
-        await this.closeSession();
-      }
+      });
     } catch (error) {
       // Failed to log to Excel table - logging failures shouldn't break the app
     }
@@ -1179,19 +1165,16 @@ class ExcelService {
   async deleteExcelLog(rowIndex: number): Promise<void> {
     try {
       const fileId = await this.getFileId();
+      const sessionManager = await this.getSessionManager();
 
-      await this.createSession();
-
-      try {
+      await sessionManager.withSession(async (sessionId) => {
         await this.callGraphAPI(
           `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/tables/AILogs/rows/itemAt(index=${rowIndex})`,
           'DELETE',
           undefined,
-          true
+          sessionId
         );
-      } finally {
-        await this.closeSession();
-      }
+      });
     } catch (error) {
       // Failed to delete Excel log entry
       throw error;
