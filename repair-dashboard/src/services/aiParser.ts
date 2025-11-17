@@ -1,5 +1,8 @@
 import { aiConfig } from '../config/ai';
 import type { AIParserResponse } from '../types/aiCommand';
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('AIParser');
 
 /**
  * AI Parser Service
@@ -66,7 +69,10 @@ class AIParserService {
       // Validate and normalize the response
       return this.validateAndNormalize(parsed);
     } catch (error: any) {
-      console.error('[AIParser] Error:', error);
+      logger.error('Failed to parse command', error, {
+        textLength: text.length,
+        model: aiConfig.openai.model
+      });
       throw new Error(`Failed to parse command: ${error.message}`);
     }
   }

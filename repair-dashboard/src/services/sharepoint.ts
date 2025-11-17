@@ -2,6 +2,9 @@ import type { IPublicClientApplication } from '@azure/msal-browser';
 import { loginRequest } from '../lib/msalConfig';
 import type { Attachment } from '../types';
 import { sharePointConfig } from '../config/sharepoint';
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('SharePointService');
 
 /**
  * SharePoint/OneDrive Service
@@ -14,10 +17,11 @@ class SharePointServiceClass {
 
   setMsalInstance(instance: IPublicClientApplication) {
     this.msalInstance = instance;
-    console.log('[SharePointService] MSAL instance set');
-    console.log('[SharePointService] Storage type:', sharePointConfig.storageType);
-    console.log('[SharePointService] Site:', sharePointConfig.siteName);
-    console.log('[SharePointService] Base path:', sharePointConfig.baseFolderPath);
+    logger.info('MSAL instance set', {
+      storageType: sharePointConfig.storageType,
+      siteName: sharePointConfig.siteName,
+      basePath: sharePointConfig.baseFolderPath
+    });
   }
 
   private async getAccessToken(): Promise<string> {
@@ -87,20 +91,23 @@ class SharePointServiceClass {
 
     try {
       // Check if RO folder exists - needs closing colon for path-based addressing
-      console.log('[SharePointService] Checking folder:', `${basePath}/${roNumber}`);
+      logger.debug('Checking folder existence', {
+        path: `${basePath}/${roNumber}`,
+        roNumber
+      });
       await this.graphRequest(`${basePath}/${roNumber}:`);
-      console.log('[SharePointService] Folder exists');
+      logger.debug('Folder exists', { roNumber });
     } catch (error: any) {
       if (error.message.includes('404')) {
-        console.log('[SharePointService] Folder not found, creating...');
+        logger.info('Folder not found, creating', { roNumber });
         try {
           // Ensure base folder exists
           try {
             await this.graphRequest(`${basePath}:`);
-            console.log('[SharePointService] Base folder exists');
+            logger.debug('Base folder exists');
           } catch (baseError: any) {
             if (baseError.message.includes('404')) {
-              console.log('[SharePointService] Base folder not found, creating...');
+              logger.info('Base folder not found, creating');
               // Base folder doesn't exist, create it
               const driveRoot =
                 sharePointConfig.storageType === 'sharepoint'
@@ -126,12 +133,12 @@ class SharePointServiceClass {
                   '@microsoft.graph.conflictBehavior': 'fail',
                 }),
               });
-              console.log('[SharePointService] Base folder created');
+              logger.info('Base folder created', { folderName });
             }
           }
 
           // Create RO folder - needs closing colon
-          console.log('[SharePointService] Creating RO folder:', roNumber);
+          logger.info('Creating RO folder', { roNumber });
           await this.graphRequest(`${basePath}:/children`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -141,14 +148,14 @@ class SharePointServiceClass {
               '@microsoft.graph.conflictBehavior': 'fail',
             }),
           });
-          console.log('[SharePointService] RO folder created');
+          logger.info('RO folder created', { roNumber });
         } catch (createError: any) {
           // 409 means folder already exists (race condition), which is fine
           if (!createError.message.includes('409')) {
-            console.error('[SharePointService] Failed to create folder:', createError);
+            logger.error('Failed to create folder', createError, { roNumber });
             throw createError;
           }
-          console.log('[SharePointService] Folder already exists (409)');
+          logger.debug('Folder already exists (409)', { roNumber });
         }
       } else {
         throw error;
@@ -168,7 +175,11 @@ class SharePointServiceClass {
     // For files < 4MB, use simple upload
     const uploadUrl = `https://graph.microsoft.com/v1.0${basePath}/${roNumber}/${encodedFileName}:/content`;
 
-    console.log('[SharePointService] Uploading file:', file.name, 'to:', uploadUrl);
+    logger.info('Uploading file', {
+      fileName: file.name,
+      roNumber,
+      fileSize: file.size
+    });
 
     const response = await fetch(uploadUrl, {
       method: 'PUT',
@@ -181,12 +192,19 @@ class SharePointServiceClass {
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('[SharePointService] Upload failed:', error);
+      logger.error('Upload failed', new Error(error), {
+        fileName: file.name,
+        roNumber,
+        status: response.status
+      });
       throw new Error(`Upload failed: ${response.status} - ${error}`);
     }
 
     const result = await response.json();
-    console.log('[SharePointService] Upload successful:', result.name);
+    logger.info('Upload successful', {
+      fileName: result.name,
+      roNumber
+    });
     return this.mapToAttachment(result);
   }
 

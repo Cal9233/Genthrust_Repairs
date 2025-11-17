@@ -1,5 +1,8 @@
 import type { IPublicClientApplication } from "@azure/msal-browser";
 import { loginRequest } from "./msalConfig";
+import { createLogger, measureAsync } from '@/utils/logger';
+
+const logger = createLogger('ReminderService');
 
 export interface ToDoTask {
   id: string;
@@ -77,7 +80,7 @@ export class ReminderService {
       return response.accessToken;
     } catch (error) {
       // If silent fails, fall back to popup (shouldn't happen since we request at login)
-      console.log("[Reminder Service] Silent token acquisition failed, using popup");
+      logger.warn("Silent token acquisition failed, using popup");
       const response = await this.msalInstance.acquireTokenPopup({
         scopes,
         account,
@@ -105,7 +108,12 @@ export class ReminderService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[Reminder Service] ${method} ${endpoint} failed:`, errorText);
+      logger.error(`${method} ${endpoint} failed`, new Error(errorText), {
+        method,
+        endpoint,
+        status: response.status,
+        statusText: response.statusText
+      });
       throw new Error(`Graph API error: ${response.status} ${response.statusText}`);
     }
 
@@ -187,7 +195,11 @@ export class ReminderService {
       scopes
     );
 
-    console.log(`[Reminder Service] Created To Do task for RO ${data.roNumber}`);
+    logger.info("Created To Do task", {
+      roNumber: data.roNumber,
+      title: data.title,
+      dueDate: data.dueDate.toISOString()
+    });
   }
 
   /**
@@ -240,7 +252,11 @@ export class ReminderService {
       scopes
     );
 
-    console.log(`[Reminder Service] Created Calendar event for RO ${data.roNumber}`);
+    logger.info("Created Calendar event", {
+      roNumber: data.roNumber,
+      title: data.title,
+      startDate: startDate.toISOString()
+    });
   }
 
   /**
@@ -264,7 +280,9 @@ export class ReminderService {
         await this.createToDoTask(data, ["Tasks.ReadWrite"]);
         results.todo = true;
       } catch (error) {
-        console.error("[Reminder Service] Failed to create To Do task:", error);
+        logger.error("Failed to create To Do task", error, {
+          roNumber: data.roNumber
+        });
       }
     }
 
@@ -274,7 +292,9 @@ export class ReminderService {
         await this.createCalendarEvent(data, ["Calendars.ReadWrite"]);
         results.calendar = true;
       } catch (error) {
-        console.error("[Reminder Service] Failed to create Calendar event:", error);
+        logger.error("Failed to create Calendar event", error, {
+          roNumber: data.roNumber
+        });
       }
     }
 
@@ -302,7 +322,7 @@ export class ReminderService {
       return tasksData.value;
 
     } catch (error: any) {
-      console.error('[Reminder Service] Error getting To Do tasks:', error);
+      logger.error('Error getting To Do tasks', error);
       throw error;
     }
   }
@@ -327,7 +347,10 @@ export class ReminderService {
       return eventsData.value;
 
     } catch (error: any) {
-      console.error('[Reminder Service] Error getting Calendar events:', error);
+      logger.error('Error getting Calendar events', error, {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      });
       throw error;
     }
   }
@@ -336,25 +359,35 @@ export class ReminderService {
    * Search for RO-related reminders (both To Do and Calendar)
    */
   async searchROReminders(roNumber?: string): Promise<ROReminder[]> {
-    try {
-      console.log(`[Reminder Service] 🔍 Searching for RO reminders${roNumber ? ` (filtering for: ${roNumber})` : ''}`);
+    return await measureAsync(logger, 'searchROReminders', async () => {
+      logger.info("Searching for RO reminders", {
+        filterRONumber: roNumber || 'all'
+      });
 
       // Get all To Do tasks
       const tasks = await this.getToDoTasks();
-      console.log(`[Reminder Service] Retrieved ${tasks.length} To Do tasks total`);
+      logger.debug("Retrieved To Do tasks", {
+        count: tasks.length
+      });
 
       // Get Calendar events for next 6 months
       const now = new Date();
       const sixMonthsLater = new Date();
       sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
       const events = await this.getCalendarEvents(now, sixMonthsLater);
-      console.log(`[Reminder Service] Retrieved ${events.length} Calendar events total`);
+      logger.debug("Retrieved Calendar events", {
+        count: events.length,
+        startDate: now.toISOString(),
+        endDate: sixMonthsLater.toISOString()
+      });
 
       // Filter for RO-related items
       const roPattern = /RO\s*#?\s*(\w*\d+)/i;
       const reminders: Map<string, ROReminder> = new Map();
 
-      console.log(`[Reminder Service] Using pattern: ${roPattern}`);
+      logger.debug("Using RO pattern", {
+        pattern: roPattern.toString()
+      });
 
       // Process To Do tasks
       for (const task of tasks) {
@@ -415,17 +448,13 @@ export class ReminderService {
       }
 
       const result = Array.from(reminders.values());
-      console.log(`[Reminder Service] 📋 Found ${result.length} RO reminder(s) matching search`);
-      if (result.length > 0) {
-        console.log(`[Reminder Service] RO Numbers found:`, result.map(r => r.roNumber));
-      }
+      logger.info("RO reminders search completed", {
+        matchCount: result.length,
+        roNumbers: result.map(r => r.roNumber)
+      });
 
       return result;
-
-    } catch (error: any) {
-      console.error('[Reminder Service] Error searching RO reminders:', error);
-      throw error;
-    }
+    });
   }
 
   /**
@@ -448,7 +477,9 @@ export class ReminderService {
       return true;
 
     } catch (error: any) {
-      console.error('[Reminder Service] Error deleting To Do task:', error);
+      logger.error('Error deleting To Do task', error, {
+        taskId
+      });
       return false;
     }
   }
@@ -468,7 +499,9 @@ export class ReminderService {
       return true;
 
     } catch (error: any) {
-      console.error('[Reminder Service] Error deleting Calendar event:', error);
+      logger.error('Error deleting Calendar event', error, {
+        eventId
+      });
       return false;
     }
   }
@@ -477,24 +510,20 @@ export class ReminderService {
    * Delete all reminders for a specific RO
    */
   async deleteROReminder(roNumber: string): Promise<{ todo: boolean; calendar: boolean }> {
-    try {
-      console.log(`[Reminder Service] ======================================`);
-      console.log(`[Reminder Service] Searching for reminders for RO: ${roNumber}`);
+    return await measureAsync(logger, 'deleteROReminder', async () => {
+      logger.info("Deleting RO reminder", { roNumber });
 
       const reminders = await this.searchROReminders(roNumber);
 
-      console.log(`[Reminder Service] Found ${reminders.length} reminder(s) for RO ${roNumber}`);
-
       if (reminders.length === 0) {
-        console.log(`[Reminder Service] No reminders found for RO ${roNumber}`);
-        console.log(`[Reminder Service] ======================================`);
+        logger.warn("No reminders found for RO", { roNumber });
         return { todo: false, calendar: false };
       }
 
       const reminder = reminders[0];
       const results = { todo: false, calendar: false };
 
-      console.log(`[Reminder Service] Reminder details:`, {
+      logger.debug("Reminder details", {
         roNumber: reminder.roNumber,
         type: reminder.type,
         hasTodoTask: !!reminder.todoTask,
@@ -502,31 +531,37 @@ export class ReminderService {
       });
 
       if (reminder.todoTask) {
-        console.log(`[Reminder Service] Deleting To Do task "${reminder.todoTask.title}" (ID: ${reminder.todoTask.id})...`);
+        logger.info("Deleting To Do task", {
+          title: reminder.todoTask.title,
+          taskId: reminder.todoTask.id
+        });
         results.todo = await this.deleteToDoTask(reminder.todoTask.id);
-        console.log(`[Reminder Service] To Do deletion result: ${results.todo ? '✓ Success' : '✗ Failed'}`);
+        logger.info("To Do deletion completed", {
+          success: results.todo
+        });
       } else {
-        console.log(`[Reminder Service] No To Do task found for RO ${roNumber}`);
+        logger.debug("No To Do task found", { roNumber });
       }
 
       if (reminder.calendarEvent) {
-        console.log(`[Reminder Service] Deleting Calendar event "${reminder.calendarEvent.subject}" (ID: ${reminder.calendarEvent.id})...`);
+        logger.info("Deleting Calendar event", {
+          subject: reminder.calendarEvent.subject,
+          eventId: reminder.calendarEvent.id
+        });
         results.calendar = await this.deleteCalendarEvent(reminder.calendarEvent.id);
-        console.log(`[Reminder Service] Calendar deletion result: ${results.calendar ? '✓ Success' : '✗ Failed'}`);
+        logger.info("Calendar deletion completed", {
+          success: results.calendar
+        });
       } else {
-        console.log(`[Reminder Service] No Calendar event found for RO ${roNumber}`);
+        logger.debug("No Calendar event found", { roNumber });
       }
 
-      console.log(`[Reminder Service] Final results:`, results);
-      console.log(`[Reminder Service] ======================================`);
+      logger.info("RO reminder deletion completed", {
+        roNumber,
+        results
+      });
       return results;
-
-    } catch (error: any) {
-      console.error('[Reminder Service] ✗ Error deleting RO reminder:', error);
-      console.error('[Reminder Service] Error stack:', error.stack);
-      console.log(`[Reminder Service] ======================================`);
-      return { todo: false, calendar: false };
-    }
+    });
   }
 
   /**
@@ -553,7 +588,10 @@ export class ReminderService {
       return true;
 
     } catch (error: any) {
-      console.error('[Reminder Service] Error updating To Do task:', error);
+      logger.error('Error updating To Do task', error, {
+        taskId,
+        newDueDate: newDueDate.toISOString()
+      });
       return false;
     }
   }
@@ -589,7 +627,10 @@ export class ReminderService {
       return true;
 
     } catch (error: any) {
-      console.error('[Reminder Service] Error updating Calendar event:', error);
+      logger.error('Error updating Calendar event', error, {
+        eventId,
+        newDate: newDate.toISOString()
+      });
       return false;
     }
   }
@@ -619,7 +660,10 @@ export class ReminderService {
       return results;
 
     } catch (error: any) {
-      console.error('[Reminder Service] Error updating RO reminder:', error);
+      logger.error('Error updating RO reminder', error, {
+        roNumber,
+        newDate: newDate.toISOString()
+      });
       return { todo: false, calendar: false };
     }
   }
@@ -680,11 +724,19 @@ export class ReminderService {
         ["Calendars.ReadWrite"]
       );
 
-      console.log(`[Reminder Service] Created payment due calendar event for RO ${data.roNumber}, due ${dueDate.toLocaleDateString()}`);
+      logger.info("Created payment due calendar event", {
+        roNumber: data.roNumber,
+        shopName: data.shopName,
+        amount: data.amount,
+        netDays: data.netDays,
+        dueDate: dueDate.toISOString()
+      });
       return true;
 
     } catch (error: any) {
-      console.error('[Reminder Service] Error creating payment due calendar event:', error);
+      logger.error('Error creating payment due calendar event', error, {
+        roNumber: data.roNumber
+      });
       return false;
     }
   }

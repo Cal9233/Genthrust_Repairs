@@ -22,6 +22,7 @@ import { useShops } from "../hooks/useShops";
 import { ShopManagementDialog } from "./ShopManagementDialog";
 import { Plus, Store, Search } from "lucide-react";
 import type { RepairOrder } from "../types";
+import { useLogger } from '@/utils/logger';
 
 interface AddRODialogProps {
   ro?: RepairOrder; // If provided, we're editing; otherwise, adding
@@ -31,6 +32,7 @@ interface AddRODialogProps {
 
 export function AddRODialog({ ro, open, onClose }: AddRODialogProps) {
   const isEditing = !!ro;
+  const logger = useLogger('AddRODialog', { isEditing, roNumber: ro?.roNumber });
 
   const [formData, setFormData] = useState({
     roNumber: "",
@@ -77,7 +79,7 @@ export function AddRODialog({ ro, open, onClose }: AddRODialogProps) {
   // Populate form when editing
   useEffect(() => {
     if (ro) {
-      console.log("[AddRODialog] Editing RO:", ro.roNumber);
+      logger.debug('Populating form for editing', { roNumber: ro.roNumber });
       setFormData({
         roNumber: ro.roNumber,
         shopName: ro.shopName,
@@ -91,7 +93,7 @@ export function AddRODialog({ ro, open, onClose }: AddRODialogProps) {
       });
     } else {
       // Reset form for adding
-      console.log("[AddRODialog] Adding new RO");
+      logger.debug('Resetting form for new RO');
       setFormData({
         roNumber: "",
         shopName: "",
@@ -110,11 +112,11 @@ export function AddRODialog({ ro, open, onClose }: AddRODialogProps) {
 
   // Log shops when they load
   useEffect(() => {
-    console.log("[AddRODialog] Shops loaded:", shops.length, "shops");
-    if (shops.length > 0) {
-      console.log("[AddRODialog] Sample shop:", shops[0]);
-    }
-  }, [shops]);
+    logger.info('Shops loaded', {
+      shopCount: shops.length,
+      hasSampleShop: shops.length > 0
+    });
+  }, [shops, logger]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,14 +177,16 @@ export function AddRODialog({ ro, open, onClose }: AddRODialogProps) {
   };
 
   const handleShopSelect = (shopId: string) => {
-    console.log("[AddRODialog] Shop selected:", shopId);
+    logger.debug('Shop selected', { shopId });
     setSelectedShopId(shopId);
 
     if (shopId) {
       const shop = shops.find((s) => s.id === shopId);
-      console.log("[AddRODialog] Found shop:", shop);
       if (shop) {
-        console.log("[AddRODialog] Auto-filling - shopName:", shop.shopName, "terms:", shop.defaultTerms);
+        logger.info('Auto-filling shop details', {
+          shopName: shop.shopName,
+          terms: shop.defaultTerms
+        });
         setFormData((prev) => ({
           ...prev,
           shopName: shop.shopName,

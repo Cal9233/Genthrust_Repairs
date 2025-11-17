@@ -26,6 +26,7 @@ import { ArchiveDestinationDialog } from "./ArchiveDestinationDialog";
 import { statusRequiresApproval, getFinalSheetForStatus, extractNetDays, EXCEL_SHEETS, type SheetConfig } from "@/config/excelSheets";
 import { reminderService } from "../lib/reminderService";
 import { toast } from "sonner";
+import { useLogger } from '@/utils/logger';
 
 interface UpdateStatusDialogProps {
   ro: RepairOrder;
@@ -52,6 +53,12 @@ export function UpdateStatusDialog({
   open,
   onClose,
 }: UpdateStatusDialogProps) {
+  const logger = useLogger('UpdateStatusDialog', {
+    roNumber: ro.roNumber,
+    currentStatus: ro.currentStatus,
+    open
+  });
+
   const [status, setStatus] = useState(ro.currentStatus);
   const [notes, setNotes] = useState("");
   const [cost, setCost] = useState<string>("");
@@ -177,7 +184,11 @@ export function UpdateStatusDialog({
                   });
                   toast.success(`Created payment reminder for NET${netDays} (${netDays} days from today)`);
                 } catch (error) {
-                  console.error('[UpdateStatusDialog] Failed to create NET payment reminder:', error);
+                  logger.error('Failed to create NET payment reminder', error as Error, {
+                    roNumber: ro.roNumber,
+                    netDays,
+                    cost: costValue
+                  });
                   toast.error('Failed to create payment reminder, but RO will still be archived');
                 }
               }

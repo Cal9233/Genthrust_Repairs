@@ -2,6 +2,10 @@
  * Business rules and calculations for repair orders
  */
 
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('BusinessRules');
+
 /**
  * Calculate the next update date based on current status and payment terms
  * @param status - Current status of the repair order
@@ -60,41 +64,44 @@ export function calculateNextUpdateDate(
           const match = terms.match(/NET\s*(\d+)/);
           if (match) {
             const days = parseInt(match[1]);
-            console.log(`[Business Rules] PAID status with ${terms}: payment due in ${days} days`);
+            logger.debug("PAID status with NET terms", {
+              terms,
+              paymentDueDays: days
+            });
             return addDays(baseDate, days);
           }
         }
 
         // COD, Prepaid, etc. - payment already handled
         if (terms.includes("COD") || terms.includes("PREPAID") || terms.includes("C.O.D.")) {
-          console.log(`[Business Rules] PAID status with ${terms}: no follow-up needed`);
+          logger.debug("PAID status with immediate payment", { terms });
           return null;
         }
 
         // Wire transfer - give 3 days to process
         if (terms.includes("WIRE") || terms.includes("XFER")) {
-          console.log(`[Business Rules] PAID status with ${terms}: 3 days for wire processing`);
+          logger.debug("PAID status with wire transfer", { terms });
           return addDays(baseDate, 3);
         }
 
         // Credit card - immediate
         if (terms.includes("CREDIT CARD")) {
-          console.log(`[Business Rules] PAID status with ${terms}: no follow-up needed`);
+          logger.debug("PAID status with credit card", { terms });
           return null;
         }
 
         // Default for PAID with unknown terms - 30 days
-        console.log(`[Business Rules] PAID status with unknown terms "${terms}": defaulting to 30 days`);
+        logger.warn("PAID status with unknown terms, defaulting to 30 days", { terms });
         return addDays(baseDate, 30);
       }
 
       // No payment terms specified - assume complete
-      console.log(`[Business Rules] PAID status with no terms: no follow-up needed`);
+      logger.debug("PAID status with no terms specified");
       return null;
 
     case "PAYMENT SENT":
       // Payment has been sent - order complete
-      console.log(`[Business Rules] PAYMENT SENT status: order complete`);
+      logger.debug("PAYMENT SENT status - order complete");
       return null;
 
     case "BER":

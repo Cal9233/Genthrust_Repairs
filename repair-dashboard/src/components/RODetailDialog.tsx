@@ -19,6 +19,7 @@ import { Mail, Bell, Calendar as CalendarIcon, Info } from "lucide-react";
 import { reminderService } from "../lib/reminderService";
 import { getTrackingInfo } from "../lib/trackingUtils";
 import { toast } from "sonner";
+import { useLogger } from '@/utils/logger';
 
 interface RODetailDialogProps {
   ro: RepairOrder;
@@ -27,6 +28,11 @@ interface RODetailDialogProps {
 }
 
 export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
+  const logger = useLogger('RODetailDialog', {
+    roNumber: ro.roNumber,
+    open
+  });
+
   // Fetch the latest RO data to ensure updates are reflected
   const { data: allROs } = useROs();
 
@@ -137,7 +143,11 @@ export function RODetailDialog({ ro, open, onClose }: RODetailDialogProps) {
         }
       }
     } catch (error) {
-      console.error("[RODetailDialog] Error creating reminders:", error);
+      logger.error('Failed to create reminders', error as Error, {
+        roNumber: currentRO.roNumber,
+        todoSelected: types.todo,
+        calendarSelected: types.calendar
+      });
       toast.error("Failed to create reminders");
     } finally {
       setIsCreatingReminder(false);

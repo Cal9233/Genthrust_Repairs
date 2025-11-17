@@ -7,6 +7,9 @@ import type {
 } from '../types/aiCommand';
 import { excelService } from '../lib/excelService';
 import { reminderService } from '../lib/reminderService';
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('CommandProcessor');
 
 /**
  * Command Processor Service
@@ -159,7 +162,11 @@ class CommandProcessorService {
           };
       }
     } catch (error: any) {
-      console.error('[CommandProcessor] Execution error:', error);
+      logger.error('Command execution error', error, {
+        action: command.action,
+        roNumber: command.roNumber,
+        confidence: command.confidence
+      });
       return {
         success: false,
         message: `Failed to execute command: ${error.message}`,

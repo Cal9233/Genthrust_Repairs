@@ -3,6 +3,9 @@
  * Connects to the backend API which interfaces with MySQL database
  */
 
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('MySQLInventoryService');
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 export interface InventorySearchResult {
@@ -69,7 +72,10 @@ class MySQLInventoryService {
 
       return await response.json();
     } catch (error) {
-      console.error(`[MySQL Inventory Service] API request failed:`, error);
+      logger.error('API request failed', error, {
+        endpoint,
+        method: options?.method || 'GET'
+      });
       throw error;
     }
   }
@@ -82,17 +88,20 @@ class MySQLInventoryService {
       return [];
     }
 
-    console.log(`[MySQL Inventory Service] Searching for part: ${partNumber}`);
+    logger.info('Searching for part', { partNumber });
 
     try {
       const results = await this.apiRequest<InventorySearchResult[]>(
         `/inventory/search?partNumber=${encodeURIComponent(partNumber)}`
       );
 
-      console.log(`[MySQL Inventory Service] Found ${results.length} matches`);
+      logger.info('Search completed', {
+        partNumber,
+        matchCount: results.length
+      });
       return results;
     } catch (error) {
-      console.error('[MySQL Inventory Service] Search failed:', error);
+      logger.error('Search failed', error, { partNumber });
       throw error;
     }
   }
@@ -125,7 +134,11 @@ class MySQLInventoryService {
     roNumber?: string,
     notes?: string
   ): Promise<InventoryDecrementResult> {
-    console.log(`[MySQL Inventory Service] Decrementing inventory: ${partNumber}`);
+    logger.info('Decrementing inventory', {
+      partNumber,
+      indexId,
+      roNumber
+    });
 
     try {
       const result = await this.apiRequest<InventoryDecrementResult>(
@@ -141,10 +154,17 @@ class MySQLInventoryService {
         }
       );
 
-      console.log(`[MySQL Inventory Service] Decrement successful:`, result);
+      logger.info('Decrement successful', {
+        partNumber,
+        newQty: result.newQty,
+        isLowStock: result.isLowStock
+      });
       return result;
     } catch (error) {
-      console.error('[MySQL Inventory Service] Decrement failed:', error);
+      logger.error('Decrement failed', error, {
+        partNumber,
+        indexId
+      });
       throw error;
     }
   }
@@ -173,10 +193,10 @@ class MySQLInventoryService {
         recentTransactions: number;
       }>('/inventory/stats');
 
-      console.log('[MySQL Inventory Service] Stats retrieved:', stats);
+      logger.info('Stats retrieved', stats);
       return stats;
     } catch (error) {
-      console.error('[MySQL Inventory Service] Get stats failed:', error);
+      logger.error('Get stats failed', error);
       throw error;
     }
   }
@@ -189,7 +209,7 @@ class MySQLInventoryService {
       const response = await fetch(`${this.apiUrl.replace('/api', '')}/health`);
       return response.ok;
     } catch (error) {
-      console.error('[MySQL Inventory Service] Health check failed:', error);
+      logger.error('Health check failed', error);
       return false;
     }
   }

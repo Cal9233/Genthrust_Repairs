@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('useVoiceRecognition');
 
 interface VoiceRecognitionOptions {
   continuous?: boolean;
@@ -52,13 +55,13 @@ export function useVoiceRecognition(
     recognition.lang = lang;
 
     recognition.onstart = () => {
-      console.log('[Voice Recognition] Started listening');
+      logger.debug('Voice recognition started');
       setIsListening(true);
       setError(null);
     };
 
     recognition.onend = () => {
-      console.log('[Voice Recognition] Stopped listening');
+      logger.debug('Voice recognition stopped');
       setIsListening(false);
     };
 
@@ -79,15 +82,23 @@ export function useVoiceRecognition(
 
       if (finalTranscript) {
         setTranscript(prev => (prev + finalTranscript).trim());
-        console.log('[Voice Recognition] Final transcript:', finalTranscript);
+        logger.debug('Final transcript captured', {
+          transcriptLength: finalTranscript.length,
+          wordCount: finalTranscript.split(' ').length
+        });
       } else if (interimTranscript && interimResults) {
         setTranscript(interimTranscript.trim());
-        console.log('[Voice Recognition] Interim transcript:', interimTranscript);
+        logger.debug('Interim transcript captured', {
+          transcriptLength: interimTranscript.length
+        });
       }
     };
 
     recognition.onerror = (event: any) => {
-      console.error('[Voice Recognition] Error:', event.error);
+      logger.error('Voice recognition error', new Error(event.error), {
+        errorType: event.error,
+        message: event.message
+      });
 
       let errorMessage = 'Speech recognition error';
 
@@ -133,7 +144,7 @@ export function useVoiceRecognition(
         setTranscript('');
         recognitionRef.current.start();
       } catch (err) {
-        console.error('[Voice Recognition] Start error:', err);
+        logger.error('Failed to start voice recognition', err as Error);
         setError('Failed to start speech recognition');
       }
     }

@@ -2,6 +2,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { inventoryService, type InventorySearchResult } from "../services/inventoryService";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('useInventorySearch');
 
 /**
  * Hook to search inventory with debouncing
@@ -105,8 +108,14 @@ export function useInventoryDecrement() {
         toast.success(`Inventory updated - New quantity: ${result.newQty}`);
       }
     },
-    onError: (error) => {
-      console.error("[useInventoryDecrement] Error:", error);
+    onError: (error, variables) => {
+      logger.error('Inventory decrement error', error as Error, {
+        indexId: variables.indexId,
+        partNumber: variables.partNumber,
+        tableName: variables.tableName,
+        rowId: variables.rowId,
+        roNumber: variables.roNumber
+      });
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       toast.error(
         `Failed to update inventory: ${errorMessage}`,

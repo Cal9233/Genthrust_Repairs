@@ -13,6 +13,7 @@ import { useMsal } from '@azure/msal-react';
 import { loggingService } from '@/lib/loggingService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
+import { useLogger } from '@/utils/logger';
 
 interface AIAgentDialogProps {
   open: boolean;
@@ -23,6 +24,8 @@ const CONVERSATION_STORAGE_KEY = 'genthrust-ai-conversation-history';
 const MAX_STORED_MESSAGES = 50; // Limit stored messages to prevent localStorage overflow
 
 export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
+  const logger = useLogger('AIAgentDialog', { open });
+
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -78,9 +81,9 @@ export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
         setMessages(messagesWithDates);
       }
     } catch (error) {
-      console.error('[AI Agent] Failed to load conversation history:', error);
+      logger.error('Failed to load conversation history', error as Error);
     }
-  }, []);
+  }, [logger]);
 
   // Save conversation history to localStorage whenever messages change
   useEffect(() => {
@@ -90,10 +93,12 @@ export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
         const messagesToStore = messages.slice(-MAX_STORED_MESSAGES);
         localStorage.setItem(CONVERSATION_STORAGE_KEY, JSON.stringify(messagesToStore));
       } catch (error) {
-        console.error('[AI Agent] Failed to save conversation history:', error);
+        logger.error('Failed to save conversation history', error as Error, {
+          messageCount: messages.length
+        });
       }
     }
-  }, [messages]);
+  }, [messages, logger]);
 
   // Auto-scroll to bottom
   useEffect(() => {

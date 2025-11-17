@@ -1,6 +1,9 @@
 import type { IPublicClientApplication } from "@azure/msal-browser";
 import { loginRequest } from "./msalConfig";
 import type { Shop } from "../types";
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('ShopService');
 
 const SITE_URL = import.meta.env.VITE_SHAREPOINT_SITE_URL;
 const SHOP_FILE_NAME = import.meta.env.VITE_EXCEL_FILE_NAME; // Use same file as RO data
@@ -33,7 +36,7 @@ class ShopService {
       });
       return response.accessToken;
     } catch (silentError) {
-      console.log("[Shop Service] Silent token acquisition failed, using popup");
+      logger.warn("Silent token acquisition failed, using popup");
       try {
         const response = await this.msalInstance.acquireTokenPopup({
           ...loginRequest,
@@ -41,10 +44,10 @@ class ShopService {
         });
         return response.accessToken;
       } catch (popupError: any) {
-        console.error("[Shop Service] Popup token acquisition failed:", popupError);
+        logger.error("Popup token acquisition failed", popupError);
         // If popup fails due to CORS/COOP, try redirect
         if (popupError.message?.includes("popup") || popupError.message?.includes("CORS")) {
-          console.log("[Shop Service] Using redirect flow...");
+          logger.info("Using redirect flow");
           await this.msalInstance.acquireTokenRedirect({
             ...loginRequest,
             account,
@@ -89,7 +92,12 @@ class ShopService {
         errorDetails = errorText;
       }
 
-      console.error(`[Shop Service] ${method} ${endpoint} failed:`, errorDetails);
+      logger.error(`${method} ${endpoint} failed`, new Error(JSON.stringify(errorDetails)), {
+        method,
+        endpoint,
+        status: response.status,
+        statusText: response.statusText
+      });
 
       throw new Error(
         `Graph API error: ${response.status} ${response.statusText}\n${JSON.stringify(errorDetails, null, 2)}`
@@ -140,7 +148,7 @@ class ShopService {
       );
       this.sessionId = null;
     } catch (error) {
-      console.error("[Shop Service] Failed to close session:", error);
+      logger.error("Failed to close session", error);
       this.sessionId = null;
     }
   }
@@ -218,7 +226,10 @@ class ShopService {
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables`
     );
 
-    console.log("[Shop Service] Available tables in workbook:", response.value);
+    logger.debug("Available tables in workbook", {
+      tableCount: response.value.length,
+      tables: response.value.map((t: any) => t.name)
+    });
     return response.value;
   }
 
@@ -229,10 +240,12 @@ class ShopService {
     try {
       await this.listTables();
     } catch (error) {
-      console.error("[Shop Service] Could not list tables:", error);
+      logger.error("Could not list tables", error);
     }
 
-    console.log(`[Shop Service] Attempting to fetch rows from table: ${SHOP_TABLE_NAME}`);
+    logger.info("Fetching shops from table", {
+      tableName: SHOP_TABLE_NAME
+    });
 
     const response = await this.callGraphAPI(
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${SHOP_TABLE_NAME}/rows`
