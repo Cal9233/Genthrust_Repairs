@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { ANTHROPIC_CONFIG } from '@/config/anthropic';
 import { tools, toolExecutors } from './aiTools';
 import type {
@@ -7,18 +6,56 @@ import type {
   CommandContext
 } from '@/types/aiAgent';
 
+// Type definitions for Anthropic API responses
+interface ContentBlock {
+  type: 'text' | 'tool_use';
+  text?: string;
+  id?: string;
+  name?: string;
+  input?: any;
+}
+
+interface AnthropicResponse {
+  id: string;
+  type: string;
+  role: string;
+  content: ContentBlock[];
+  model: string;
+  stop_reason: string | null;
+  stop_sequence: string | null;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+  };
+}
+
+interface BackendAPIResponse {
+  success: boolean;
+  response: AnthropicResponse;
+  meta?: {
+    duration: number;
+    model: string;
+    usage: {
+      input_tokens: number;
+      output_tokens: number;
+    };
+  };
+}
+
 export class AnthropicAgent {
-  private anthropic: Anthropic;
+  private backendUrl: string;
+  private userId: string | null = null;
 
   constructor() {
-    if (!ANTHROPIC_CONFIG.apiKey) {
-      throw new Error('Anthropic API key not configured');
+    if (!ANTHROPIC_CONFIG.backendUrl) {
+      throw new Error('Backend URL not configured');
     }
 
-    this.anthropic = new Anthropic({
-      apiKey: ANTHROPIC_CONFIG.apiKey,
-      dangerouslyAllowBrowser: true // Required for browser usage
-    });
+    this.backendUrl = ANTHROPIC_CONFIG.backendUrl;
+  }
+
+  setUserId(userId: string) {
+    this.userId = userId;
   }
 
   async processCommand(
@@ -47,18 +84,19 @@ export class AnthropicAgent {
 
     while (continueLoop) {
       try {
-        // Call Claude with tools
-        const response = await this.anthropic.messages.create({
+        // Call backend proxy instead of Anthropic directly
+        const response = await this.callBackendAPI({
+          messages,
           model: ANTHROPIC_CONFIG.model,
-          max_tokens: ANTHROPIC_CONFIG.maxTokens,
+          maxTokens: ANTHROPIC_CONFIG.maxTokens,
           temperature: ANTHROPIC_CONFIG.temperature,
           tools: tools,
-          messages: messages,
-          system: this.getSystemPrompt(context)
+          systemPrompt: this.getSystemPrompt(context),
+          userId: this.userId || context.currentUser
         });
 
         // Process response
-        const content = response.content;
+        const content = response.response.content;
         let hasToolUse = false;
         const toolResults: ToolResult[] = [];
 
@@ -66,15 +104,15 @@ export class AnthropicAgent {
           if (block.type === 'text') {
             assistantResponse += block.text;
             if (onStream) {
-              onStream(block.text);
+              onStream(block.text || '');
             }
           } else if (block.type === 'tool_use') {
             hasToolUse = true;
 
             // Execute the tool
-            const toolName = block.name;
+            const toolName = block.name || '';
             const toolInput = block.input;
-            const toolUseId = block.id;
+            const toolUseId = block.id || '';
 
             if (onStream) {
               onStream(`\n[Executing: ${toolName}...]\n`);
@@ -129,12 +167,17 @@ export class AnthropicAgent {
         }
 
         // Check for stop reason
-        if (response.stop_reason === 'end_turn' || response.stop_reason === 'max_tokens') {
+        if (response.response.stop_reason === 'end_turn' || response.response.stop_reason === 'max_tokens') {
           continueLoop = false;
         }
 
       } catch (error: any) {
-        // Error calling Anthropic API
+        // Handle rate limiting
+        if (error.status === 429) {
+          throw new Error(`Rate limit exceeded. ${error.message}`);
+        }
+
+        // Error calling backend API
         throw new Error(`AI Agent Error: ${error.message}`);
       }
     }
@@ -144,6 +187,55 @@ export class AnthropicAgent {
       content: assistantResponse,
       timestamp: new Date()
     };
+  }
+
+  private async callBackendAPI(payload: any): Promise<BackendAPIResponse> {
+    const endpoint = `${this.backendUrl}/api/ai/chat`;
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': payload.userId || 'anonymous'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+
+        // Handle rate limiting
+        if (response.status === 429) {
+          const retryAfter = errorData.retryAfter || 60;
+          throw {
+            status: 429,
+            message: errorData.message || `Rate limit exceeded. Try again in ${retryAfter} seconds.`
+          };
+        }
+
+        // Handle other errors
+        throw new Error(
+          errorData.message || `Backend API error: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const data: BackendAPIResponse = await response.json();
+
+      if (!data.success) {
+        throw new Error('Backend API returned unsuccessful response');
+      }
+
+      return data;
+
+    } catch (error: any) {
+      // Network or parsing errors
+      if (error.status === 429) {
+        throw error; // Re-throw rate limit errors
+      }
+
+      throw new Error(`Failed to connect to AI backend: ${error.message}`);
+    }
   }
 
   private getSystemPrompt(context: CommandContext): string {
