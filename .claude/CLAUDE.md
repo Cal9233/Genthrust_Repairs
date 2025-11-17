@@ -29,6 +29,7 @@ This document serves as the **primary knowledge base** for Claude (AI assistant)
   - Workflows → `workflows.md`
   - Error handling → `error_handling.md`
   - Testing strategy → `testing.md`
+  - Low stock inventory → `low_stock_feature.md`
 
 ### 2. Knowledge Management
 - **Never rely solely on conversation context** - use retrieval
