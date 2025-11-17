@@ -4,6 +4,23 @@ import { reminderService } from '@/lib/reminderService';
 import { generateEmailForAI } from '@/lib/emailTemplates';
 import { getFinalSheetForStatus } from '@/config/excelSheets';
 import { inventoryService } from '@/services/inventoryService';
+import {
+  createValidatedExecutor,
+  updateRepairOrderSchema,
+  queryRepairOrdersSchema,
+  bulkUpdateRepairOrdersSchema,
+  createRemindersSchema,
+  getStatisticsSchema,
+  generateEmailTemplateSchema,
+  queryExistingRemindersSchema,
+  deleteROReminderSchema,
+  updateReminderDateSchema,
+  archiveRepairOrderSchema,
+  searchInventorySchema,
+  checkInventoryQuantitySchema,
+  createROFromInventorySchema,
+  checkLowStockSchema,
+} from './aiToolSchemas';
 
 // Tool definitions
 export const tools: Tool[] = [
@@ -333,767 +350,809 @@ export const tools: Tool[] = [
 // Tool executors
 export const toolExecutors: Record<string, ToolExecutor> = {
 
-  update_repair_order: async (input, context) => {
-    const { ro_number, updates } = input;
+  update_repair_order: createValidatedExecutor(
+    updateRepairOrderSchema,
+    async (input, context) => {
+      const { ro_number, updates } = input;
 
-    // Find the RO
-    const ro = context.allROs.find(r =>
-      r.roNumber.toString().includes(ro_number) ||
-      ro_number.includes(r.roNumber.toString())
-    );
-
-    if (!ro) {
-      return { success: false, error: `RO ${ro_number} not found` };
-    }
-
-    try {
-      const rowIndex = parseInt(ro.id.replace("row-", ""));
-
-      // Prepare the update data
-      const statusToUpdate = updates.status || ro.currentStatus;
-      const costToUpdate = updates.cost;
-      const deliveryDate = updates.estimated_delivery_date ? new Date(updates.estimated_delivery_date) : undefined;
-      const notes = updates.notes;
-      const trackingNumber = updates.tracking_number;
-
-      // Execute update via excelService
-      await excelService.updateROStatus(
-        rowIndex,
-        statusToUpdate,
-        notes,
-        costToUpdate,
-        deliveryDate,
-        trackingNumber
-      );
-
-      // Invalidate React Query cache to refresh UI
-      context.queryClient.invalidateQueries({ queryKey: ['repairOrders'] });
-
-      const updatedFields = [];
-      if (updates.status) updatedFields.push('status');
-      if (updates.cost !== undefined) {
-        // Determine which cost field was updated based on status
-        const isFinalStatus = statusToUpdate.includes("PAID") || statusToUpdate.includes("SHIPPING");
-        updatedFields.push(isFinalStatus ? 'final_cost' : 'estimated_cost');
-      }
-      if (updates.estimated_delivery_date) updatedFields.push('estimated_delivery_date');
-      if (updates.notes) updatedFields.push('notes');
-      if (updates.tracking_number) updatedFields.push('tracking_number');
-
-      return {
-        success: true,
-        ro_number: ro.roNumber,
-        updated_fields: updatedFields,
-        message: `Successfully updated RO ${ro.roNumber}`
-      };
-
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Failed to update RO'
-      };
-    }
-  },
-
-  query_repair_orders: async (input, context) => {
-    const { filters, sort_by, limit } = input;
-
-    let results = [...context.allROs];
-
-    // Apply filters
-    if (filters.status) {
-      results = results.filter(ro =>
-        ro.currentStatus.toLowerCase().includes(filters.status.toLowerCase())
-      );
-    }
-
-    if (filters.shop_name) {
-      results = results.filter(ro =>
-        ro.shopName.toLowerCase().includes(filters.shop_name.toLowerCase())
-      );
-    }
-
-    if (filters.is_overdue !== undefined) {
-      results = results.filter(ro => ro.isOverdue === filters.is_overdue);
-    }
-
-    if (filters.date_range) {
-      const start = new Date(filters.date_range.start);
-      const end = new Date(filters.date_range.end);
-      results = results.filter(ro => {
-        if (!ro.dateMade) return false;
-        const roDate = new Date(ro.dateMade);
-        return roDate >= start && roDate <= end;
-      });
-    }
-
-    if (filters.min_cost !== undefined) {
-      results = results.filter(ro => {
-        const cost = ro.finalCost || ro.estimatedCost || 0;
-        return cost >= filters.min_cost;
-      });
-    }
-
-    if (filters.max_cost !== undefined) {
-      results = results.filter(ro => {
-        const cost = ro.finalCost || ro.estimatedCost || 0;
-        return cost <= filters.max_cost;
-      });
-    }
-
-    if (filters.ro_numbers && filters.ro_numbers.length > 0) {
-      results = results.filter(ro =>
-        filters.ro_numbers.some((num: string) =>
-          ro.roNumber.toString().includes(num) || num.includes(ro.roNumber.toString())
-        )
-      );
-    }
-
-    // Sort
-    if (sort_by) {
-      switch (sort_by) {
-        case 'date':
-          results.sort((a, b) => {
-            if (!a.dateMade) return 1;
-            if (!b.dateMade) return -1;
-            return new Date(b.dateMade).getTime() - new Date(a.dateMade).getTime();
-          });
-          break;
-        case 'cost':
-          results.sort((a, b) => (b.finalCost || b.estimatedCost || 0) - (a.finalCost || a.estimatedCost || 0));
-          break;
-        case 'overdue':
-          results.sort((a, b) => (b.daysOverdue || 0) - (a.daysOverdue || 0));
-          break;
-      }
-    }
-
-    // Limit
-    if (limit && limit > 0) {
-      results = results.slice(0, limit);
-    }
-
-    // Format results
-    return {
-      count: results.length,
-      repair_orders: results.map(ro => ({
-        ro_number: ro.roNumber,
-        shop: ro.shopName,
-        part: ro.partDescription,
-        status: ro.currentStatus,
-        cost: ro.finalCost || ro.estimatedCost,
-        estimated_cost: ro.estimatedCost,
-        final_cost: ro.finalCost,
-        estimated_delivery_date: ro.estimatedDeliveryDate,
-        is_overdue: ro.isOverdue,
-        days_overdue: ro.daysOverdue,
-        date_made: ro.dateMade,
-        next_update: ro.nextDateToUpdate,
-        terms: ro.terms
-      }))
-    };
-  },
-
-  bulk_update_repair_orders: async (input, context) => {
-    const { ro_numbers, updates } = input;
-
-    const results = {
-      successful: [] as string[],
-      failed: [] as { ro_number: string; error: string }[]
-    };
-
-    for (const ro_number of ro_numbers) {
-      try {
-        const result = await toolExecutors.update_repair_order(
-          { ro_number, updates },
-          context
-        );
-
-        if (result.success) {
-          results.successful.push(ro_number);
-        } else {
-          results.failed.push({ ro_number, error: result.error });
-        }
-      } catch (error: any) {
-        results.failed.push({ ro_number, error: error.message });
-      }
-    }
-
-    return {
-      total: ro_numbers.length,
-      successful_count: results.successful.length,
-      failed_count: results.failed.length,
-      successful: results.successful,
-      failed: results.failed
-    };
-  },
-
-  create_reminders: async (input, context) => {
-    const { ro_numbers, reminder_date } = input;
-
-    const results = {
-      successful: [] as string[],
-      failed: [] as { ro_number: string; error: string }[]
-    };
-
-    for (const ro_number of ro_numbers) {
+      // Find the RO
       const ro = context.allROs.find(r =>
         r.roNumber.toString().includes(ro_number) ||
         ro_number.includes(r.roNumber.toString())
       );
 
       if (!ro) {
-        results.failed.push({ ro_number, error: 'RO not found' });
-        continue;
+        return { success: false, error: `RO ${ro_number} not found` };
       }
 
       try {
-        const dueDate = reminder_date ? new Date(reminder_date) : ro.nextDateToUpdate;
+        const rowIndex = parseInt(ro.id.replace("row-", ""));
 
-        if (!dueDate) {
-          results.failed.push({ ro_number, error: 'No due date available' });
+        // Prepare the update data
+        const statusToUpdate = updates.status || ro.currentStatus;
+        const costToUpdate = updates.cost;
+        const deliveryDate = updates.estimated_delivery_date ? new Date(updates.estimated_delivery_date) : undefined;
+        const notes = updates.notes;
+        const trackingNumber = updates.tracking_number;
+
+        // Execute update via excelService
+        await excelService.updateROStatus(
+          rowIndex,
+          statusToUpdate,
+          notes,
+          costToUpdate,
+          deliveryDate,
+          trackingNumber
+        );
+
+        // Invalidate React Query cache to refresh UI
+        context.queryClient.invalidateQueries({ queryKey: ['repairOrders'] });
+
+        const updatedFields = [];
+        if (updates.status) updatedFields.push('status');
+        if (updates.cost !== undefined) {
+          // Determine which cost field was updated based on status
+          const isFinalStatus = statusToUpdate.includes("PAID") || statusToUpdate.includes("SHIPPING");
+          updatedFields.push(isFinalStatus ? 'final_cost' : 'estimated_cost');
+        }
+        if (updates.estimated_delivery_date) updatedFields.push('estimated_delivery_date');
+        if (updates.notes) updatedFields.push('notes');
+        if (updates.tracking_number) updatedFields.push('tracking_number');
+
+        return {
+          success: true,
+          ro_number: ro.roNumber,
+          updated_fields: updatedFields,
+          message: `Successfully updated RO ${ro.roNumber}`
+        };
+
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to update RO'
+        };
+      }
+    }
+  ),
+
+  query_repair_orders: createValidatedExecutor(
+    queryRepairOrdersSchema,
+    async (input, context) => {
+      const { filters, sort_by, limit } = input;
+
+      let results = [...context.allROs];
+
+      // Apply filters
+      if (filters.status) {
+        results = results.filter(ro =>
+          ro.currentStatus.toLowerCase().includes(filters.status.toLowerCase())
+        );
+      }
+
+      if (filters.shop_name) {
+        results = results.filter(ro =>
+          ro.shopName.toLowerCase().includes(filters.shop_name.toLowerCase())
+        );
+      }
+
+      if (filters.is_overdue !== undefined) {
+        results = results.filter(ro => ro.isOverdue === filters.is_overdue);
+      }
+
+      if (filters.date_range) {
+        const start = new Date(filters.date_range.start);
+        const end = new Date(filters.date_range.end);
+        results = results.filter(ro => {
+          if (!ro.dateMade) return false;
+          const roDate = new Date(ro.dateMade);
+          return roDate >= start && roDate <= end;
+        });
+      }
+
+      if (filters.min_cost !== undefined) {
+        results = results.filter(ro => {
+          const cost = ro.finalCost || ro.estimatedCost || 0;
+          return cost >= filters.min_cost;
+        });
+      }
+
+      if (filters.max_cost !== undefined) {
+        results = results.filter(ro => {
+          const cost = ro.finalCost || ro.estimatedCost || 0;
+          return cost <= filters.max_cost;
+        });
+      }
+
+      if (filters.ro_numbers && filters.ro_numbers.length > 0) {
+        results = results.filter(ro =>
+          filters.ro_numbers.some((num: string) =>
+            ro.roNumber.toString().includes(num) || num.includes(ro.roNumber.toString())
+          )
+        );
+      }
+
+      // Sort
+      if (sort_by) {
+        switch (sort_by) {
+          case 'date':
+            results.sort((a, b) => {
+              if (!a.dateMade) return 1;
+              if (!b.dateMade) return -1;
+              return new Date(b.dateMade).getTime() - new Date(a.dateMade).getTime();
+            });
+            break;
+          case 'cost':
+            results.sort((a, b) => (b.finalCost || b.estimatedCost || 0) - (a.finalCost || a.estimatedCost || 0));
+            break;
+          case 'overdue':
+            results.sort((a, b) => (b.daysOverdue || 0) - (a.daysOverdue || 0));
+            break;
+        }
+      }
+
+      // Limit
+      if (limit && limit > 0) {
+        results = results.slice(0, limit);
+      }
+
+      // Format results
+      return {
+        count: results.length,
+        repair_orders: results.map(ro => ({
+          ro_number: ro.roNumber,
+          shop: ro.shopName,
+          part: ro.partDescription,
+          status: ro.currentStatus,
+          cost: ro.finalCost || ro.estimatedCost,
+          estimated_cost: ro.estimatedCost,
+          final_cost: ro.finalCost,
+          estimated_delivery_date: ro.estimatedDeliveryDate,
+          is_overdue: ro.isOverdue,
+          days_overdue: ro.daysOverdue,
+          date_made: ro.dateMade,
+          next_update: ro.nextDateToUpdate,
+          terms: ro.terms
+        }))
+      };
+    }
+  ),
+
+  bulk_update_repair_orders: createValidatedExecutor(
+    bulkUpdateRepairOrdersSchema,
+    async (input, context) => {
+      const { ro_numbers, updates } = input;
+
+      const results = {
+        successful: [] as string[],
+        failed: [] as { ro_number: string; error: string }[]
+      };
+
+      for (const ro_number of ro_numbers) {
+        try {
+          const result = await toolExecutors.update_repair_order(
+            { ro_number, updates },
+            context
+          );
+
+          if (result.success) {
+            results.successful.push(ro_number);
+          } else {
+            results.failed.push({ ro_number, error: result.error });
+          }
+        } catch (error: any) {
+          results.failed.push({ ro_number, error: error.message });
+        }
+      }
+
+      return {
+        total: ro_numbers.length,
+        successful_count: results.successful.length,
+        failed_count: results.failed.length,
+        successful: results.successful,
+        failed: results.failed
+      };
+    }
+  ),
+
+  create_reminders: createValidatedExecutor(
+    createRemindersSchema,
+    async (input, context) => {
+      const { ro_numbers, reminder_date } = input;
+
+      const results = {
+        successful: [] as string[],
+        failed: [] as { ro_number: string; error: string }[]
+      };
+
+      for (const ro_number of ro_numbers) {
+        const ro = context.allROs.find(r =>
+          r.roNumber.toString().includes(ro_number) ||
+          ro_number.includes(r.roNumber.toString())
+        );
+
+        if (!ro) {
+          results.failed.push({ ro_number, error: 'RO not found' });
           continue;
         }
 
-        await reminderService.createReminders({
-          roNumber: ro.roNumber,
-          shopName: ro.shopName,
-          title: `Follow up: RO ${ro.roNumber} - ${ro.shopName}`,
-          dueDate: new Date(dueDate),
-          notes: `Part: ${ro.partDescription}\nStatus: ${ro.currentStatus}`
-        });
+        try {
+          const dueDate = reminder_date ? new Date(reminder_date) : ro.nextDateToUpdate;
 
-        results.successful.push(ro_number);
-      } catch (error: any) {
-        results.failed.push({ ro_number, error: error.message });
-      }
-    }
+          if (!dueDate) {
+            results.failed.push({ ro_number, error: 'No due date available' });
+            continue;
+          }
 
-    return {
-      total: ro_numbers.length,
-      successful_count: results.successful.length,
-      failed_count: results.failed.length,
-      successful: results.successful,
-      failed: results.failed
-    };
-  },
-
-  get_statistics: async (input, context) => {
-    const { metric, filters } = input;
-
-    // First filter ROs if filters provided
-    let ros = context.allROs;
-    if (filters) {
-      const queryResult = await toolExecutors.query_repair_orders(
-        { filters },
-        context
-      );
-      const roNumbers = queryResult.repair_orders.map((ro: any) => ro.ro_number.toString());
-      ros = context.allROs.filter(ro => roNumbers.includes(ro.roNumber.toString()));
-    }
-
-    switch (metric) {
-      case 'total_value':
-        const totalValue = ros.reduce((sum, ro) => {
-          return sum + (ro.finalCost || ro.estimatedCost || 0);
-        }, 0);
-        return {
-          metric: 'total_value',
-          value: totalValue,
-          count: ros.length,
-          formatted: `$${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-        };
-
-      case 'average_cost':
-        const rosWithCost = ros.filter(ro => ro.finalCost || ro.estimatedCost);
-        const avgCost = rosWithCost.length > 0
-          ? rosWithCost.reduce((sum, ro) => sum + (ro.finalCost || ro.estimatedCost || 0), 0) / rosWithCost.length
-          : 0;
-        return {
-          metric: 'average_cost',
-          value: avgCost,
-          count: rosWithCost.length,
-          formatted: `$${avgCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-        };
-
-      case 'count_by_status':
-        const statusCounts: Record<string, number> = {};
-        ros.forEach(ro => {
-          statusCounts[ro.currentStatus] = (statusCounts[ro.currentStatus] || 0) + 1;
-        });
-        return {
-          metric: 'count_by_status',
-          breakdown: statusCounts,
-          total: ros.length
-        };
-
-      case 'count_by_shop':
-        const shopCounts: Record<string, number> = {};
-        ros.forEach(ro => {
-          shopCounts[ro.shopName] = (shopCounts[ro.shopName] || 0) + 1;
-        });
-        return {
-          metric: 'count_by_shop',
-          breakdown: shopCounts,
-          total: ros.length
-        };
-
-      case 'overdue_count':
-        const overdueCount = ros.filter(ro => ro.isOverdue).length;
-        return {
-          metric: 'overdue_count',
-          value: overdueCount,
-          percentage: ros.length > 0 ? (overdueCount / ros.length * 100).toFixed(1) + '%' : '0%',
-          total: ros.length
-        };
-
-      case 'average_tat':
-        // Calculate average days from dateMade to currentStatusDate for completed ROs
-        const completedROs = ros.filter(ro =>
-          ro.currentStatus === 'PAID' || ro.currentStatus === 'SHIPPING'
-        );
-        const avgTAT = completedROs.length > 0
-          ? completedROs.reduce((sum, ro) => {
-              if (!ro.dateMade || !ro.currentStatusDate) return sum;
-              const made = new Date(ro.dateMade).getTime();
-              const completed = new Date(ro.currentStatusDate).getTime();
-              const days = (completed - made) / (1000 * 60 * 60 * 24);
-              return sum + days;
-            }, 0) / completedROs.length
-          : 0;
-        return {
-          metric: 'average_tat',
-          value: Math.round(avgTAT),
-          unit: 'days',
-          count: completedROs.length
-        };
-
-      default:
-        return { error: `Unknown metric: ${metric}` };
-    }
-  },
-
-  generate_email_template: async (input, context) => {
-    const { ro_number, template_type } = input;
-
-    const ro = context.allROs.find(r =>
-      r.roNumber.toString().includes(ro_number) ||
-      ro_number.includes(r.roNumber.toString())
-    );
-
-    if (!ro) {
-      return { success: false, error: `RO ${ro_number} not found` };
-    }
-
-    const shop = context.allShops.find(s => s.shopName === ro.shopName);
-
-    try {
-      const email = generateEmailForAI(template_type, ro, shop || null);
-      return {
-        success: true,
-        ro_number: ro.roNumber,
-        template_type,
-        email: {
-          to: email.to,
-          subject: email.subject,
-          body: email.body
-        }
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  },
-
-  query_reminders: async (input, context) => {
-    const { ro_number, date_filter = 'all' } = input;
-
-    try {
-      // Get reminders from Microsoft services
-      let reminders = await reminderService.searchROReminders(ro_number);
-
-      // Apply date filter
-      const now = new Date();
-      if (date_filter === 'today') {
-        const today = now.toDateString();
-        reminders = reminders.filter(r => r.dueDate.toDateString() === today);
-      } else if (date_filter === 'this_week') {
-        const weekFromNow = new Date(now);
-        weekFromNow.setDate(weekFromNow.getDate() + 7);
-        reminders = reminders.filter(r => r.dueDate >= now && r.dueDate <= weekFromNow);
-      } else if (date_filter === 'overdue') {
-        reminders = reminders.filter(r => r.dueDate < now);
-      }
-
-      // Match with actual ROs to get additional info
-      const enrichedReminders = reminders.map(reminder => {
-        const ro = context.allROs.find(r =>
-          r.roNumber.toString().includes(reminder.roNumber) ||
-          reminder.roNumber.includes(r.roNumber.toString())
-        );
-
-        return {
-          ro_number: reminder.roNumber,
-          reminder_type: reminder.type,
-          due_date: reminder.dueDate.toISOString(),
-          has_todo: !!reminder.todoTask,
-          has_calendar: !!reminder.calendarEvent,
-          todo_status: reminder.todoTask?.status,
-          // Include RO info if found
-          ro_exists: !!ro,
-          ro_status: ro?.currentStatus,
-          ro_shop: ro?.shopName,
-          ro_actual_due_date: ro?.nextDateToUpdate,
-          is_overdue: reminder.dueDate < now
-        };
-      });
-
-      return {
-        total_count: enrichedReminders.length,
-        filter_applied: date_filter,
-        reminders: enrichedReminders
-      };
-
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Failed to query reminders'
-      };
-    }
-  },
-
-  delete_reminders: async (input, _context) => {
-    const { ro_numbers } = input;
-
-    const results = {
-      successful: [] as string[],
-      partial: [] as { ro_number: string; details: string }[],
-      failed: [] as { ro_number: string; error: string }[]
-    };
-
-    for (const ro_number of ro_numbers) {
-      try {
-        const result = await reminderService.deleteROReminder(ro_number);
-
-        if (result.todo && result.calendar) {
-          // Both deleted successfully
-          results.successful.push(ro_number);
-        } else if (result.todo || result.calendar) {
-          // Only one deleted (partial success)
-          const deletedFrom = result.todo ? 'To Do' : 'Calendar';
-          const missingFrom = result.todo ? 'Calendar' : 'To Do';
-          results.partial.push({
-            ro_number,
-            details: `Deleted from ${deletedFrom} (no ${missingFrom} event found)`
+          await reminderService.createReminders({
+            roNumber: ro.roNumber,
+            shopName: ro.shopName,
+            title: `Follow up: RO ${ro.roNumber} - ${ro.shopName}`,
+            dueDate: new Date(dueDate),
+            notes: `Part: ${ro.partDescription}\nStatus: ${ro.currentStatus}`
           });
-        } else {
-          // Neither found
+
+          results.successful.push(ro_number);
+        } catch (error: any) {
+          results.failed.push({ ro_number, error: error.message });
+        }
+      }
+
+      return {
+        total: ro_numbers.length,
+        successful_count: results.successful.length,
+        failed_count: results.failed.length,
+        successful: results.successful,
+        failed: results.failed
+      };
+    }
+  ),
+
+  get_statistics: createValidatedExecutor(
+    getStatisticsSchema,
+    async (input, context) => {
+      const { metric, filters } = input;
+
+      // First filter ROs if filters provided
+      let ros = context.allROs;
+      if (filters) {
+        const queryResult = await toolExecutors.query_repair_orders(
+          { filters },
+          context
+        );
+        const roNumbers = queryResult.repair_orders.map((ro: any) => ro.ro_number.toString());
+        ros = context.allROs.filter(ro => roNumbers.includes(ro.roNumber.toString()));
+      }
+
+      switch (metric) {
+        case 'total_value':
+          const totalValue = ros.reduce((sum, ro) => {
+            return sum + (ro.finalCost || ro.estimatedCost || 0);
+          }, 0);
+          return {
+            metric: 'total_value',
+            value: totalValue,
+            count: ros.length,
+            formatted: `$${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+          };
+
+        case 'average_cost':
+          const rosWithCost = ros.filter(ro => ro.finalCost || ro.estimatedCost);
+          const avgCost = rosWithCost.length > 0
+            ? rosWithCost.reduce((sum, ro) => sum + (ro.finalCost || ro.estimatedCost || 0), 0) / rosWithCost.length
+            : 0;
+          return {
+            metric: 'average_cost',
+            value: avgCost,
+            count: rosWithCost.length,
+            formatted: `$${avgCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+          };
+
+        case 'count_by_status':
+          const statusCounts: Record<string, number> = {};
+          ros.forEach(ro => {
+            statusCounts[ro.currentStatus] = (statusCounts[ro.currentStatus] || 0) + 1;
+          });
+          return {
+            metric: 'count_by_status',
+            breakdown: statusCounts,
+            total: ros.length
+          };
+
+        case 'count_by_shop':
+          const shopCounts: Record<string, number> = {};
+          ros.forEach(ro => {
+            shopCounts[ro.shopName] = (shopCounts[ro.shopName] || 0) + 1;
+          });
+          return {
+            metric: 'count_by_shop',
+            breakdown: shopCounts,
+            total: ros.length
+          };
+
+        case 'overdue_count':
+          const overdueCount = ros.filter(ro => ro.isOverdue).length;
+          return {
+            metric: 'overdue_count',
+            value: overdueCount,
+            percentage: ros.length > 0 ? (overdueCount / ros.length * 100).toFixed(1) + '%' : '0%',
+            total: ros.length
+          };
+
+        case 'average_tat':
+          // Calculate average days from dateMade to currentStatusDate for completed ROs
+          const completedROs = ros.filter(ro =>
+            ro.currentStatus === 'PAID' || ro.currentStatus === 'SHIPPING'
+          );
+          const avgTAT = completedROs.length > 0
+            ? completedROs.reduce((sum, ro) => {
+                if (!ro.dateMade || !ro.currentStatusDate) return sum;
+                const made = new Date(ro.dateMade).getTime();
+                const completed = new Date(ro.currentStatusDate).getTime();
+                const days = (completed - made) / (1000 * 60 * 60 * 24);
+                return sum + days;
+              }, 0) / completedROs.length
+            : 0;
+          return {
+            metric: 'average_tat',
+            value: Math.round(avgTAT),
+            unit: 'days',
+            count: completedROs.length
+          };
+
+        default:
+          return { error: `Unknown metric: ${metric}` };
+      }
+    }
+  ),
+
+  generate_email_template: createValidatedExecutor(
+    generateEmailTemplateSchema,
+    async (input, context) => {
+      const { ro_number, template_type } = input;
+
+      const ro = context.allROs.find(r =>
+        r.roNumber.toString().includes(ro_number) ||
+        ro_number.includes(r.roNumber.toString())
+      );
+
+      if (!ro) {
+        return { success: false, error: `RO ${ro_number} not found` };
+      }
+
+      const shop = context.allShops.find(s => s.shopName === ro.shopName);
+
+      try {
+        const email = generateEmailForAI(template_type, ro, shop || null);
+        return {
+          success: true,
+          ro_number: ro.roNumber,
+          template_type,
+          email: {
+            to: email.to,
+            subject: email.subject,
+            body: email.body
+          }
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message
+        };
+      }
+    }
+  ),
+
+  query_reminders: createValidatedExecutor(
+    queryExistingRemindersSchema,
+    async (input, context) => {
+      const { ro_number, date_filter = 'all' } = input;
+
+      try {
+        // Get reminders from Microsoft services
+        let reminders = await reminderService.searchROReminders(ro_number);
+
+        // Apply date filter
+        const now = new Date();
+        if (date_filter === 'today') {
+          const today = now.toDateString();
+          reminders = reminders.filter(r => r.dueDate.toDateString() === today);
+        } else if (date_filter === 'this_week') {
+          const weekFromNow = new Date(now);
+          weekFromNow.setDate(weekFromNow.getDate() + 7);
+          reminders = reminders.filter(r => r.dueDate >= now && r.dueDate <= weekFromNow);
+        } else if (date_filter === 'overdue') {
+          reminders = reminders.filter(r => r.dueDate < now);
+        }
+
+        // Match with actual ROs to get additional info
+        const enrichedReminders = reminders.map(reminder => {
+          const ro = context.allROs.find(r =>
+            r.roNumber.toString().includes(reminder.roNumber) ||
+            reminder.roNumber.includes(r.roNumber.toString())
+          );
+
+          return {
+            ro_number: reminder.roNumber,
+            reminder_type: reminder.type,
+            due_date: reminder.dueDate.toISOString(),
+            has_todo: !!reminder.todoTask,
+            has_calendar: !!reminder.calendarEvent,
+            todo_status: reminder.todoTask?.status,
+            // Include RO info if found
+            ro_exists: !!ro,
+            ro_status: ro?.currentStatus,
+            ro_shop: ro?.shopName,
+            ro_actual_due_date: ro?.nextDateToUpdate,
+            is_overdue: reminder.dueDate < now
+          };
+        });
+
+        return {
+          total_count: enrichedReminders.length,
+          filter_applied: date_filter,
+          reminders: enrichedReminders
+        };
+
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to query reminders'
+        };
+      }
+    }
+  ),
+
+  delete_reminders: createValidatedExecutor(
+    deleteROReminderSchema,
+    async (input, _context) => {
+      const { ro_numbers } = input;
+
+      const results = {
+        successful: [] as string[],
+        partial: [] as { ro_number: string; details: string }[],
+        failed: [] as { ro_number: string; error: string }[]
+      };
+
+      for (const ro_number of ro_numbers) {
+        try {
+          const result = await reminderService.deleteROReminder(ro_number);
+
+          if (result.todo && result.calendar) {
+            // Both deleted successfully
+            results.successful.push(ro_number);
+          } else if (result.todo || result.calendar) {
+            // Only one deleted (partial success)
+            const deletedFrom = result.todo ? 'To Do' : 'Calendar';
+            const missingFrom = result.todo ? 'Calendar' : 'To Do';
+            results.partial.push({
+              ro_number,
+              details: `Deleted from ${deletedFrom} (no ${missingFrom} event found)`
+            });
+          } else {
+            // Neither found
+            results.failed.push({
+              ro_number,
+              error: 'No reminders found for this RO'
+            });
+          }
+        } catch (error: any) {
           results.failed.push({
             ro_number,
-            error: 'No reminders found for this RO'
+            error: error.message
           });
         }
-      } catch (error: any) {
-        results.failed.push({
+      }
+
+      return {
+        total: ro_numbers.length,
+        successful_count: results.successful.length,
+        partial_count: results.partial.length,
+        failed_count: results.failed.length,
+        successful: results.successful,
+        partial: results.partial,
+        failed: results.failed
+      };
+    }
+  ),
+
+  update_reminder_date: createValidatedExecutor(
+    updateReminderDateSchema,
+    async (input, _context) => {
+      const { ro_number, new_date } = input;
+
+      try {
+        const newDateObj = new Date(new_date);
+
+        // Validate date
+        if (isNaN(newDateObj.getTime())) {
+          return {
+            success: false,
+            error: 'Invalid date format'
+          };
+        }
+
+        const result = await reminderService.updateROReminderDate(ro_number, newDateObj);
+
+        if (!result.todo && !result.calendar) {
+          return {
+            success: false,
+            error: 'No reminders found for this RO'
+          };
+        }
+
+        return {
+          success: true,
           ro_number,
-          error: error.message
-        });
+          new_date: newDateObj.toISOString(),
+          updated_todo: result.todo,
+          updated_calendar: result.calendar,
+          message: `Reminder updated to ${newDateObj.toLocaleDateString()}`
+        };
+
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to update reminder'
+        };
       }
     }
+  ),
 
-    return {
-      total: ro_numbers.length,
-      successful_count: results.successful.length,
-      partial_count: results.partial.length,
-      failed_count: results.failed.length,
-      successful: results.successful,
-      partial: results.partial,
-      failed: results.failed
-    };
-  },
+  archive_repair_order: createValidatedExecutor(
+    archiveRepairOrderSchema,
+    async (input, context) => {
+      const { ro_number, status } = input;
 
-  update_reminder_date: async (input, _context) => {
-    const { ro_number, new_date } = input;
-
-    try {
-      const newDateObj = new Date(new_date);
-
-      // Validate date
-      if (isNaN(newDateObj.getTime())) {
-        return {
-          success: false,
-          error: 'Invalid date format'
-        };
-      }
-
-      const result = await reminderService.updateROReminderDate(ro_number, newDateObj);
-
-      if (!result.todo && !result.calendar) {
-        return {
-          success: false,
-          error: 'No reminders found for this RO'
-        };
-      }
-
-      return {
-        success: true,
-        ro_number,
-        new_date: newDateObj.toISOString(),
-        updated_todo: result.todo,
-        updated_calendar: result.calendar,
-        message: `Reminder updated to ${newDateObj.toLocaleDateString()}`
-      };
-
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Failed to update reminder'
-      };
-    }
-  },
-
-  archive_repair_order: async (input, context) => {
-    const { ro_number, status } = input;
-
-    // Find the RO
-    const ro = context.allROs.find(r =>
-      r.roNumber.toString().includes(ro_number) ||
-      ro_number.includes(r.roNumber.toString())
-    );
-
-    if (!ro) {
-      return { success: false, error: `RO ${ro_number} not found` };
-    }
-
-    try {
-      const rowIndex = parseInt(ro.id.replace("row-", ""));
-
-      // Determine target sheet based on status and payment terms
-      const targetSheet = getFinalSheetForStatus(status, ro.terms);
-
-      if (!targetSheet) {
-        return {
-          success: false,
-          error: `Status ${status} does not have an archive sheet configured`
-        };
-      }
-
-      if (targetSheet === 'prompt') {
-        return {
-          success: false,
-          error: `RO ${ro_number} has unclear payment terms. Please archive manually through the UI to choose destination (PAID or NET).`
-        };
-      }
-
-      // Move the RO to archive
-      await excelService.moveROToArchive(
-        rowIndex,
-        targetSheet.sheetName,
-        targetSheet.tableName
+      // Find the RO
+      const ro = context.allROs.find(r =>
+        r.roNumber.toString().includes(ro_number) ||
+        ro_number.includes(r.roNumber.toString())
       );
 
-      // Invalidate React Query cache to refresh UI
-      context.queryClient.invalidateQueries({ queryKey: ['repairOrders'] });
+      if (!ro) {
+        return { success: false, error: `RO ${ro_number} not found` };
+      }
 
-      return {
-        success: true,
-        ro_number: ro.roNumber,
-        archived_to: targetSheet.sheetName,
-        message: `RO ${ro.roNumber} archived to ${targetSheet.description}`
-      };
+      try {
+        const rowIndex = parseInt(ro.id.replace("row-", ""));
 
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Failed to archive RO'
-      };
-    }
-  },
+        // Determine target sheet based on status and payment terms
+        const targetSheet = getFinalSheetForStatus(status, ro.terms);
 
-  search_inventory: async (input, _context) => {
-    const { part_number } = input;
+        if (!targetSheet) {
+          return {
+            success: false,
+            error: `Status ${status} does not have an archive sheet configured`
+          };
+        }
 
-    try {
-      const results = await inventoryService.searchInventory(part_number);
+        if (targetSheet === 'prompt') {
+          return {
+            success: false,
+            error: `RO ${ro_number} has unclear payment terms. Please archive manually through the UI to choose destination (PAID or NET).`
+          };
+        }
 
-      if (results.length === 0) {
+        // Move the RO to archive
+        await excelService.moveROToArchive(
+          rowIndex,
+          targetSheet.sheetName,
+          targetSheet.tableName
+        );
+
+        // Invalidate React Query cache to refresh UI
+        context.queryClient.invalidateQueries({ queryKey: ['repairOrders'] });
+
         return {
           success: true,
-          found: false,
-          part_number,
-          message: `Part ${part_number} not found in inventory`
+          ro_number: ro.roNumber,
+          archived_to: targetSheet.sheetName,
+          message: `RO ${ro.roNumber} archived to ${targetSheet.description}`
+        };
+
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to archive RO'
         };
       }
-
-      // Calculate totals
-      const totalQty = results.reduce((sum, item) => sum + item.qty, 0);
-      const locations = results.length;
-      const lowStock = results.filter(item => item.qty < 2).length;
-
-      return {
-        success: true,
-        found: true,
-        part_number,
-        total_quantity: totalQty,
-        locations_count: locations,
-        low_stock_locations: lowStock,
-        inventory_items: results.map(item => ({
-          quantity: item.qty,
-          condition: item.condition || 'Unknown',
-          location: item.location || 'Unknown',
-          source_table: item.tableName,
-          serial_number: item.serialNumber || 'N/A',
-          description: item.description || 'N/A',
-          is_low_stock: item.qty < 2
-        }))
-      };
-
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Failed to search inventory'
-      };
     }
-  },
+  ),
 
-  check_inventory_quantity: async (input, _context) => {
-    const { part_number } = input;
+  search_inventory: createValidatedExecutor(
+    searchInventorySchema,
+    async (input, _context) => {
+      const { part_number } = input;
 
-    try {
-      const results = await inventoryService.searchInventory(part_number);
+      try {
+        const results = await inventoryService.searchInventory(part_number);
 
-      const totalQty = results.reduce((sum, item) => sum + item.qty, 0);
-      const locations = results.length;
+        if (results.length === 0) {
+          return {
+            success: true,
+            found: false,
+            part_number,
+            message: `Part ${part_number} not found in inventory`
+          };
+        }
 
-      if (results.length === 0) {
+        // Calculate totals
+        const totalQty = results.reduce((sum, item) => sum + item.qty, 0);
+        const locations = results.length;
+        const lowStock = results.filter(item => item.qty < 2).length;
+
         return {
           success: true,
-          found: false,
+          found: true,
           part_number,
-          total_quantity: 0,
-          locations: 0,
-          message: `Part ${part_number} not found in inventory`
+          total_quantity: totalQty,
+          locations_count: locations,
+          low_stock_locations: lowStock,
+          inventory_items: results.map(item => ({
+            quantity: item.qty,
+            condition: item.condition || 'Unknown',
+            location: item.location || 'Unknown',
+            source_table: item.tableName,
+            serial_number: item.serialNumber || 'N/A',
+            description: item.description || 'N/A',
+            is_low_stock: item.qty < 2
+          }))
         };
-      }
 
-      return {
-        success: true,
-        found: true,
-        part_number,
-        total_quantity: totalQty,
-        locations,
-        is_low_stock: totalQty < 2,
-        message: `Found ${totalQty} unit${totalQty !== 1 ? 's' : ''} across ${locations} location${locations !== 1 ? 's' : ''}`
-      };
-
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Failed to check inventory quantity'
-      };
-    }
-  },
-
-  create_ro_from_inventory: async (input, context) => {
-    const { part_number, shop_name, ro_number, serial_number, required_work, estimated_cost, terms } = input;
-
-    try {
-      // First, search inventory to get part details
-      const inventoryResults = await inventoryService.searchInventory(part_number);
-
-      if (inventoryResults.length === 0) {
+      } catch (error: any) {
         return {
           success: false,
-          error: `Part ${part_number} not found in inventory`
+          error: error.message || 'Failed to search inventory'
         };
       }
+    }
+  ),
 
-      // Find first available item with qty > 0
-      const availableItem = inventoryResults.find(item => item.qty > 0);
+  check_inventory_quantity: createValidatedExecutor(
+    checkInventoryQuantitySchema,
+    async (input, _context) => {
+      const { part_number } = input;
 
-      if (!availableItem) {
+      try {
+        const results = await inventoryService.searchInventory(part_number);
+
+        const totalQty = results.reduce((sum, item) => sum + item.qty, 0);
+        const locations = results.length;
+
+        if (results.length === 0) {
+          return {
+            success: true,
+            found: false,
+            part_number,
+            total_quantity: 0,
+            locations: 0,
+            message: `Part ${part_number} not found in inventory`
+          };
+        }
+
+        return {
+          success: true,
+          found: true,
+          part_number,
+          total_quantity: totalQty,
+          locations,
+          is_low_stock: totalQty < 2,
+          message: `Found ${totalQty} unit${totalQty !== 1 ? 's' : ''} across ${locations} location${locations !== 1 ? 's' : ''}`
+        };
+
+      } catch (error: any) {
         return {
           success: false,
-          error: `Part ${part_number} found but no inventory available (all locations have 0 qty)`
+          error: error.message || 'Failed to check inventory quantity'
         };
       }
+    }
+  ),
 
-      // Create the RO
-      const roData = {
-        roNumber: ro_number,
-        shopName: shop_name,
-        partNumber: part_number,
-        serialNumber: serial_number,
-        partDescription: availableItem.description || 'No description',
-        requiredWork: required_work,
-        estimatedCost: estimated_cost,
-        terms: terms
-      };
+  create_ro_from_inventory: createValidatedExecutor(
+    createROFromInventorySchema,
+    async (input, context) => {
+      const { part_number, shop_name, ro_number, serial_number, required_work, estimated_cost, terms } = input;
 
-      await excelService.addRepairOrder(roData);
+      try {
+        // First, search inventory to get part details
+        const inventoryResults = await inventoryService.searchInventory(part_number);
 
-      // Invalidate React Query cache to refresh UI
-      context.queryClient.invalidateQueries({ queryKey: ['repairOrders'] });
+        if (inventoryResults.length === 0) {
+          return {
+            success: false,
+            error: `Part ${part_number} not found in inventory`
+          };
+        }
 
-      // Decrement inventory
-      const decrementResult = await inventoryService.decrementInventory(
-        availableItem.indexId,
-        part_number,
-        availableItem.tableName,
-        availableItem.rowId,
-        ro_number,
-        `Created RO ${ro_number} for ${shop_name}`
-      );
+        // Find first available item with qty > 0
+        const availableItem = inventoryResults.find(item => item.qty > 0);
 
-      if (!decrementResult.success) {
+        if (!availableItem) {
+          return {
+            success: false,
+            error: `Part ${part_number} found but no inventory available (all locations have 0 qty)`
+          };
+        }
+
+        // Create the RO
+        const roData = {
+          roNumber: ro_number,
+          shopName: shop_name,
+          partNumber: part_number,
+          serialNumber: serial_number,
+          partDescription: availableItem.description || 'No description',
+          requiredWork: required_work,
+          estimatedCost: estimated_cost,
+          terms: terms
+        };
+
+        await excelService.addRepairOrder(roData);
+
+        // Invalidate React Query cache to refresh UI
+        context.queryClient.invalidateQueries({ queryKey: ['repairOrders'] });
+
+        // Decrement inventory
+        const decrementResult = await inventoryService.decrementInventory(
+          availableItem.indexId,
+          part_number,
+          availableItem.tableName,
+          availableItem.rowId,
+          ro_number,
+          `Created RO ${ro_number} for ${shop_name}`
+        );
+
+        if (!decrementResult.success) {
+          return {
+            success: false,
+            error: `RO created but inventory decrement failed: ${decrementResult.message}`,
+            ro_created: true,
+            ro_number
+          };
+        }
+
+        return {
+          success: true,
+          ro_number,
+          part_number,
+          shop_name,
+          inventory_decremented: true,
+          new_quantity: decrementResult.newQty,
+          is_low_stock: decrementResult.isLowStock,
+          location: availableItem.location,
+          message: `RO ${ro_number} created successfully. Inventory decremented from ${decrementResult.newQty + 1} to ${decrementResult.newQty}${decrementResult.isLowStock ? ' (LOW STOCK WARNING)' : ''}`
+        };
+
+      } catch (error: any) {
         return {
           success: false,
-          error: `RO created but inventory decrement failed: ${decrementResult.message}`,
-          ro_created: true,
-          ro_number
+          error: error.message || 'Failed to create RO from inventory'
         };
       }
-
-      return {
-        success: true,
-        ro_number,
-        part_number,
-        shop_name,
-        inventory_decremented: true,
-        new_quantity: decrementResult.newQty,
-        is_low_stock: decrementResult.isLowStock,
-        location: availableItem.location,
-        message: `RO ${ro_number} created successfully. Inventory decremented from ${decrementResult.newQty + 1} to ${decrementResult.newQty}${decrementResult.isLowStock ? ' (LOW STOCK WARNING)' : ''}`
-      };
-
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Failed to create RO from inventory'
-      };
     }
-  },
+  ),
 
-  check_low_stock: async (_input, _context) => {
-    try {
-      // We need to query the index for all parts with qty < 2
-      // Since we don't have a direct API for this, we'll need to implement it
-      // For now, we'll return a message indicating this needs manual implementation
-      // TODO: Implement direct index query or add a getLowStockParts method to inventoryService
+  check_low_stock: createValidatedExecutor(
+    checkLowStockSchema,
+    async (_input, _context) => {
+      try {
+        // We need to query the index for all parts with qty < 2
+        // Since we don't have a direct API for this, we'll need to implement it
+        // For now, we'll return a message indicating this needs manual implementation
+        // TODO: Implement direct index query or add a getLowStockParts method to inventoryService
 
-      return {
-        success: false,
-        error: 'Low stock check requires direct index access. Please use the Inventory Search tab to filter by quantity manually.',
-        todo: 'Implement inventoryService.getLowStockParts() method'
-      };
+        return {
+          success: false,
+          error: 'Low stock check requires direct index access. Please use the Inventory Search tab to filter by quantity manually.',
+          todo: 'Implement inventoryService.getLowStockParts() method'
+        };
 
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Failed to check low stock'
-      };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to check low stock'
+        };
+      }
     }
-  }
+  )
 };

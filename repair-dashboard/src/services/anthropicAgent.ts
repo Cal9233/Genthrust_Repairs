@@ -1,5 +1,6 @@
 import { ANTHROPIC_CONFIG } from '@/config/anthropic';
 import { tools, toolExecutors } from './aiTools';
+import { getToolSchema, validateInput } from './aiToolSchemas';
 import type {
   AIMessage,
   ToolResult,
@@ -122,6 +123,20 @@ export class AnthropicAgent {
               const executor = toolExecutors[toolName];
               if (!executor) {
                 throw new Error(`Unknown tool: ${toolName}`);
+              }
+
+              // Validate input before execution
+              const schema = getToolSchema(toolName);
+              if (schema) {
+                const validation = validateInput(schema, toolInput);
+                if (!validation.success) {
+                  toolResults.push({
+                    tool_use_id: toolUseId,
+                    content: `Input validation failed: ${validation.error?.message}`,
+                    is_error: true
+                  });
+                  continue;
+                }
               }
 
               const result = await executor(toolInput, context);
