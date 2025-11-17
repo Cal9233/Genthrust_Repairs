@@ -1,6 +1,16 @@
 import type { IPublicClientApplication } from "@azure/msal-browser";
 import { loginRequest } from "./msalConfig";
 import type { RepairOrder, StatusHistoryEntry } from "../types";
+import type {
+  GraphAPIResponse,
+  GraphSiteResponse,
+  GraphDriveResponse,
+  GraphFileResponse,
+  GraphTableRowResponse,
+  GraphAPIException,
+  GraphSessionResponse,
+  isGraphAPIError
+} from "../types/graphApi";
 import { calculateNextUpdateDate } from "./businessRules";
 import { reminderService, ReminderService } from "./reminderService";
 import { ExcelSessionManager } from "./excelSession";
@@ -45,10 +55,11 @@ class ExcelService {
           ...loginRequest,
         });
         return response.accessToken;
-      } catch (popupError: any) {
+      } catch (popupError) {
         // Popup token acquisition failed
         // If popup fails due to CORS/COOP, try redirect
-        if (popupError.message?.includes("popup") || popupError.message?.includes("CORS")) {
+        const errorMessage = popupError instanceof Error ? popupError.message : String(popupError);
+        if (errorMessage.includes("popup") || errorMessage.includes("CORS")) {
           // Using redirect flow
           await this.msalInstance.acquireTokenRedirect({
             ...loginRequest,
@@ -61,7 +72,23 @@ class ExcelService {
     }
   }
 
-  private async callGraphAPI(endpoint: string, method = "GET", body?: any, sessionId?: string) {
+  /**
+   * Call Microsoft Graph API with proper error handling and type safety
+   *
+   * @template T - The expected response type (defaults to unknown)
+   * @param endpoint - The Graph API endpoint URL
+   * @param method - HTTP method (GET, POST, PATCH, DELETE)
+   * @param body - Request body for POST/PATCH requests
+   * @param sessionId - Optional Excel workbook session ID
+   * @returns The parsed JSON response, or null for empty responses
+   * @throws {GraphAPIException} For HTTP errors from the Graph API
+   */
+  private async callGraphAPI<T = unknown>(
+    endpoint: string,
+    method = "GET",
+    body?: unknown,
+    sessionId?: string
+  ): Promise<T | null> {
     const token = await this.getAccessToken();
 
     const headers: Record<string, string> = {
@@ -87,21 +114,19 @@ class ExcelService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      let errorDetails;
+      let errorDetails: unknown;
       try {
         errorDetails = JSON.parse(errorText);
       } catch {
         errorDetails = errorText;
       }
 
-      const error: any = new Error(
-        `Graph API error: ${response.status} ${response.statusText}\n${JSON.stringify(errorDetails, null, 2)}`
+      // Create properly typed GraphAPIException
+      throw new GraphAPIException(
+        response.status,
+        `Graph API error: ${response.status} ${response.statusText}\n${JSON.stringify(errorDetails, null, 2)}`,
+        isGraphAPIError(errorDetails) ? errorDetails : errorText
       );
-      error.status = response.status;
-      error.statusCode = response.status;
-      error.response = errorDetails;
-
-      throw error;
     }
 
     // Handle empty responses (like 204 No Content from closeSession)
@@ -115,7 +140,7 @@ class ExcelService {
       return null;
     }
 
-    return JSON.parse(text);
+    return JSON.parse(text) as T;
   }
 
   /**
@@ -183,6 +208,12 @@ class ExcelService {
     return null;
   }
 
+  /**
+   * Parse notes field containing embedded status history
+   *
+   * @param notesValue - The notes field value from Excel
+   * @returns Parsed notes and status history array
+   */
   private parseNotesWithHistory(notesValue: string): { notes: string; statusHistory: StatusHistoryEntry[] } {
     if (!notesValue || typeof notesValue !== "string") {
       return { notes: "", statusHistory: [] };
@@ -195,18 +226,35 @@ class ExcelService {
       try {
         const historyJson = historyMatch[1];
         const userNotes = historyMatch[2] || "";
-        const historyData = JSON.parse(historyJson);
+        const historyData = JSON.parse(historyJson) as unknown[];
 
-        // Convert date strings back to Date objects
-        const statusHistory = historyData.map((entry: any) => ({
-          ...entry,
-          date: new Date(entry.date),
-          deliveryDate: entry.deliveryDate ? new Date(entry.deliveryDate) : undefined,
-        }));
+        // Type guard for status history entries
+        const isStatusHistoryEntry = (entry: unknown): entry is Partial<StatusHistoryEntry> => {
+          return (
+            typeof entry === 'object' &&
+            entry !== null &&
+            'status' in entry &&
+            'date' in entry &&
+            'user' in entry
+          );
+        };
+
+        // Convert date strings back to Date objects with proper typing
+        const statusHistory: StatusHistoryEntry[] = historyData
+          .filter(isStatusHistoryEntry)
+          .map((entry): StatusHistoryEntry => ({
+            status: entry.status || '',
+            date: entry.date ? new Date(entry.date) : new Date(),
+            user: entry.user || 'Unknown',
+            ...(entry.cost !== undefined && { cost: entry.cost }),
+            ...(entry.notes && { notes: entry.notes }),
+            ...(entry.deliveryDate && { deliveryDate: new Date(entry.deliveryDate) }),
+          }));
 
         return { notes: userNotes, statusHistory };
       } catch (error) {
         // Failed to parse status history - returning notes only
+        logger.warn('Failed to parse status history from notes', error);
         return { notes: notesValue, statusHistory: [] };
       }
     }
@@ -263,6 +311,12 @@ class ExcelService {
     return userName;
   }
 
+  /**
+   * Get the Excel file ID from SharePoint
+   *
+   * @returns The file ID
+   * @throws {Error} If the file is not found
+   */
   async getFileId(): Promise<string> {
     // Return cached file ID if available
     if (this.fileId) {
@@ -274,24 +328,32 @@ class ExcelService {
     const hostname = siteUrl.hostname;
     const sitePath = siteUrl.pathname;
 
-    const siteResponse = await this.callGraphAPI(
+    const siteResponse = await this.callGraphAPI<GraphSiteResponse>(
       `https://graph.microsoft.com/v1.0/sites/${hostname}:${sitePath}`
     );
 
+    if (!siteResponse) {
+      throw new Error('Failed to get SharePoint site information');
+    }
+
     // Get drive
-    const driveResponse = await this.callGraphAPI(
+    const driveResponse = await this.callGraphAPI<GraphDriveResponse>(
       `https://graph.microsoft.com/v1.0/sites/${siteResponse.id}/drive`
     );
+
+    if (!driveResponse) {
+      throw new Error('Failed to get SharePoint drive information');
+    }
 
     // Cache the drive ID for later use
     this.driveId = driveResponse.id;
 
     // Search for file
-    const searchResponse = await this.callGraphAPI(
+    const searchResponse = await this.callGraphAPI<GraphAPIResponse<GraphFileResponse>>(
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/root/search(q='${FILE_NAME}')`
     );
 
-    if (searchResponse.value.length === 0) {
+    if (!searchResponse || searchResponse.value.length === 0) {
       throw new Error(`File ${FILE_NAME} not found`);
     }
 
@@ -501,6 +563,11 @@ class ExcelService {
   }
   */
 
+  /**
+   * Get all repair orders from the main table
+   *
+   * @returns Array of repair orders with computed fields
+   */
   async getRepairOrders(): Promise<RepairOrder[]> {
     const fileId = await this.getFileId();
 
@@ -512,13 +579,18 @@ class ExcelService {
     //   // Debug error
     // }
 
-    const response = await this.callGraphAPI(
+    const response = await this.callGraphAPI<GraphAPIResponse<GraphTableRowResponse>>(
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows`
     );
 
+    if (!response) {
+      logger.warn('Empty response when fetching repair orders');
+      return [];
+    }
+
     const rows = response.value;
 
-    return rows.map((row: any, index: number) => {
+    return rows.map((row, index): RepairOrder => {
       const values = row.values[0]; // First array contains the row data
 
       const lastUpdated = this.parseExcelDate(values[19]);
@@ -535,32 +607,34 @@ class ExcelService {
       }
 
       // Parse notes and status history
-      const { notes, statusHistory } = this.parseNotesWithHistory(values[18] || "");
+      const { notes, statusHistory } = this.parseNotesWithHistory(
+        typeof values[18] === 'string' ? values[18] : ""
+      );
 
       return {
         id: `row-${index}`,
         roNumber: String(values[0] ?? ""),
         dateMade: this.parseExcelDate(values[1]),
-        shopName: values[2] || "",
-        partNumber: values[3] || "",
-        serialNumber: values[4] || "",
-        partDescription: values[5] || "",
-        requiredWork: values[6] || "",
+        shopName: typeof values[2] === 'string' ? values[2] : "",
+        partNumber: typeof values[3] === 'string' ? values[3] : "",
+        serialNumber: typeof values[4] === 'string' ? values[4] : "",
+        partDescription: typeof values[5] === 'string' ? values[5] : "",
+        requiredWork: typeof values[6] === 'string' ? values[6] : "",
         dateDroppedOff: this.parseExcelDate(values[7]),
         estimatedCost: this.parseCurrency(values[8]),
         finalCost: this.parseCurrency(values[9]),
-        terms: values[10] || "",
-        shopReferenceNumber: values[11] || "",
+        terms: typeof values[10] === 'string' ? values[10] : "",
+        shopReferenceNumber: typeof values[11] === 'string' ? values[11] : "",
         estimatedDeliveryDate: this.parseExcelDate(values[12]),
-        currentStatus: values[13] || "",
+        currentStatus: typeof values[13] === 'string' ? values[13] : "",
         currentStatusDate: this.parseExcelDate(values[14]),
-        genThrustStatus: values[15] || "",
-        shopStatus: values[16] || "",
-        trackingNumber: values[17] || "",
+        genThrustStatus: typeof values[15] === 'string' ? values[15] : "",
+        shopStatus: typeof values[16] === 'string' ? values[16] : "",
+        trackingNumber: typeof values[17] === 'string' ? values[17] : "",
         notes,
         lastDateUpdated: lastUpdated,
         nextDateToUpdate: nextUpdate,
-        checked: values[21] || "",
+        checked: typeof values[21] === 'string' ? values[21] : "",
         statusHistory,
         daysOverdue,
         isOverdue,
@@ -568,16 +642,28 @@ class ExcelService {
     });
   }
 
+  /**
+   * Get repair orders from a specific sheet and table (e.g., archive sheets)
+   *
+   * @param sheetName - The worksheet name
+   * @param tableName - The table name within the worksheet
+   * @returns Array of repair orders
+   */
   async getRepairOrdersFromSheet(sheetName: string, tableName: string): Promise<RepairOrder[]> {
     const fileId = await this.getFileId();
 
-    const response = await this.callGraphAPI(
+    const response = await this.callGraphAPI<GraphAPIResponse<GraphTableRowResponse>>(
       `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/${sheetName}/tables/${tableName}/rows`
     );
 
+    if (!response) {
+      logger.warn('Empty response when fetching repair orders from sheet', { sheetName, tableName });
+      return [];
+    }
+
     const rows = response.value;
 
-    return rows.map((row: any, index: number) => {
+    return rows.map((row, index): RepairOrder => {
       const values = row.values[0]; // First array contains the row data
 
       const lastUpdated = this.parseExcelDate(values[19]);
@@ -594,32 +680,34 @@ class ExcelService {
       }
 
       // Parse notes and status history
-      const { notes, statusHistory } = this.parseNotesWithHistory(values[18] || "");
+      const { notes, statusHistory } = this.parseNotesWithHistory(
+        typeof values[18] === 'string' ? values[18] : ""
+      );
 
       return {
         id: `row-${index}`,
         roNumber: String(values[0] ?? ""),
         dateMade: this.parseExcelDate(values[1]),
-        shopName: values[2] || "",
-        partNumber: values[3] || "",
-        serialNumber: values[4] || "",
-        partDescription: values[5] || "",
-        requiredWork: values[6] || "",
+        shopName: typeof values[2] === 'string' ? values[2] : "",
+        partNumber: typeof values[3] === 'string' ? values[3] : "",
+        serialNumber: typeof values[4] === 'string' ? values[4] : "",
+        partDescription: typeof values[5] === 'string' ? values[5] : "",
+        requiredWork: typeof values[6] === 'string' ? values[6] : "",
         dateDroppedOff: this.parseExcelDate(values[7]),
         estimatedCost: this.parseCurrency(values[8]),
         finalCost: this.parseCurrency(values[9]),
-        terms: values[10] || "",
-        shopReferenceNumber: values[11] || "",
+        terms: typeof values[10] === 'string' ? values[10] : "",
+        shopReferenceNumber: typeof values[11] === 'string' ? values[11] : "",
         estimatedDeliveryDate: this.parseExcelDate(values[12]),
-        currentStatus: values[13] || "",
+        currentStatus: typeof values[13] === 'string' ? values[13] : "",
         currentStatusDate: this.parseExcelDate(values[14]),
-        genThrustStatus: values[15] || "",
-        shopStatus: values[16] || "",
-        trackingNumber: values[17] || "",
+        genThrustStatus: typeof values[15] === 'string' ? values[15] : "",
+        shopStatus: typeof values[16] === 'string' ? values[16] : "",
+        trackingNumber: typeof values[17] === 'string' ? values[17] : "",
         notes,
         lastDateUpdated: lastUpdated,
         nextDateToUpdate: nextUpdate,
-        checked: values[21] || "",
+        checked: typeof values[21] === 'string' ? values[21] : "",
         statusHistory,
         daysOverdue,
         isOverdue,
@@ -1108,9 +1196,9 @@ class ExcelService {
   }
 
   /**
-   * Get all log entries from the Excel AILogs table
+   * AI log entry interface
    */
-  async getLogsFromExcelTable(): Promise<Array<{
+  interface AILogEntry {
     id: string;
     timestamp: Date;
     date: string;
@@ -1122,7 +1210,14 @@ class ExcelService {
     duration?: number;
     success: boolean;
     error?: string;
-  }>> {
+  }
+
+  /**
+   * Get all log entries from the Excel AILogs table
+   *
+   * @returns Array of log entries, sorted by timestamp (newest first)
+   */
+  async getLogsFromExcelTable(): Promise<AILogEntry[]> {
     try {
       const fileId = await this.getFileId();
 
@@ -1130,31 +1225,40 @@ class ExcelService {
       await this.ensureAILogsTableExists();
 
       // Get all rows
-      const response = await this.callGraphAPI(
+      const response = await this.callGraphAPI<GraphAPIResponse<GraphTableRowResponse>>(
         `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/Logs/tables/AILogs/rows`
       );
 
+      if (!response) {
+        logger.warn('Empty response when fetching AI logs');
+        return [];
+      }
+
       const rows = response.value || [];
 
-      return rows.map((row: any, index: number) => {
+      const logs: AILogEntry[] = rows.map((row, index): AILogEntry => {
         const values = row.values[0];
 
         return {
           id: `log-${index}`,
-          timestamp: new Date(values[0]),
-          date: values[1] || '',
-          user: values[2] || '',
-          userMessage: values[3] || '',
-          aiResponse: values[4] || '',
-          context: values[5] || undefined,
-          model: values[6] || undefined,
+          timestamp: new Date(String(values[0])),
+          date: typeof values[1] === 'string' ? values[1] : '',
+          user: typeof values[2] === 'string' ? values[2] : '',
+          userMessage: typeof values[3] === 'string' ? values[3] : '',
+          aiResponse: typeof values[4] === 'string' ? values[4] : '',
+          context: values[5] ? String(values[5]) : undefined,
+          model: values[6] ? String(values[6]) : undefined,
           duration: values[7] ? Number(values[7]) : undefined,
           success: values[8] === 'Yes',
-          error: values[9] || undefined
+          error: values[9] ? String(values[9]) : undefined
         };
-      }).sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime()); // Newest first
+      });
+
+      // Sort by timestamp, newest first
+      return logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     } catch (error) {
       // Failed to get logs from Excel table
+      logger.error('Failed to get logs from Excel table', error);
       return [];
     }
   }

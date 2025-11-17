@@ -6,20 +6,33 @@ import type {
   CommandContext
 } from '@/types/aiAgent';
 
-// Type definitions for Anthropic API responses
-interface ContentBlock {
+/**
+ * Anthropic API Type Definitions
+ *
+ * @description
+ * Type-safe definitions for Anthropic Claude API responses.
+ * Eliminates the need for "as any" assertions throughout the agent.
+ */
+
+/**
+ * Content block from Anthropic API response
+ */
+interface AnthropicContentBlock {
   type: 'text' | 'tool_use';
   text?: string;
   id?: string;
   name?: string;
-  input?: any;
+  input?: Record<string, unknown>; // Tool-specific input, properly typed
 }
 
+/**
+ * Main Anthropic API response structure
+ */
 interface AnthropicResponse {
   id: string;
   type: string;
   role: string;
-  content: ContentBlock[];
+  content: AnthropicContentBlock[];
   model: string;
   stop_reason: string | null;
   stop_sequence: string | null;
@@ -29,6 +42,9 @@ interface AnthropicResponse {
   };
 }
 
+/**
+ * Backend proxy API response wrapper
+ */
 interface BackendAPIResponse {
   success: boolean;
   response: AnthropicResponse;
@@ -40,6 +56,46 @@ interface BackendAPIResponse {
       output_tokens: number;
     };
   };
+}
+
+/**
+ * Message structure for conversation history
+ */
+interface AnthropicMessage {
+  role: 'user' | 'assistant';
+  content: string | AnthropicMessageContent[];
+}
+
+/**
+ * Message content for complex messages (tool results, etc.)
+ */
+interface AnthropicMessageContent {
+  type: 'text' | 'tool_result';
+  text?: string;
+  tool_use_id?: string;
+  content?: string;
+  is_error?: boolean;
+}
+
+/**
+ * Backend API request payload
+ */
+interface BackendAPIPayload {
+  messages: AnthropicMessage[];
+  model: string;
+  maxTokens: number;
+  temperature: number;
+  tools: unknown[];
+  systemPrompt: string;
+  userId: string;
+}
+
+/**
+ * HTTP Error with status code
+ */
+interface HTTPError extends Error {
+  status: number;
+  message: string;
 }
 
 export class AnthropicAgent {
@@ -68,8 +124,8 @@ export class AnthropicAgent {
     // Build messages array with conversation history for context
     // Only include last 10 messages to avoid token limits
     const recentHistory = conversationHistory.slice(-10);
-    const messages: any[] = [
-      ...recentHistory.map(msg => ({
+    const messages: AnthropicMessage[] = [
+      ...recentHistory.map((msg): AnthropicMessage => ({
         role: msg.role,
         content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
       })),
@@ -131,10 +187,11 @@ export class AnthropicAgent {
                 content: typeof result === 'string' ? result : JSON.stringify(result, null, 2)
               });
 
-            } catch (error: any) {
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
               toolResults.push({
                 tool_use_id: toolUseId,
-                content: `Error: ${error.message}`,
+                content: `Error: ${errorMessage}`,
                 is_error: true
               });
             }
@@ -171,14 +228,20 @@ export class AnthropicAgent {
           continueLoop = false;
         }
 
-      } catch (error: any) {
+      } catch (error) {
+        // Type guard for HTTP errors with status codes
+        const isHTTPError = (err: unknown): err is HTTPError => {
+          return typeof err === 'object' && err !== null && 'status' in err;
+        };
+
         // Handle rate limiting
-        if (error.status === 429) {
+        if (isHTTPError(error) && error.status === 429) {
           throw new Error(`Rate limit exceeded. ${error.message}`);
         }
 
         // Error calling backend API
-        throw new Error(`AI Agent Error: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`AI Agent Error: ${errorMessage}`);
       }
     }
 
@@ -189,7 +252,15 @@ export class AnthropicAgent {
     };
   }
 
-  private async callBackendAPI(payload: any): Promise<BackendAPIResponse> {
+  /**
+   * Call the backend API proxy with proper error handling
+   *
+   * @param payload - The request payload containing messages, tools, etc.
+   * @returns The backend API response
+   * @throws {HTTPError} For rate limiting or HTTP errors
+   * @throws {Error} For network or parsing errors
+   */
+  private async callBackendAPI(payload: BackendAPIPayload): Promise<BackendAPIResponse> {
     const endpoint = `${this.backendUrl}/api/ai/chat`;
 
     try {
@@ -203,18 +274,22 @@ export class AnthropicAgent {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({
+          message: `HTTP ${response.status}: ${response.statusText}`,
+          retryAfter: 60
+        }));
 
-        // Handle rate limiting
+        // Handle rate limiting - throw special error
         if (response.status === 429) {
           const retryAfter = errorData.retryAfter || 60;
-          throw {
-            status: 429,
-            message: errorData.message || `Rate limit exceeded. Try again in ${retryAfter} seconds.`
-          };
+          const httpError: HTTPError = Object.assign(
+            new Error(errorData.message || `Rate limit exceeded. Try again in ${retryAfter} seconds.`),
+            { status: 429 }
+          );
+          throw httpError;
         }
 
-        // Handle other errors
+        // Handle other HTTP errors
         throw new Error(
           errorData.message || `Backend API error: ${response.status} ${response.statusText}`
         );
@@ -228,13 +303,20 @@ export class AnthropicAgent {
 
       return data;
 
-    } catch (error: any) {
-      // Network or parsing errors
-      if (error.status === 429) {
-        throw error; // Re-throw rate limit errors
+    } catch (error) {
+      // Type guard for HTTP errors
+      const isHTTPError = (err: unknown): err is HTTPError => {
+        return typeof err === 'object' && err !== null && 'status' in err;
+      };
+
+      // Re-throw rate limit errors as-is
+      if (isHTTPError(error) && error.status === 429) {
+        throw error;
       }
 
-      throw new Error(`Failed to connect to AI backend: ${error.message}`);
+      // Wrap other errors
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to connect to AI backend: ${errorMessage}`);
     }
   }
 
