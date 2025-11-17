@@ -14,6 +14,7 @@ import { ShopAnalyticsTab } from "./components/ShopAnalyticsTab";
 import { AIAgentDialog } from "./components/AIAgentDialog";
 import { LogsDialog } from "./components/LogsDialog";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
 import { LogOut, RefreshCw, ClipboardList, Store, Sparkles, FileText, Package, BarChart3 } from "lucide-react";
@@ -96,6 +97,19 @@ function App() {
     queryClient.invalidateQueries();
   };
 
+  const handleErrorSignIn = async () => {
+    try {
+      await instance.loginPopup(loginRequest);
+    } catch (e: any) {
+      if (e.errorCode === "interaction_in_progress") {
+        await instance.clearCache();
+        window.location.reload();
+      } else if (e.message?.includes("popup") || e.message?.includes("CORS")) {
+        await instance.loginRedirect(loginRequest);
+      }
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
@@ -160,8 +174,9 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-background">
-      <header className="bg-gradient-header border-b border-deep-blue/20 sticky top-0 z-50 shadow-[0_4px_16px_rgba(12,74,110,0.15)]">
+    <ErrorBoundary level="app" onSignIn={handleErrorSignIn} resetKeys={[currentView, isAuthenticated]}>
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-background">
+        <header className="bg-gradient-header border-b border-deep-blue/20 sticky top-0 z-50 shadow-[0_4px_16px_rgba(12,74,110,0.15)]">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
           <div className="flex justify-between items-center py-3 md:py-4">
             <div className="flex items-center gap-2 md:gap-3">
@@ -285,21 +300,25 @@ function App() {
       <main className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
         <div className="space-y-6 sm:space-y-8">
           {currentView === "repairs" ? (
-            <>
-              {/* Dashboard Summary - Top metrics and RO table */}
+            <ErrorBoundary level="route" resetKeys={["repairs"]}>
               <Dashboard />
-            </>
+            </ErrorBoundary>
           ) : currentView === "inventory" ? (
-            <InventorySearchTab />
+            <ErrorBoundary level="route" resetKeys={["inventory"]}>
+              <InventorySearchTab />
+            </ErrorBoundary>
           ) : currentView === "shops" ? (
-            <ShopDirectory />
+            <ErrorBoundary level="route" resetKeys={["shops"]}>
+              <ShopDirectory />
+            </ErrorBoundary>
           ) : currentView === "analytics" && hasAdvancedAccess ? (
-            <ShopAnalyticsTab />
+            <ErrorBoundary level="route" resetKeys={["analytics"]}>
+              <ShopAnalyticsTab />
+            </ErrorBoundary>
           ) : (
-            <>
-              {/* Fallback to Dashboard if unauthorized access attempted */}
+            <ErrorBoundary level="route" resetKeys={["repairs-fallback"]}>
               <Dashboard />
-            </>
+            </ErrorBoundary>
           )}
         </div>
       </main>
@@ -311,7 +330,8 @@ function App() {
 
       {/* Logs Dialog */}
       <LogsDialog open={showLogs} onOpenChange={setShowLogs} />
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }
 
