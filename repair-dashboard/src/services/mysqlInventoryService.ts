@@ -43,6 +43,35 @@ export interface InventoryTransaction {
   notes?: string;
 }
 
+export interface LowStockItem {
+  indexId: string;
+  partNumber: string;
+  tableName: string;
+  rowId: string;
+  serialNumber: string;
+  currentQty: number;
+  condition: string;
+  location: string;
+  description: string;
+  lastSeen: string;
+  usage90Days: number;
+  transactionCount90Days: number;
+  monthlyUsageRate: number;
+  lastUsedDate: string | null;
+  lastRONumber: string | null;
+  recommendedReorder: number;
+  urgency: 'critical' | 'high' | 'medium' | 'low';
+  daysUntilStockout: number | null;
+}
+
+export interface LowStockResponse {
+  threshold: number;
+  totalLowStockItems: number;
+  criticalItems: number;
+  highUrgencyItems: number;
+  items: LowStockItem[];
+}
+
 class MySQLInventoryService {
   private apiUrl: string;
 
@@ -197,6 +226,31 @@ class MySQLInventoryService {
       return stats;
     } catch (error) {
       logger.error('Get stats failed', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get low stock parts with usage analysis
+   */
+  async getLowStockParts(threshold: number = 5): Promise<LowStockResponse> {
+    logger.info('Getting low stock parts', { threshold });
+
+    try {
+      const response = await this.apiRequest<LowStockResponse>(
+        `/inventory/low-stock?threshold=${threshold}`
+      );
+
+      logger.info('Low stock query completed', {
+        threshold,
+        totalItems: response.totalLowStockItems,
+        criticalItems: response.criticalItems,
+        highUrgencyItems: response.highUrgencyItems
+      });
+
+      return response;
+    } catch (error) {
+      logger.error('Low stock query failed', error, { threshold });
       throw error;
     }
   }
