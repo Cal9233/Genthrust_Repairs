@@ -86,6 +86,7 @@ const validateChatRequest = (req, res, next) => {
 
   // Validate model
   const validModels = [
+    'claude-sonnet-4-20250514',
     'claude-3-5-sonnet-20241022',
     'claude-3-5-sonnet-20240620',
     'claude-3-opus-20240229',
@@ -125,9 +126,9 @@ router.post('/chat', rateLimiter, validateChatRequest, async (req, res) => {
   try {
     const {
       messages,
-      model = 'claude-3-5-sonnet-20241022',
+      model = 'claude-sonnet-4-20250514',
       maxTokens = 4096,
-      temperature = 0.7,
+      temperature = 0.2,
       tools,
       systemPrompt,
       stream = false,
@@ -238,7 +239,7 @@ router.get('/health', async (req, res) => {
     res.json({
       status: 'ok',
       message: 'AI proxy is ready',
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-20250514',
       rateLimit: {
         maxRequests: MAX_REQUESTS_PER_WINDOW,
         windowSeconds: RATE_LIMIT_WINDOW / 1000
