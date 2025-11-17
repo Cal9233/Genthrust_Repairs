@@ -27,6 +27,7 @@ This document serves as the **primary knowledge base** for Claude (AI assistant)
   - UI components → `view.md`
   - Data structures → `data_models.md`
   - Workflows → `workflows.md`
+  - Error handling → `error_handling.md`
 
 ### 2. Knowledge Management
 - **Never rely solely on conversation context** - use retrieval
@@ -159,7 +160,8 @@ Genthrust_Repairs/
 │   ├── dal.md                 # Data access layer
 │   ├── view.md                # View/UI layer
 │   ├── data_models.md         # Data structures
-│   └── workflows.md           # Key workflows
+│   ├── workflows.md           # Key workflows
+│   └── error_handling.md      # Error handling & recovery system
 │
 ├── backend/                   # Node.js Express server
 │   ├── server.js             # Entry point
