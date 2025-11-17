@@ -20,7 +20,6 @@
     "ios": "npm run build && npx cap sync ios && npx cap open ios"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.68.0",
     "@azure/msal-browser": "^4.26.1",
     "@azure/msal-node": "^2.15.0",
     "@azure/msal-react": "^3.0.21",
