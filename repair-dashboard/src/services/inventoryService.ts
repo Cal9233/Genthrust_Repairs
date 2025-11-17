@@ -6,6 +6,7 @@
 
 import type { IPublicClientApplication } from "@azure/msal-browser";
 import { mysqlInventoryService } from "./mysqlInventoryService";
+import type { LowStockResponse } from "./mysqlInventoryService";
 import { createLogger } from '@/utils/logger';
 
 const logger = createLogger('InventoryService');
@@ -44,6 +45,9 @@ export interface InventoryTransaction {
   user: string;
   notes?: string;
 }
+
+// Re-export types from mysqlInventoryService
+export type { LowStockItem, LowStockResponse } from "./mysqlInventoryService";
 
 class MySQLInventoryServiceWrapper {
   private mysqlAvailable: boolean = true;
@@ -176,6 +180,16 @@ class MySQLInventoryServiceWrapper {
     return this.executeWithFallback(
       'logInventoryTransaction',
       () => mysqlInventoryService.logInventoryTransaction(transaction)
+    );
+  }
+
+  /**
+   * Get low stock parts with usage analysis and reorder recommendations
+   */
+  async getLowStockParts(threshold: number = 5): Promise<LowStockResponse> {
+    return this.executeWithFallback(
+      'getLowStockParts',
+      () => mysqlInventoryService.getLowStockParts(threshold)
     );
   }
 

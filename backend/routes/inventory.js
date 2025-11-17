@@ -365,4 +365,131 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+/**
+ * Get low stock parts with usage analysis and supplier data
+ * GET /api/inventory/low-stock?threshold=5
+ *
+ * Returns parts below threshold with:
+ * - Current quantity
+ * - 90-day usage rate
+ * - Recommended reorder quantity
+ * - Supplier information (if available via RO history)
+ */
+router.get('/low-stock', async (req, res) => {
+  try {
+    const threshold = parseInt(req.query.threshold) || 5;
+
+    console.log(`[Inventory API] Getting low stock parts (threshold: ${threshold})`);
+
+    // Query low stock items with 90-day usage analysis
+    const [lowStockItems] = await db.query(
+      `SELECT
+        idx.IndexId as indexId,
+        idx.PartNumber as partNumber,
+        idx.TableName as tableName,
+        idx.RowId as rowId,
+        idx.SerialNumber as serialNumber,
+        idx.Qty as currentQty,
+        idx.\`Condition\` as \`condition\`,
+        idx.Location as location,
+        idx.Description as description,
+        idx.LastSeen as lastSeen,
+        -- Calculate 90-day usage from transactions
+        COALESCE(ABS(SUM(CASE
+          WHEN txn.Action = 'DECREMENT' AND txn.Timestamp > DATE_SUB(NOW(), INTERVAL 90 DAY)
+          THEN txn.DeltaQty
+          ELSE 0
+        END)), 0) as usage90Days,
+        -- Count of transactions in last 90 days
+        COUNT(CASE
+          WHEN txn.Timestamp > DATE_SUB(NOW(), INTERVAL 90 DAY)
+          THEN 1
+          ELSE NULL
+        END) as transactionCount90Days,
+        -- Most recent transaction date
+        MAX(txn.Timestamp) as lastUsedDate,
+        -- Most recent RO that used this part
+        (SELECT txn2.RONumber
+         FROM transactions txn2
+         WHERE txn2.PartNumber = idx.PartNumber
+           AND txn2.RONumber IS NOT NULL
+         ORDER BY txn2.Timestamp DESC
+         LIMIT 1) as lastRONumber
+      FROM inventoryindex idx
+      LEFT JOIN transactions txn ON txn.PartNumber = idx.PartNumber
+      WHERE idx.Qty <= ?
+      GROUP BY
+        idx.IndexId, idx.PartNumber, idx.TableName, idx.RowId,
+        idx.SerialNumber, idx.Qty, idx.\`Condition\`, idx.Location,
+        idx.Description, idx.LastSeen
+      ORDER BY idx.Qty ASC, usage90Days DESC`,
+      [threshold]
+    );
+
+    // Calculate reorder quantities and format response
+    const results = lowStockItems.map(item => {
+      const usage90Days = parseFloat(item.usage90Days) || 0;
+      const currentQty = parseInt(item.currentQty) || 0;
+
+      // Calculate average monthly usage
+      const monthlyUsage = usage90Days / 3;
+
+      // Reorder quantity: 3 months of usage, minimum 5 units, minus current quantity
+      const recommendedReorder = Math.max(
+        Math.ceil(monthlyUsage * 3) - currentQty,
+        5 - currentQty,
+        0
+      );
+
+      // Determine urgency level
+      let urgency = 'low';
+      if (currentQty === 0) {
+        urgency = 'critical';
+      } else if (currentQty <= 2 && monthlyUsage > 0) {
+        urgency = 'high';
+      } else if (currentQty <= threshold / 2) {
+        urgency = 'medium';
+      }
+
+      return {
+        indexId: item.indexId?.toString(),
+        partNumber: item.partNumber,
+        tableName: item.tableName,
+        rowId: item.rowId?.toString(),
+        serialNumber: item.serialNumber,
+        currentQty,
+        condition: item.condition,
+        location: item.location,
+        description: item.description,
+        lastSeen: item.lastSeen,
+        usage90Days,
+        transactionCount90Days: parseInt(item.transactionCount90Days) || 0,
+        monthlyUsageRate: parseFloat(monthlyUsage.toFixed(2)),
+        lastUsedDate: item.lastUsedDate,
+        lastRONumber: item.lastRONumber,
+        recommendedReorder,
+        urgency,
+        daysUntilStockout: monthlyUsage > 0
+          ? Math.floor((currentQty / monthlyUsage) * 30)
+          : null
+      };
+    });
+
+    console.log(`[Inventory API] Found ${results.length} low stock parts`);
+    res.json({
+      threshold,
+      totalLowStockItems: results.length,
+      criticalItems: results.filter(r => r.urgency === 'critical').length,
+      highUrgencyItems: results.filter(r => r.urgency === 'high').length,
+      items: results
+    });
+  } catch (error) {
+    console.error('[Inventory API] Low stock query error:', error);
+    res.status(500).json({
+      error: 'Database error',
+      message: error.message
+    });
+  }
+});
+
 export default router;

@@ -321,10 +321,16 @@ export const tools: Tool[] = [
   },
   {
     name: "check_low_stock",
-    description: "Get a list of all parts in inventory that are below the low stock threshold (< 2 units). Useful for reordering checks and inventory management.",
+    description: "Get a list of all parts in inventory that are below the low stock threshold. Returns detailed information including current quantity, 90-day usage patterns, recommended reorder quantities, and urgency levels. Useful for reordering checks and inventory management.",
     input_schema: {
       type: "object",
-      properties: {},
+      properties: {
+        threshold: {
+          type: "number",
+          description: "Maximum quantity threshold for low stock alert (default: 5). Parts with quantity <= this value will be returned.",
+          default: 5
+        }
+      },
       required: []
     }
   }
@@ -1076,23 +1082,115 @@ export const toolExecutors: Record<string, ToolExecutor> = {
     }
   },
 
-  check_low_stock: async (_input, _context) => {
+  check_low_stock: async (input, context) => {
     try {
-      // We need to query the index for all parts with qty < 2
-      // Since we don't have a direct API for this, we'll need to implement it
-      // For now, we'll return a message indicating this needs manual implementation
-      // TODO: Implement direct index query or add a getLowStockParts method to inventoryService
+      const threshold = (input as { threshold?: number }).threshold || 5;
+
+      // Query low stock parts from inventory service
+      const lowStockResponse = await inventoryService.getLowStockParts(threshold);
+
+      // Enrich with supplier data from repair order history
+      const enrichedItems = await Promise.all(
+        lowStockResponse.items.map(async (item) => {
+          // Try to find supplier info from most recent RO
+          let supplierInfo = null;
+
+          if (item.lastRONumber) {
+            try {
+              // Find the RO to get shop info
+              const allROs = context?.repairOrders || [];
+              const relatedRO = allROs.find(
+                ro => ro.roNumber === item.lastRONumber
+              );
+
+              if (relatedRO && relatedRO.shopName) {
+                // Find shop details
+                const shops = context?.shops || [];
+                const supplier = shops.find(
+                  shop => shop.businessName === relatedRO.shopName ||
+                          shop.shopName === relatedRO.shopName
+                );
+
+                if (supplier) {
+                  supplierInfo = {
+                    name: supplier.businessName || supplier.shopName,
+                    contact: supplier.contact,
+                    phone: supplier.phone,
+                    email: supplier.email,
+                    paymentTerms: supplier.paymentTerms,
+                    lastOrderDate: relatedRO.dateMade ?
+                      new Date(relatedRO.dateMade).toISOString().split('T')[0] :
+                      null
+                  };
+                }
+              }
+            } catch (err) {
+              // Silently continue if we can't find supplier info
+            }
+          }
+
+          return {
+            ...item,
+            supplierInfo
+          };
+        })
+      );
+
+      // Format for AI consumption
+      const summary = {
+        threshold,
+        totalLowStockItems: lowStockResponse.totalLowStockItems,
+        criticalItems: lowStockResponse.criticalItems,
+        highUrgencyItems: lowStockResponse.highUrgencyItems,
+        mediumUrgencyItems: enrichedItems.filter(i => i.urgency === 'medium').length,
+        lowUrgencyItems: enrichedItems.filter(i => i.urgency === 'low').length
+      };
+
+      // Group by urgency for better AI presentation
+      const itemsByUrgency = {
+        critical: enrichedItems.filter(i => i.urgency === 'critical'),
+        high: enrichedItems.filter(i => i.urgency === 'high'),
+        medium: enrichedItems.filter(i => i.urgency === 'medium'),
+        low: enrichedItems.filter(i => i.urgency === 'low')
+      };
 
       return {
-        success: false,
-        error: 'Low stock check requires direct index access. Please use the Inventory Search tab to filter by quantity manually.',
-        todo: 'Implement inventoryService.getLowStockParts() method'
+        success: true,
+        summary,
+        itemsByUrgency,
+        allItems: enrichedItems,
+        recommendations: enrichedItems
+          .filter(item => item.recommendedReorder > 0)
+          .map(item => ({
+            partNumber: item.partNumber,
+            description: item.description,
+            currentQty: item.currentQty,
+            recommendedReorder: item.recommendedReorder,
+            urgency: item.urgency,
+            daysUntilStockout: item.daysUntilStockout,
+            monthlyUsageRate: item.monthlyUsageRate,
+            supplier: item.supplierInfo?.name || 'Unknown',
+            location: item.location
+          })),
+        message: lowStockResponse.totalLowStockItems === 0
+          ? `No low stock items found (threshold: ${threshold} units)`
+          : `Found ${lowStockResponse.totalLowStockItems} low stock items (${lowStockResponse.criticalItems} critical, ${lowStockResponse.highUrgencyItems} high urgency)`
       };
 
     } catch (error: any) {
+      // Handle MySQL connection failures gracefully
+      if (error.message?.includes('MySQL') || error.message?.includes('Inventory operation failed')) {
+        return {
+          success: false,
+          error: 'Unable to check low stock: MySQL inventory database is currently unavailable. Please try again later or check the database connection.',
+          retry_suggestion: 'The inventory service may be temporarily down. Wait a moment and retry your request.'
+        };
+      }
+
       return {
         success: false,
-        error: error.message || 'Failed to check low stock'
+        error: error.message || 'Failed to check low stock',
+        details: error.toString()
       };
     }
   }
