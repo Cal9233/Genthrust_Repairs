@@ -1,5 +1,6 @@
 import { median, medianAbsoluteDeviation } from 'simple-statistics';
 import type { RepairOrder } from '../types';
+import { analyticsCache, type CacheKeyOptions } from './analyticsCache';
 
 // State center coordinates for distance calculation
 const STATE_COORDS: Record<string, { lat: number; lon: number }> = {
@@ -69,14 +70,8 @@ export interface PredictionResult {
   status: 'on-track' | 'at-risk' | 'overdue';
 }
 
-// Cache for shop analytics profiles
-interface CacheEntry {
-  profiles: Map<string, ShopAnalyticsProfile>;
-  timestamp: number;
-}
-
-let analyticsCache: CacheEntry | null = null;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// Analytics cache is now managed by analyticsCache.ts
+// Old time-based cache removed in favor of event-driven invalidation
 
 /**
  * Normalize shop name to handle duplicates with slight variations
@@ -303,19 +298,23 @@ function buildShopProfile(
 }
 
 /**
- * Build analytics profiles for all shops (with caching)
+ * Build analytics profiles for all shops (with event-driven caching)
  */
 export function buildShopAnalytics(
   repairOrders: RepairOrder[],
   forceRefresh = false
 ): Map<string, ShopAnalyticsProfile> {
-  const now = Date.now();
+  // Try to get from cache first
+  const cacheKey: CacheKeyOptions = { type: 'global' };
 
-  // Return cached data if valid
-  if (!forceRefresh && analyticsCache && now - analyticsCache.timestamp < CACHE_TTL) {
-    return analyticsCache.profiles;
+  if (!forceRefresh) {
+    const cached = analyticsCache.get<Map<string, ShopAnalyticsProfile>>(cacheKey);
+    if (cached) {
+      return cached;
+    }
   }
 
+  // Cache miss - compute analytics
   // Group ROs by normalized shop name (to consolidate duplicates)
   const normalizedGroups = new Map<string, {
     ros: RepairOrder[];
@@ -358,11 +357,8 @@ export function buildShopAnalytics(
     }
   }
 
-  // Update cache
-  analyticsCache = {
-    profiles,
-    timestamp: now,
-  };
+  // Store in cache
+  analyticsCache.set(cacheKey, profiles);
 
   return profiles;
 }
@@ -371,7 +367,153 @@ export function buildShopAnalytics(
  * Invalidate analytics cache (call on RO updates)
  */
 export function invalidateAnalyticsCache(): void {
-  analyticsCache = null;
+  analyticsCache.invalidateAll();
+}
+
+/**
+ * Get shop analytics for a specific shop (with granular caching)
+ */
+export function getShopAnalytics(
+  shopName: string,
+  repairOrders: RepairOrder[],
+  forceRefresh = false
+): ShopAnalyticsProfile | null {
+  const cacheKey: CacheKeyOptions = { type: 'shop', shopName };
+
+  if (!forceRefresh) {
+    const cached = analyticsCache.get<ShopAnalyticsProfile>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  }
+
+  // Cache miss - compute for this shop
+  const normalizedName = normalizeShopName(shopName);
+  const shopROs = repairOrders.filter(
+    ro => normalizeShopName(ro.shopName || '') === normalizedName
+  );
+
+  if (shopROs.length === 0) {
+    return null;
+  }
+
+  const profile = buildShopProfile(shopName, shopROs);
+
+  if (profile) {
+    analyticsCache.set(cacheKey, profile);
+  }
+
+  return profile;
+}
+
+/**
+ * Get analytics for multiple shops (with granular caching)
+ */
+export function getShopsAnalytics(
+  shopNames: string[],
+  repairOrders: RepairOrder[],
+  forceRefresh = false
+): Map<string, ShopAnalyticsProfile> {
+  const cacheKey: CacheKeyOptions = { type: 'shopList', shopNames };
+
+  if (!forceRefresh) {
+    const cached = analyticsCache.get<Map<string, ShopAnalyticsProfile>>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  }
+
+  // Cache miss - compute for these shops
+  const profiles = new Map<string, ShopAnalyticsProfile>();
+
+  for (const shopName of shopNames) {
+    const profile = getShopAnalytics(shopName, repairOrders, forceRefresh);
+    if (profile) {
+      profiles.set(shopName, profile);
+    }
+  }
+
+  // Store aggregate result
+  analyticsCache.set(cacheKey, profiles);
+
+  return profiles;
+}
+
+/**
+ * Get analytics by status (with granular caching)
+ */
+export function getAnalyticsByStatus(
+  status: string,
+  repairOrders: RepairOrder[],
+  forceRefresh = false
+): Map<string, ShopAnalyticsProfile> {
+  const cacheKey: CacheKeyOptions = { type: 'status', status };
+
+  if (!forceRefresh) {
+    const cached = analyticsCache.get<Map<string, ShopAnalyticsProfile>>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  }
+
+  // Cache miss - compute for this status
+  const filteredROs = repairOrders.filter(ro => ro.currentStatus === status);
+  const profiles = buildShopAnalytics(filteredROs, true);
+
+  analyticsCache.set(cacheKey, profiles);
+
+  return profiles;
+}
+
+/**
+ * Get analytics for date range (with granular caching)
+ */
+export function getAnalyticsByDateRange(
+  startDate: string,
+  endDate: string,
+  repairOrders: RepairOrder[],
+  forceRefresh = false
+): Map<string, ShopAnalyticsProfile> {
+  const cacheKey: CacheKeyOptions = { type: 'dateRange', startDate, endDate };
+
+  if (!forceRefresh) {
+    const cached = analyticsCache.get<Map<string, ShopAnalyticsProfile>>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  }
+
+  // Cache miss - compute for this date range
+  const start = new Date(startDate).getTime();
+  const end = new Date(endDate).getTime();
+
+  const filteredROs = repairOrders.filter(ro => {
+    if (!ro.dateMade) return false;
+    const roDate = new Date(ro.dateMade).getTime();
+    return roDate >= start && roDate <= end;
+  });
+
+  const profiles = buildShopAnalytics(filteredROs, true);
+
+  analyticsCache.set(cacheKey, profiles);
+
+  return profiles;
+}
+
+/**
+ * Warm cache with common queries (call on app initialization)
+ */
+export async function warmAnalyticsCache(repairOrders: RepairOrder[]): Promise<void> {
+  await analyticsCache.warm(repairOrders, async (options) => {
+    switch (options.type) {
+      case 'global':
+        return buildShopAnalytics(repairOrders, true);
+      case 'shop':
+        return getShopAnalytics(options.shopName!, repairOrders, true);
+      default:
+        return null;
+    }
+  });
 }
 
 /**

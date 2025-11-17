@@ -3,6 +3,10 @@ import { excelService } from "../lib/excelService";
 import type { DashboardStats } from "../types";
 import { toast } from "sonner";
 import { isDueToday, isOnTrack } from "../lib/businessRules";
+import { analyticsCache, createInvalidationEvent } from "../services/analyticsCache";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger('useROs');
 
 export function useROs() {
   return useQuery({
@@ -36,13 +40,32 @@ export function useUpdateROStatus() {
       cost?: number;
       deliveryDate?: Date;
     }) => excelService.updateROStatus(rowIndex, status, notes, cost, deliveryDate),
-    onSuccess: () => {
+    onSuccess: async (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+
+      // Invalidate analytics cache - get RO to find affected shop
+      try {
+        const ros = await excelService.getRepairOrders();
+        const updatedRO = ros.find((ro) => parseInt(ro.id.replace("row-", "")) === variables.rowIndex);
+
+        if (updatedRO) {
+          const event = createInvalidationEvent('update', [updatedRO]);
+          analyticsCache.invalidate(event);
+          logger.debug('Analytics cache invalidated after status update', {
+            roNumber: updatedRO.roNumber,
+            shopName: updatedRO.shopName,
+          });
+        }
+      } catch (error) {
+        logger.error('Failed to invalidate analytics cache', error);
+      }
+
       toast.success("Status updated successfully");
     },
     onError: (error) => {
-      console.error("Update error:", error);
+      logger.error("Update error", error);
       toast.error("Failed to update status");
     },
   });
@@ -63,13 +86,26 @@ export function useAddRepairOrder() {
       terms?: string;
       shopReferenceNumber?: string;
     }) => excelService.addRepairOrder(data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+
+      // Invalidate analytics cache for the affected shop
+      analyticsCache.invalidate({
+        reason: 'create',
+        affectedShops: [variables.shopName],
+        timestamp: Date.now(),
+      });
+      logger.debug('Analytics cache invalidated after RO creation', {
+        roNumber: variables.roNumber,
+        shopName: variables.shopName,
+      });
+
       toast.success("Repair order created successfully");
     },
     onError: (error) => {
-      console.error("Create error:", error);
+      logger.error("Create error", error);
       toast.error("Failed to create repair order");
     },
   });
@@ -96,13 +132,26 @@ export function useUpdateRepairOrder() {
         shopReferenceNumber?: string;
       };
     }) => excelService.updateRepairOrder(rowIndex, data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+
+      // Invalidate analytics cache for the affected shop
+      analyticsCache.invalidate({
+        reason: 'update',
+        affectedShops: [variables.data.shopName],
+        timestamp: Date.now(),
+      });
+      logger.debug('Analytics cache invalidated after RO update', {
+        roNumber: variables.data.roNumber,
+        shopName: variables.data.shopName,
+      });
+
       toast.success("Repair order updated successfully");
     },
     onError: (error) => {
-      console.error("Update error:", error);
+      logger.error("Update error", error);
       toast.error("Failed to update repair order");
     },
   });
@@ -113,13 +162,21 @@ export function useDeleteRepairOrder() {
 
   return useMutation({
     mutationFn: (rowIndex: number) => excelService.deleteRepairOrder(rowIndex),
-    onSuccess: () => {
+    onSuccess: async (_, rowIndex) => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+
+      // Invalidate all analytics cache on delete (we don't know which shop was affected)
+      analyticsCache.invalidateAll();
+      logger.debug('All analytics cache invalidated after RO deletion', {
+        rowIndex,
+      });
+
       toast.success("Repair order deleted successfully");
     },
     onError: (error) => {
-      console.error("Delete error:", error);
+      logger.error("Delete error", error);
       toast.error("Failed to delete repair order");
     },
   });
@@ -149,10 +206,23 @@ export function useBulkUpdateStatus() {
       });
 
       await Promise.all(updates);
+      return allROs.filter((ro) => roNumbers.includes(ro.roNumber));
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (affectedROs, variables) => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+
+      // Invalidate analytics cache for all affected shops
+      if (affectedROs && affectedROs.length > 0) {
+        const event = createInvalidationEvent('update', affectedROs);
+        analyticsCache.invalidate(event);
+        logger.debug('Analytics cache invalidated after bulk update', {
+          roCount: affectedROs.length,
+          affectedShops: event.affectedShops,
+        });
+      }
+
       toast.success(
         `Successfully updated ${variables.roNumbers.length} repair order${
           variables.roNumbers.length > 1 ? "s" : ""
@@ -160,7 +230,7 @@ export function useBulkUpdateStatus() {
       );
     },
     onError: (error) => {
-      console.error("Bulk update error:", error);
+      logger.error("Bulk update error", error);
       toast.error("Failed to update repair orders");
     },
   });
@@ -179,13 +249,19 @@ export function useArchiveRO() {
       targetSheetName: string;
       targetTableName: string;
     }) => excelService.moveROToArchive(rowIndex, targetSheetName, targetTableName),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+
+      // Invalidate all analytics cache on archive (RO removed from active list)
+      analyticsCache.invalidateAll();
+      logger.debug('All analytics cache invalidated after RO archive');
+
       toast.success("Repair order archived successfully");
     },
     onError: (error) => {
-      console.error("Archive error:", error);
+      logger.error("Archive error", error);
       toast.error("Failed to archive repair order");
     },
   });
