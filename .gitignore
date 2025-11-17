@@ -1,2 +1,12 @@
 # Local Netlify folder
 .netlify
+
+# Data files - never commit
+*.xlsx
+*.xls
+*.csv
+*.backup
+
+# Temporary docs
+cleanup.md
+**/DEMO_*.md
