@@ -28,6 +28,7 @@ This document serves as the **primary knowledge base** for Claude (AI assistant)
   - Data structures → `data_models.md`
   - Workflows → `workflows.md`
   - Error handling → `error_handling.md`
+  - Testing strategy → `testing.md`
 
 ### 2. Knowledge Management
 - **Never rely solely on conversation context** - use retrieval
@@ -367,6 +368,13 @@ npm start    # http://localhost:3001
 - User workflows change
 - New automated processes are added
 - Integration workflows are modified
+
+### Update `.claude/testing.md` when:
+- New test suites are added
+- Test infrastructure changes (new mocking strategies)
+- Testing strategy or philosophy changes
+- Test coverage targets are updated
+- New testing tools or libraries are integrated
 
 ---
 
