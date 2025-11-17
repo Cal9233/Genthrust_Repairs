@@ -25,6 +25,7 @@ import {
 } from "../lib/emailTemplates";
 import { Mail, Copy, ExternalLink, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useLogger } from '@/utils/logger';
 
 interface EmailComposerDialogProps {
   ro: RepairOrder;
@@ -41,6 +42,11 @@ export function EmailComposerDialog({
   onClose,
   onLogEmail,
 }: EmailComposerDialogProps) {
+  const logger = useLogger('EmailComposerDialog', {
+    roNumber: ro.roNumber,
+    open
+  });
+
   const availableTemplates = getAvailableTemplates(ro.currentStatus);
   const [selectedTemplate, setSelectedTemplate] = useState(availableTemplates[0]);
   const [to, setTo] = useState("");
@@ -69,8 +75,11 @@ export function EmailComposerDialog({
       }
       onClose();
     } catch (error) {
+      logger.error('Clipboard copy error', error as Error, {
+        roNumber: ro.roNumber,
+        template: selectedTemplate
+      });
       toast.error("Failed to copy to clipboard");
-      console.error("Clipboard error:", error);
     }
   };
 

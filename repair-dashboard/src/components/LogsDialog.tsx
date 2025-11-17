@@ -12,6 +12,7 @@ import { loggingService } from '@/lib/loggingService';
 import { excelService } from '@/lib/excelService';
 import { FileText, Download, Trash2, RefreshCw, Calendar, AlertCircle, Table } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLogger } from '@/utils/logger';
 
 interface LogsDialogProps {
   open: boolean;
@@ -35,6 +36,8 @@ interface ExcelLog {
 }
 
 export function LogsDialog({ open, onOpenChange }: LogsDialogProps) {
+  const logger = useLogger('LogsDialog', { open });
+
   const [logSource, setLogSource] = useState<LogSource>('text');
   const [logFiles, setLogFiles] = useState<Array<{ name: string; date: Date; id: string }>>([]);
   const [selectedLog, setSelectedLog] = useState<string | null>(null);
@@ -71,7 +74,7 @@ export function LogsDialog({ open, onOpenChange }: LogsDialogProps) {
         loadLogContent(todayLog.name);
       }
     } catch (error) {
-      console.error('Failed to load log files:', error);
+      logger.error('Failed to load log files', error as Error);
       toast.error('Failed to load log files');
     } finally {
       setIsLoading(false);
@@ -84,7 +87,9 @@ export function LogsDialog({ open, onOpenChange }: LogsDialogProps) {
       const content = await loggingService.getLogFileContent(fileName);
       setLogContent(content);
     } catch (error) {
-      console.error('Failed to load log content:', error);
+      logger.error('Failed to load log content', error as Error, {
+        fileName
+      });
       toast.error('Failed to load log content');
       setLogContent('Error loading log content');
     } finally {
@@ -213,7 +218,9 @@ export function LogsDialog({ open, onOpenChange }: LogsDialogProps) {
         setSelectedLog(null);
         setLogContent('');
       } catch (error) {
-        console.error('Failed to delete log file:', error);
+        logger.error('Failed to delete log file', error as Error, {
+          fileName: selectedLog
+        });
         toast.error('Failed to delete log file');
       } finally {
         setIsDeleting(false);
@@ -236,7 +243,9 @@ export function LogsDialog({ open, onOpenChange }: LogsDialogProps) {
         await loadExcelLogs();
         setSelectedExcelLog(null);
       } catch (error) {
-        console.error('Failed to delete Excel log:', error);
+        logger.error('Failed to delete Excel log', error as Error, {
+          logId: selectedExcelLog.id
+        });
         toast.error('Failed to delete Excel log');
       } finally {
         setIsDeleting(false);

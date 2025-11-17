@@ -6,6 +6,9 @@
 
 import type { IPublicClientApplication } from "@azure/msal-browser";
 import { mysqlInventoryService } from "./mysqlInventoryService";
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('InventoryService');
 
 export interface InventorySearchResult {
   indexId: string;
@@ -67,14 +70,14 @@ class MySQLInventoryServiceWrapper {
       this.lastHealthCheck = now;
 
       if (this.mysqlAvailable) {
-        console.log('[Hybrid Inventory] ✓ MySQL backend is available');
+        logger.info('MySQL backend is available');
       } else {
-        console.warn('[Hybrid Inventory] ⚠ MySQL backend is not responding, will use SharePoint');
+        logger.warn('MySQL backend is not responding');
       }
 
       return this.mysqlAvailable;
     } catch (error) {
-      console.warn('[Hybrid Inventory] ⚠ MySQL health check failed:', error);
+      logger.warn('MySQL health check failed', error);
       this.mysqlAvailable = false;
       this.lastHealthCheck = now;
       return false;
@@ -93,9 +96,9 @@ class MySQLInventoryServiceWrapper {
 
     // Try MySQL
     try {
-      console.log(`[Inventory] Attempting ${operation} via MySQL`);
+      logger.info(`Attempting ${operation} via MySQL`);
       const result = await mysqlFn();
-      console.log(`[Inventory] ✓ ${operation} successful`);
+      logger.info(`${operation} successful`);
 
       // Mark MySQL as available if it was previously unavailable
       if (!this.mysqlAvailable) {
@@ -105,7 +108,7 @@ class MySQLInventoryServiceWrapper {
 
       return result;
     } catch (error) {
-      console.error(`[Inventory] ✗ MySQL ${operation} failed:`, error);
+      logger.error(`MySQL ${operation} failed`, error);
 
       // Mark MySQL as unavailable
       this.mysqlAvailable = false;

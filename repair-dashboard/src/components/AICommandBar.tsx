@@ -17,6 +17,7 @@ import { commandProcessorService } from '../services/commandProcessor';
 import type { ParsedCommand, CommandValidation } from '../types/aiCommand';
 import { useQueryClient } from '@tanstack/react-query';
 import { useVoiceRecognition } from '../hooks/useVoiceRecognition';
+import { useLogger } from '../utils/logger';
 
 interface AICommandBarProps {
   isOpen: boolean;
@@ -24,6 +25,8 @@ interface AICommandBarProps {
 }
 
 export function AICommandBar({ isOpen, onClose }: AICommandBarProps) {
+  const logger = useLogger('AICommandBar', { isOpen });
+
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [parsedCommand, setParsedCommand] = useState<ParsedCommand | null>(null);
@@ -114,7 +117,9 @@ export function AICommandBar({ isOpen, onClose }: AICommandBarProps) {
         toast.error(`Invalid command: ${validation.errors.join(', ')}`);
       }
     } catch (error: any) {
-      console.error('[AICommandBar] Error:', error);
+      logger.error('Command parsing error', error, {
+        inputLength: input.length
+      });
       toast.error(error.message || 'Failed to parse command');
     } finally {
       setIsProcessing(false);
@@ -146,7 +151,10 @@ export function AICommandBar({ isOpen, onClose }: AICommandBarProps) {
         toast.error(result.message);
       }
     } catch (error: any) {
-      console.error('[AICommandBar] Execute error:', error);
+      logger.error('Command execution error', error, {
+        action: parsedCommand?.action,
+        roNumber: parsedCommand?.roNumber
+      });
       toast.error(error.message || 'Failed to execute command');
     } finally {
       setIsProcessing(false);

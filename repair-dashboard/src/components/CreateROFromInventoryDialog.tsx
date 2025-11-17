@@ -25,6 +25,7 @@ import { ShopManagementDialog } from "./ShopManagementDialog";
 import { Plus, Store, Search, AlertCircle, Package, MapPin } from "lucide-react";
 import { inventoryService, type InventorySearchResult } from "../services/inventoryService";
 import { toast } from "sonner";
+import { useLogger } from '@/utils/logger';
 
 interface CreateROFromInventoryDialogProps {
   inventoryItem: InventorySearchResult | null;
@@ -39,6 +40,11 @@ export function CreateROFromInventoryDialog({
   onClose,
   onSuccess,
 }: CreateROFromInventoryDialogProps) {
+  const logger = useLogger('CreateROFromInventoryDialog', {
+    partNumber: inventoryItem?.partNumber,
+    open
+  });
+
   const [formData, setFormData] = useState({
     roNumber: "",
     shopName: "",
@@ -192,7 +198,10 @@ export function CreateROFromInventoryDialog({
             onClose();
           }
         } catch (error) {
-          console.error("[CreateROFromInventory] Decrement error:", error);
+          logger.error('Inventory decrement error', error as Error, {
+            partNumber: inventoryItem.partNumber,
+            roNumber: formData.roNumber
+          });
           toast.error(
             <div className="space-y-1">
               <div className="font-semibold">RO Created but Inventory Update Failed</div>
@@ -207,7 +216,10 @@ export function CreateROFromInventoryDialog({
         }
       },
       onError: (error) => {
-        console.error("[CreateROFromInventory] RO creation error:", error);
+        logger.error('RO creation error', error as Error, {
+          partNumber: inventoryItem.partNumber,
+          roNumber: formData.roNumber
+        });
         toast.error("Failed to create repair order");
       },
     });

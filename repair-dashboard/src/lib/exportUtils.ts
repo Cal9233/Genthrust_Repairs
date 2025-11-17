@@ -1,4 +1,7 @@
 import type { RepairOrder } from "../types";
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('exportUtils');
 
 /**
  * Format date for CSV export
@@ -108,7 +111,7 @@ function convertToCSV(ros: RepairOrder[]): string {
  */
 export function exportToCSV(ros: RepairOrder[], filename?: string): void {
   if (ros.length === 0) {
-    console.warn("No repair orders to export");
+    logger.warn('No repair orders to export');
     return;
   }
 

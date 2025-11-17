@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { shopService } from "../lib/shopService";
 import { toast } from "sonner";
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('useShops');
 
 export function useShops() {
   return useQuery({
@@ -37,8 +40,11 @@ export function useAddShop() {
       queryClient.invalidateQueries({ queryKey: ["shops"] });
       toast.success("Vendor added successfully");
     },
-    onError: (error) => {
-      console.error("Add vendor error:", error);
+    onError: (error, variables) => {
+      logger.error('Add vendor error', error as Error, {
+        businessName: variables.businessName,
+        customerNumber: variables.customerNumber
+      });
       toast.error("Failed to add vendor");
     },
   });
@@ -78,8 +84,11 @@ export function useUpdateShop() {
       queryClient.invalidateQueries({ queryKey: ["shops"] });
       toast.success("Vendor updated successfully");
     },
-    onError: (error) => {
-      console.error("Update vendor error:", error);
+    onError: (error, variables) => {
+      logger.error('Update vendor error', error as Error, {
+        rowIndex: variables.rowIndex,
+        businessName: variables.data.businessName
+      });
       toast.error("Failed to update vendor");
     },
   });
@@ -94,8 +103,10 @@ export function useDeleteShop() {
       queryClient.invalidateQueries({ queryKey: ["shops"] });
       toast.success("Vendor deleted successfully");
     },
-    onError: (error) => {
-      console.error("Delete vendor error:", error);
+    onError: (error, variables) => {
+      logger.error('Delete vendor error', error as Error, {
+        rowIndex: variables
+      });
       toast.error("Failed to delete vendor");
     },
   });

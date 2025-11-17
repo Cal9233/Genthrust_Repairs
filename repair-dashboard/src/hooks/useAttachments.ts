@@ -2,6 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { sharePointService } from '../services/sharepoint';
 import type { Attachment } from '../types';
 import { toast } from 'sonner';
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('useAttachments');
 
 /**
  * Hook to fetch attachments for a repair order
@@ -32,7 +35,11 @@ export function useUploadAttachment() {
       toast.success(`File "${variables.file.name}" uploaded successfully`);
     },
     onError: (error: Error, variables) => {
-      console.error('Upload error:', error);
+      logger.error('Upload error', error, {
+        fileName: variables.file.name,
+        roNumber: variables.roNumber,
+        fileSize: variables.file.size
+      });
       toast.error(`Failed to upload "${variables.file.name}": ${error.message}`);
     },
   });
@@ -54,7 +61,13 @@ export function useUploadMultipleAttachments() {
           const result = await sharePointService.uploadFile(roNumber, file);
           results.push(result);
         } catch (error) {
-          console.error(`Failed to upload ${file.name}:`, error);
+          logger.error('Failed to upload file in batch', error as Error, {
+            fileName: file.name,
+            roNumber,
+            fileSize: file.size,
+            filesProcessed: results.length,
+            totalFiles: files.length
+          });
           throw error;
         }
       }
@@ -65,8 +78,11 @@ export function useUploadMultipleAttachments() {
       queryClient.invalidateQueries({ queryKey: ['attachments', variables.roNumber] });
       toast.success(`Successfully uploaded ${uploadedFiles.length} file(s)`);
     },
-    onError: (error: Error) => {
-      console.error('Upload error:', error);
+    onError: (error: Error, variables) => {
+      logger.error('Batch upload error', error, {
+        roNumber: variables.roNumber,
+        fileCount: variables.files.length
+      });
       toast.error(`Failed to upload files: ${error.message}`);
     },
   });
@@ -87,8 +103,12 @@ export function useDeleteAttachment() {
       queryClient.invalidateQueries({ queryKey: ['attachments', data.roNumber] });
       toast.success(`File "${data.fileName}" deleted`);
     },
-    onError: (error: Error) => {
-      console.error('Delete error:', error);
+    onError: (error: Error, variables) => {
+      logger.error('Delete attachment error', error, {
+        fileName: variables.fileName,
+        fileId: variables.fileId,
+        roNumber: variables.roNumber
+      });
       toast.error(`Failed to delete file: ${error.message}`);
     },
   });
@@ -127,8 +147,11 @@ export function useDownloadAttachment() {
     onSuccess: (data) => {
       toast.success(`Downloading "${data.fileName}"`);
     },
-    onError: (error: Error) => {
-      console.error('Download error:', error);
+    onError: (error: Error, variables) => {
+      logger.error('Download attachment error', error, {
+        fileName: variables.fileName,
+        fileId: variables.fileId
+      });
       toast.error(`Failed to download file: ${error.message}`);
     },
   });

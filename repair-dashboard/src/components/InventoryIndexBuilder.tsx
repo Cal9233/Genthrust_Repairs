@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle2, Database, AlertCircle } from 'lucide-react';
 import { useMsal } from '@azure/msal-react';
 import { v4 as uuidv4 } from 'uuid';
+import { useLogger } from '@/utils/logger';
 
 interface BuildProgress {
   currentTable: string;
@@ -35,6 +36,7 @@ const INVENTORY_TABLES = [
 const INDEX_TABLE = 'InventoryIndexTable';
 
 export function InventoryIndexBuilder() {
+  const logger = useLogger('InventoryIndexBuilder', {});
   const { instance, accounts } = useMsal();
   const [progress, setProgress] = useState<BuildProgress>({
     currentTable: '',
@@ -289,7 +291,11 @@ export function InventoryIndexBuilder() {
           }));
         }
       } catch (error) {
-        console.error(`Failed to add row from ${tableDisplay}:`, error);
+        logger.error('Failed to add row to index', error as Error, {
+          tableName: tableDisplay,
+          partNumber: normalized,
+          rowIndex: i
+        });
       }
     }
 
