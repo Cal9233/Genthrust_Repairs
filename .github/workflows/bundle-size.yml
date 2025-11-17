@@ -1,0 +1,205 @@
+name: Bundle Size Check
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'repair-dashboard/**'
+      - '!repair-dashboard/**.md'
+  push:
+    branches: [main, master]
+    paths:
+      - 'repair-dashboard/**'
+      - '!repair-dashboard/**.md'
+
+jobs:
+  bundle-size:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for comparison
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: repair-dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: repair-dashboard
+        run: npm ci
+
+      - name: Build project
+        working-directory: repair-dashboard
+        run: npm run build
+        env:
+          # Use dummy env vars for build (CI doesn't need real credentials)
+          VITE_CLIENT_ID: ${{ secrets.VITE_CLIENT_ID || 'ci-build' }}
+          VITE_TENANT_ID: ${{ secrets.VITE_TENANT_ID || 'ci-build' }}
+          VITE_SHAREPOINT_SITE_URL: ${{ secrets.VITE_SHAREPOINT_SITE_URL || 'https://example.sharepoint.com' }}
+          VITE_EXCEL_FILE_NAME: ${{ secrets.VITE_EXCEL_FILE_NAME || 'Book.xlsx' }}
+          VITE_EXCEL_TABLE_NAME: ${{ secrets.VITE_EXCEL_TABLE_NAME || 'RepairTable' }}
+          VITE_SHOPS_FILE_NAME: ${{ secrets.VITE_SHOPS_FILE_NAME || 'Shops.xlsx' }}
+          VITE_SHOPS_TABLE_NAME: ${{ secrets.VITE_SHOPS_TABLE_NAME || 'ShopsTable' }}
+          VITE_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL || 'http://localhost:3001' }}
+          VITE_STORAGE_TYPE: ${{ secrets.VITE_STORAGE_TYPE || 'sharepoint' }}
+
+      - name: Analyze bundle size
+        working-directory: repair-dashboard
+        run: |
+          echo "## 📦 Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          # Calculate sizes
+          DIST_SIZE=$(du -sh dist | cut -f1)
+          JS_SIZE=$(du -sh dist/assets/js 2>/dev/null | cut -f1 || echo "N/A")
+          CSS_SIZE=$(du -sh dist/assets/css 2>/dev/null | cut -f1 || echo "N/A")
+
+          echo "Total dist size: $DIST_SIZE"
+          echo "JavaScript size: $JS_SIZE"
+          echo "CSS size: $CSS_SIZE"
+          echo ""
+
+          # List all JS chunks with sizes
+          echo "JavaScript chunks:"
+          ls -lh dist/assets/js/*.js 2>/dev/null | awk '{print $9, "=>", $5}' || echo "No JS files"
+          echo ""
+
+          # List compressed files
+          echo "Compressed files (.gz):"
+          find dist -name "*.gz" -exec ls -lh {} \; | awk '{print $9, "=>", $5}' || echo "No gzip files"
+          echo ""
+
+          echo "Compressed files (.br):"
+          find dist -name "*.br" -exec ls -lh {} \; | awk '{print $9, "=>", $5}' || echo "No brotli files"
+
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          # Display in step summary
+          du -sh dist >> $GITHUB_STEP_SUMMARY
+          ls -lh dist/assets/js/*.js 2>/dev/null >> $GITHUB_STEP_SUMMARY || true
+
+      - name: Check bundle size limits
+        working-directory: repair-dashboard
+        run: |
+          # Define size limits (in KB)
+          MAX_TOTAL_SIZE=5000  # 5MB total
+          MAX_CHUNK_SIZE=1000  # 1MB per chunk
+
+          # Check total size
+          TOTAL_SIZE_KB=$(du -sk dist | cut -f1)
+
+          echo "Total bundle size: ${TOTAL_SIZE_KB}KB (limit: ${MAX_TOTAL_SIZE}KB)"
+
+          if [ $TOTAL_SIZE_KB -gt $MAX_TOTAL_SIZE ]; then
+            echo "❌ Bundle size exceeds limit!"
+            echo "::error::Bundle size (${TOTAL_SIZE_KB}KB) exceeds maximum (${MAX_TOTAL_SIZE}KB)"
+            exit 1
+          else
+            echo "✅ Bundle size within limits"
+          fi
+
+          # Check individual chunk sizes
+          echo ""
+          echo "Checking individual chunk sizes..."
+
+          for file in dist/assets/js/*.js; do
+            if [ -f "$file" ]; then
+              FILE_SIZE_KB=$(du -k "$file" | cut -f1)
+              FILE_NAME=$(basename "$file")
+
+              echo "$FILE_NAME: ${FILE_SIZE_KB}KB"
+
+              if [ $FILE_SIZE_KB -gt $MAX_CHUNK_SIZE ]; then
+                echo "::warning::Chunk $FILE_NAME (${FILE_SIZE_KB}KB) exceeds recommended size (${MAX_CHUNK_SIZE}KB)"
+              fi
+            fi
+          done
+
+      - name: Upload bundle stats
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-stats
+          path: |
+            repair-dashboard/dist/stats.html
+            repair-dashboard/dist/**/*.js.map
+          retention-days: 30
+
+      - name: Compare with base branch (PR only)
+        if: github.event_name == 'pull_request'
+        working-directory: repair-dashboard
+        run: |
+          # Checkout base branch
+          git fetch origin ${{ github.base_ref }}
+          git checkout origin/${{ github.base_ref }}
+
+          # Install and build base
+          npm ci
+          npm run build
+
+          # Save base size
+          BASE_SIZE=$(du -sk dist | cut -f1)
+
+          # Checkout PR branch
+          git checkout ${{ github.sha }}
+          npm ci
+          npm run build
+
+          # Calculate PR size
+          PR_SIZE=$(du -sk dist | cut -f1)
+
+          # Calculate difference
+          DIFF=$((PR_SIZE - BASE_SIZE))
+          DIFF_PERCENT=$((DIFF * 100 / BASE_SIZE))
+
+          echo "## 📊 Bundle Size Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | Size | Difference |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|------|------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Base (${{ github.base_ref }}) | ${BASE_SIZE}KB | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| PR | ${PR_SIZE}KB | ${DIFF}KB (${DIFF_PERCENT}%) |" >> $GITHUB_STEP_SUMMARY
+
+          if [ $DIFF -gt 100 ]; then
+            echo "::warning::Bundle size increased by ${DIFF}KB (${DIFF_PERCENT}%)"
+          elif [ $DIFF -lt -100 ]; then
+            echo "✅ Bundle size decreased by ${DIFF}KB (${DIFF_PERCENT}%)"
+          else
+            echo "✅ Bundle size change is negligible"
+          fi
+
+      - name: Comment on PR (if size increased significantly)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+
+            // Get bundle sizes
+            const prSize = parseInt(execSync('du -sk repair-dashboard/dist').toString().split('\t')[0]);
+
+            // Get base size (simplified - in real scenario, fetch from previous artifact)
+            const comment = `## 📦 Bundle Size Report
+
+            **Current PR bundle size:** ${prSize}KB
+
+            See the full bundle analysis in the workflow artifacts.
+
+            **Recommendations:**
+            - Review the bundle stats visualization in the artifacts
+            - Consider code splitting for large chunks
+            - Check for duplicate dependencies
+            - Use dynamic imports for rarely-used features
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
