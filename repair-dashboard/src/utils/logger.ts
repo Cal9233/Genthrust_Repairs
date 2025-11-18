@@ -1,4 +1,11 @@
-import winston from 'winston';
+/**
+ * Browser-Safe Logger
+ *
+ * Lightweight logging utility for frontend applications.
+ * Replaces Winston with browser-native console APIs.
+ */
+
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 // Sensitive data patterns to redact
 const SENSITIVE_PATTERNS = [
@@ -43,86 +50,9 @@ const sanitizeMessage = (message: string): string => {
   return sanitized;
 };
 
-// Custom format for better readability
-const customFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-  winston.format.errors({ stack: true }),
-  winston.format.printf((info) => {
-    const correlationId = getCorrelationId();
-    const { timestamp, level, message, service, ...meta } = info;
-
-    // Sanitize message
-    const sanitizedMessage = typeof message === 'string'
-      ? sanitizeMessage(message)
-      : sanitizeMessage(JSON.stringify(message));
-
-    // Build log string
-    let logString = `[${timestamp}] [${level.toUpperCase()}]`;
-
-    if (service) {
-      logString += ` [${service}]`;
-    }
-
-    logString += ` [${correlationId}]`;
-    logString += ` ${sanitizedMessage}`;
-
-    // Add metadata if present
-    if (Object.keys(meta).length > 0) {
-      // Sanitize metadata
-      const sanitizedMeta = JSON.stringify(meta, (key, value) => {
-        if (typeof value === 'string') {
-          return sanitizeMessage(value);
-        }
-        return value;
-      }, 2);
-
-      logString += `\n${sanitizedMeta}`;
-    }
-
-    return logString;
-  })
-);
-
 // Determine environment
 const isProduction = import.meta.env.PROD;
 const isDevelopment = import.meta.env.DEV;
-
-// Configure Winston logger
-const logger = winston.createLogger({
-  level: isProduction ? 'warn' : 'debug', // Production: only warn/error, Dev: all levels
-  format: customFormat,
-  defaultMeta: {
-    service: 'genthrust-repairs',
-    environment: isProduction ? 'production' : 'development'
-  },
-  transports: [
-    // Console transport for all environments
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize({ all: !isProduction }), // Color only in dev
-        customFormat
-      )
-    })
-  ],
-  // Don't exit on error
-  exitOnError: false
-});
-
-// Add file transport in production (if running in Node.js environment)
-if (isProduction && typeof window === 'undefined') {
-  logger.add(new winston.transports.File({
-    filename: 'logs/error.log',
-    level: 'error',
-    maxsize: 5242880, // 5MB
-    maxFiles: 5
-  }));
-
-  logger.add(new winston.transports.File({
-    filename: 'logs/combined.log',
-    maxsize: 5242880, // 5MB
-    maxFiles: 5
-  }));
-}
 
 // Logging utility class with context management
 export class Logger {
@@ -134,18 +64,30 @@ export class Logger {
     this.metadata = metadata;
   }
 
-  private log(level: string, message: string, meta?: Record<string, any>) {
-    const logMeta = {
-      ...this.metadata,
-      ...meta,
-      context: this.context
-    };
+  private log(level: LogLevel, message: string, meta?: Record<string, any>) {
+    const timestamp = new Date().toISOString();
+    const correlationId = getCorrelationId();
+    const logMeta = { ...this.metadata, ...meta, context: this.context };
 
-    logger.log(level, message, logMeta);
+    // Sanitize message
+    const sanitizedMessage = sanitizeMessage(message);
+
+    // Build log prefix
+    const prefix = `[${timestamp}] [${level.toUpperCase()}] [${this.context}] [${correlationId}]`;
+
+    // Log to console with appropriate level
+    if (Object.keys(logMeta).length > 1) { // More than just 'context'
+      console[level](prefix, sanitizedMessage, logMeta);
+    } else {
+      console[level](prefix, sanitizedMessage);
+    }
   }
 
   debug(message: string, meta?: Record<string, any>) {
-    this.log('debug', message, meta);
+    // Only log debug in development
+    if (isDevelopment) {
+      this.log('debug', message, meta);
+    }
   }
 
   info(message: string, meta?: Record<string, any>) {
@@ -218,8 +160,31 @@ export class PerformanceLogger {
   }
 }
 
-// Export singleton logger instance for backward compatibility
-export default logger;
+// Export default logger for backward compatibility
+const defaultLogger = {
+  debug: (message: string, meta?: Record<string, any>) => {
+    if (isDevelopment) {
+      console.debug(`[DEBUG]`, message, meta || '');
+    }
+  },
+  info: (message: string, meta?: Record<string, any>) => {
+    console.info(`[INFO]`, message, meta || '');
+  },
+  warn: (message: string, meta?: Record<string, any>) => {
+    console.warn(`[WARN]`, message, meta || '');
+  },
+  error: (message: string, meta?: Record<string, any>) => {
+    console.error(`[ERROR]`, message, meta || '');
+  },
+  log: (level: string, message: string, meta?: Record<string, any>) => {
+    const logLevel = level as LogLevel;
+    if (logLevel === 'debug' && !isDevelopment) return;
+
+    console[logLevel](`[${level.toUpperCase()}]`, message, meta || '');
+  }
+};
+
+export default defaultLogger;
 
 // Helper to measure async operations
 export const measureAsync = async <T>(
