@@ -76,7 +76,7 @@ This document describes the end-to-end workflows and processes in the GenThrust 
      - Other terms → Offer "Archive to PAID sheet?"
      - Unclear terms → Show ArchiveDestinationDialog
    - Status = PAID/PAYMENT SENT → Offer "Archive to PAID?"
-   - Status = BER/RAI → Offer "Archive to Returns?"
+   - Status = BER/RAI/SCRAPPED → Offer "Archive to Returns?"
 9. If user confirms archival:
    - Move RO to appropriate sheet (via moveROToArchive)
    - Create reminder if needed (NET payment)

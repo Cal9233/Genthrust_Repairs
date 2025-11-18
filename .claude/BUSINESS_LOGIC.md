@@ -40,6 +40,7 @@ This document describes the business rules, logic, and calculations that govern 
 | PAYMENT SENT | null | Order complete, no follow-up |
 | BER | null | Beyond economic repair, no follow-up |
 | RAI | null | Return as-is, no follow-up |
+| SCRAPPED | null | Scrapped onsite, no follow-up |
 
 **Special Case - PAID Status:**
 
@@ -116,7 +117,7 @@ Status = RECEIVED?
 ├─ Status = PAID or PAYMENT SENT?
 │   └─ → 'PAID' sheet
 │
-├─ Status = BER or RAI?
+├─ Status = BER or RAI or SCRAPPED?
 │   └─ → 'Returns' sheet
 │
 └─ Other status?

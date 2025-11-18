@@ -210,6 +210,7 @@ export interface DashboardStats {
   rai: number;                  // Count in Returns (RAI)
   ber: number;                  // Count in Returns (BER)
   cancel: number;               // Count in Returns (Cancelled)
+  scrapped: number;             // Count in Returns (SCRAPPED)
 }
 ```
 

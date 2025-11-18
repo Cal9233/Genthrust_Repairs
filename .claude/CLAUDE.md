@@ -131,7 +131,7 @@ GenThrust manually tracked 98+ repair orders across 27 shops using Excel spreads
 ### Business Rules
 1. **Status-based next update dates** - Each status has a follow-up period (businessRules.ts)
 2. **Payment term detection** - NET 30/60/90 extracted via regex
-3. **Archival routing** - RECEIVED + NET terms → NET sheet, others → PAID sheet
+3. **Archival routing** - RECEIVED + NET terms → NET sheet, others → PAID sheet; BER/RAI/SCRAPPED → RETURNS sheet
 4. **Overdue highlighting** - Red if past nextDateToUpdate
 
 ### Technical Constraints
