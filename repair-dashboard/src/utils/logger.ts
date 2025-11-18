@@ -1,4 +1,4 @@
-import winston from 'winston';
+// Browser-compatible logger (replaces winston for frontend use)
 
 // Sensitive data patterns to redact
 const SENSITIVE_PATTERNS = [
@@ -43,13 +43,42 @@ const sanitizeMessage = (message: string): string => {
   return sanitized;
 };
 
-// Custom format for better readability
-const customFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-  winston.format.errors({ stack: true }),
-  winston.format.printf((info) => {
+// Determine environment
+const isProduction = import.meta.env.PROD;
+const isDevelopment = import.meta.env.DEV;
+
+// Log level enum
+enum LogLevel {
+  DEBUG = 0,
+  INFO = 1,
+  WARN = 2,
+  ERROR = 3
+}
+
+// Current log level (warn+ in production, debug+ in development)
+const currentLogLevel = isProduction ? LogLevel.WARN : LogLevel.DEBUG;
+
+// Format timestamp
+const formatTimestamp = (): string => {
+  const now = new Date();
+  return now.toISOString().replace('T', ' ').slice(0, 23);
+};
+
+// Browser console logger (winston replacement)
+class BrowserLogger {
+  log(level: string, message: string, meta?: Record<string, any>) {
+    const levelUpper = level.toUpperCase();
+    const levelNum = LogLevel[levelUpper as keyof typeof LogLevel];
+
+    // Skip if below current log level
+    if (levelNum < currentLogLevel) {
+      return;
+    }
+
+    const timestamp = formatTimestamp();
     const correlationId = getCorrelationId();
-    const { timestamp, level, message, service, ...meta } = info;
+    const service = meta?.service || 'genthrust-repairs';
+    const context = meta?.context || '';
 
     // Sanitize message
     const sanitizedMessage = typeof message === 'string'
@@ -57,72 +86,67 @@ const customFormat = winston.format.combine(
       : sanitizeMessage(JSON.stringify(message));
 
     // Build log string
-    let logString = `[${timestamp}] [${level.toUpperCase()}]`;
+    let logString = `[${timestamp}] [${levelUpper}]`;
 
     if (service) {
       logString += ` [${service}]`;
     }
 
+    if (context) {
+      logString += ` [${context}]`;
+    }
+
     logString += ` [${correlationId}]`;
     logString += ` ${sanitizedMessage}`;
 
-    // Add metadata if present
-    if (Object.keys(meta).length > 0) {
-      // Sanitize metadata
-      const sanitizedMeta = JSON.stringify(meta, (key, value) => {
-        if (typeof value === 'string') {
-          return sanitizeMessage(value);
-        }
-        return value;
-      }, 2);
+    // Determine console method
+    const consoleMethod = level === 'error' ? 'error'
+      : level === 'warn' ? 'warn'
+      : level === 'debug' ? 'debug'
+      : 'log';
 
-      logString += `\n${sanitizedMeta}`;
+    // Log to console with appropriate styling
+    if (meta && Object.keys(meta).length > 0) {
+      // Filter out internal meta fields
+      const { service: _s, context: _c, environment: _e, ...userMeta } = meta;
+
+      if (Object.keys(userMeta).length > 0) {
+        // Sanitize metadata
+        const sanitizedMeta = JSON.parse(JSON.stringify(userMeta, (key, value) => {
+          if (typeof value === 'string') {
+            return sanitizeMessage(value);
+          }
+          return value;
+        }));
+
+        console[consoleMethod](logString, sanitizedMeta);
+      } else {
+        console[consoleMethod](logString);
+      }
+    } else {
+      console[consoleMethod](logString);
     }
+  }
 
-    return logString;
-  })
-);
+  debug(message: string, meta?: Record<string, any>) {
+    this.log('debug', message, meta);
+  }
 
-// Determine environment
-const isProduction = import.meta.env.PROD;
-const isDevelopment = import.meta.env.DEV;
+  info(message: string, meta?: Record<string, any>) {
+    this.log('info', message, meta);
+  }
 
-// Configure Winston logger
-const logger = winston.createLogger({
-  level: isProduction ? 'warn' : 'debug', // Production: only warn/error, Dev: all levels
-  format: customFormat,
-  defaultMeta: {
-    service: 'genthrust-repairs',
-    environment: isProduction ? 'production' : 'development'
-  },
-  transports: [
-    // Console transport for all environments
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize({ all: !isProduction }), // Color only in dev
-        customFormat
-      )
-    })
-  ],
-  // Don't exit on error
-  exitOnError: false
-});
+  warn(message: string, meta?: Record<string, any>) {
+    this.log('warn', message, meta);
+  }
 
-// Add file transport in production (if running in Node.js environment)
-if (isProduction && typeof window === 'undefined') {
-  logger.add(new winston.transports.File({
-    filename: 'logs/error.log',
-    level: 'error',
-    maxsize: 5242880, // 5MB
-    maxFiles: 5
-  }));
-
-  logger.add(new winston.transports.File({
-    filename: 'logs/combined.log',
-    maxsize: 5242880, // 5MB
-    maxFiles: 5
-  }));
+  error(message: string, meta?: Record<string, any>) {
+    this.log('error', message, meta);
+  }
 }
+
+// Create singleton browser logger
+const logger = new BrowserLogger();
 
 // Logging utility class with context management
 export class Logger {
@@ -138,7 +162,9 @@ export class Logger {
     const logMeta = {
       ...this.metadata,
       ...meta,
-      context: this.context
+      context: this.context,
+      service: 'genthrust-repairs',
+      environment: isProduction ? 'production' : 'development'
     };
 
     logger.log(level, message, logMeta);
