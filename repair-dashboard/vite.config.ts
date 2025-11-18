@@ -23,18 +23,8 @@ export default defineConfig({
     // Target modern browsers for better tree shaking
     target: 'es2020',
 
-    // Minification
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true, // Remove console.log in production
-        drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info'], // Remove specific console methods
-      },
-      format: {
-        comments: false, // Remove comments
-      },
-    },
+    // Minification - using esbuild (default, faster than terser)
+    minify: 'esbuild',
 
     // Chunk size warnings
     chunkSizeWarningLimit: 1000, // Warn if chunk > 1MB
