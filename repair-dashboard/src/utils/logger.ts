@@ -1,4 +1,4 @@
-import winston from 'winston';
+// Browser-compatible logger (replaces winston which is Node.js only)
 
 // Sensitive data patterns to redact
 const SENSITIVE_PATTERNS = [
@@ -9,6 +9,9 @@ const SENSITIVE_PATTERNS = [
   /token["\s:=]+[^"\s,}]+/gi, // Token fields
   /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g // Email addresses (PII)
 ];
+
+// Log levels
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 // Correlation ID management (per-request tracking)
 let currentCorrelationId: string | null = null;
@@ -43,13 +46,40 @@ const sanitizeMessage = (message: string): string => {
   return sanitized;
 };
 
-// Custom format for better readability
-const customFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-  winston.format.errors({ stack: true }),
-  winston.format.printf((info) => {
+// Format timestamp
+const getTimestamp = (): string => {
+  const now = new Date();
+  return now.toISOString().replace('T', ' ').replace('Z', '');
+};
+
+// Determine environment
+const isProduction = import.meta.env.PROD;
+const isDevelopment = import.meta.env.DEV;
+
+// Browser-compatible logger implementation
+class BrowserLogger {
+  private level: LogLevel;
+  private defaultMeta: Record<string, any>;
+
+  constructor() {
+    this.level = isProduction ? 'warn' : 'debug';
+    this.defaultMeta = {
+      service: 'genthrust-repairs',
+      environment: isProduction ? 'production' : 'development'
+    };
+  }
+
+  private shouldLog(level: LogLevel): boolean {
+    const levels: LogLevel[] = ['debug', 'info', 'warn', 'error'];
+    const currentLevelIndex = levels.indexOf(this.level);
+    const messageLevelIndex = levels.indexOf(level);
+    return messageLevelIndex >= currentLevelIndex;
+  }
+
+  private formatMessage(level: LogLevel, message: string, meta?: Record<string, any>): string {
     const correlationId = getCorrelationId();
-    const { timestamp, level, message, service, ...meta } = info;
+    const timestamp = getTimestamp();
+    const { service, ...otherMeta } = { ...this.defaultMeta, ...meta };
 
     // Sanitize message
     const sanitizedMessage = typeof message === 'string'
@@ -67,9 +97,9 @@ const customFormat = winston.format.combine(
     logString += ` ${sanitizedMessage}`;
 
     // Add metadata if present
-    if (Object.keys(meta).length > 0) {
+    if (Object.keys(otherMeta).length > 0) {
       // Sanitize metadata
-      const sanitizedMeta = JSON.stringify(meta, (key, value) => {
+      const sanitizedMeta = JSON.stringify(otherMeta, (key, value) => {
         if (typeof value === 'string') {
           return sanitizeMessage(value);
         }
@@ -80,49 +110,51 @@ const customFormat = winston.format.combine(
     }
 
     return logString;
-  })
-);
+  }
 
-// Determine environment
-const isProduction = import.meta.env.PROD;
-const isDevelopment = import.meta.env.DEV;
+  log(level: LogLevel, message: string, meta?: Record<string, any>) {
+    if (!this.shouldLog(level)) {
+      return;
+    }
 
-// Configure Winston logger
-const logger = winston.createLogger({
-  level: isProduction ? 'warn' : 'debug', // Production: only warn/error, Dev: all levels
-  format: customFormat,
-  defaultMeta: {
-    service: 'genthrust-repairs',
-    environment: isProduction ? 'production' : 'development'
-  },
-  transports: [
-    // Console transport for all environments
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize({ all: !isProduction }), // Color only in dev
-        customFormat
-      )
-    })
-  ],
-  // Don't exit on error
-  exitOnError: false
-});
+    const formattedMessage = this.formatMessage(level, message, meta);
 
-// Add file transport in production (if running in Node.js environment)
-if (isProduction && typeof window === 'undefined') {
-  logger.add(new winston.transports.File({
-    filename: 'logs/error.log',
-    level: 'error',
-    maxsize: 5242880, // 5MB
-    maxFiles: 5
-  }));
+    // Use appropriate console method
+    switch (level) {
+      case 'debug':
+        console.debug(formattedMessage);
+        break;
+      case 'info':
+        console.info(formattedMessage);
+        break;
+      case 'warn':
+        console.warn(formattedMessage);
+        break;
+      case 'error':
+        console.error(formattedMessage);
+        break;
+    }
+  }
 
-  logger.add(new winston.transports.File({
-    filename: 'logs/combined.log',
-    maxsize: 5242880, // 5MB
-    maxFiles: 5
-  }));
+  debug(message: string, meta?: Record<string, any>) {
+    this.log('debug', message, meta);
+  }
+
+  info(message: string, meta?: Record<string, any>) {
+    this.log('info', message, meta);
+  }
+
+  warn(message: string, meta?: Record<string, any>) {
+    this.log('warn', message, meta);
+  }
+
+  error(message: string, meta?: Record<string, any>) {
+    this.log('error', message, meta);
+  }
 }
+
+// Create singleton logger instance
+const logger = new BrowserLogger();
 
 // Logging utility class with context management
 export class Logger {
