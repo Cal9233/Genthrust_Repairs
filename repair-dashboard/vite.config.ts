@@ -1,40 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
-import { visualizer } from 'rollup-plugin-visualizer'
-import viteCompression from 'vite-plugin-compression'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-
-    // Gzip compression
-    viteCompression({
-      verbose: true,
-      disable: false,
-      threshold: 10240, // Only compress files larger than 10KB
-      algorithm: 'gzip',
-      ext: '.gz',
-    }),
-
-    // Brotli compression (better compression than gzip)
-    viteCompression({
-      verbose: true,
-      disable: false,
-      threshold: 10240,
-      algorithm: 'brotliCompress',
-      ext: '.br',
-    }),
-
-    // Bundle analyzer - generates stats.html in dist/
-    visualizer({
-      filename: './dist/stats.html',
-      open: false, // Set to true to auto-open after build
-      gzipSize: true,
-      brotliSize: true,
-      template: 'treemap', // 'sunburst', 'treemap', 'network'
-    }),
+    // Note: Compression and visualizer plugins removed due to missing dependencies
+    // To re-enable, install: npm install -D rollup-plugin-visualizer vite-plugin-compression
   ],
 
   resolve: {
