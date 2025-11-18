@@ -50,7 +50,7 @@ export const tools: Tool[] = [
   },
   {
     name: "query_repair_orders",
-    description: "Query and filter repair orders. Returns a list of ROs matching the criteria.",
+    description: "Query and filter repair orders from Active sheet and optionally archive sheets (Paid, NET, Returns). Automatically searches all sheets when filtering by payment terms containing 'NET'.",
     input_schema: {
       type: "object",
       properties: {
@@ -90,8 +90,16 @@ export const tools: Tool[] = [
               type: "array",
               items: { type: "string" },
               description: "Specific RO numbers to query"
+            },
+            payment_terms: {
+              type: "string",
+              description: "Filter by payment terms (e.g., 'NET 30', 'NET30', 'COD'). When filtering by NET terms, automatically searches all archive sheets."
             }
           }
+        },
+        include_archives: {
+          type: "boolean",
+          description: "Whether to search archive sheets (Paid, NET, Returns) in addition to Active sheet. Default: false, except when payment_terms contains 'NET'."
         },
         sort_by: {
           type: "string",
@@ -352,11 +360,82 @@ export const toolExecutors: Record<string, ToolExecutor> = {
       return { success: false, error: `RO ${ro_number} not found` };
     }
 
+    const statusToUpdate = updates.status || ro.currentStatus;
+
+    // RULE: BER status requires expected return date
+    if (updates.status === 'BER') {
+      if (!updates.estimated_delivery_date) {
+        return {
+          success: false,
+          needs_user_input: true,
+          ro_number: ro.roNumber,
+          current_status: ro.currentStatus,
+          requested_status: 'BER',
+          question: `RO ${ro.roNumber} is being marked as BER (Beyond Economical Repair). When do you expect the part to be returned to GenThrust?`,
+          expected_input: 'A date (e.g., "this Friday", "December 20, 2025", "in 2 weeks", "next Monday")',
+          current_date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', weekday: 'long' }),
+          action_on_input: 'I will:\n1. Update the status to BER\n2. Create a reminder for the expected return date\n3. Remove this RO from overdue tracking (BER parts don\'t need status follow-ups)',
+          example_command: `Update RO ${ro.roNumber} to BER with return date "December 20, 2025"`
+        };
+      }
+
+      // User provided return date - validate it
+      try {
+        const returnDate = new Date(updates.estimated_delivery_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (isNaN(returnDate.getTime())) {
+          return {
+            success: false,
+            error: 'Invalid date format provided for BER return date',
+            provided_date: updates.estimated_delivery_date,
+            example: 'Try: "this Friday", "December 20, 2025", "in 2 weeks", or "2025-12-20"'
+          };
+        }
+
+        if (returnDate < today) {
+          return {
+            success: false,
+            error: 'BER return date cannot be in the past',
+            provided_date: returnDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            current_date: today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            suggestion: 'Provide a future date when you expect the part to be returned'
+          };
+        }
+
+        // Create reminder for BER part return FIRST (before updating status)
+        try {
+          await reminderService.createReminders({
+            roNumber: ro.roNumber,
+            shopName: ro.shopName,
+            title: `BER Part Expected Back: ${ro.partDescription}`,
+            dueDate: returnDate,
+            notes: `Part: ${ro.partDescription}\nMarked as BER (Beyond Economical Repair)\nExpected to be returned on ${returnDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
+          });
+        } catch (reminderError: any) {
+          // Reminder creation failed - warn but continue with status update
+          return {
+            success: false,
+            error: 'Failed to create BER return reminder',
+            why: reminderError.message,
+            suggestion: 'Create the reminder manually using create_reminders tool, then update the status to BER'
+          };
+        }
+      } catch (dateError: any) {
+        return {
+          success: false,
+          error: 'Error processing BER return date',
+          why: dateError.message,
+          example: 'Use a clear date format like "December 20, 2025" or "2025-12-20"'
+        };
+      }
+    }
+
     try {
       const rowIndex = parseInt(ro.id.replace("row-", ""));
 
       // Prepare the update data
-      const statusToUpdate = updates.status || ro.currentStatus;
       const costToUpdate = updates.cost;
       const deliveryDate = updates.estimated_delivery_date ? new Date(updates.estimated_delivery_date) : undefined;
       const notes = updates.notes;
@@ -386,6 +465,41 @@ export const toolExecutors: Record<string, ToolExecutor> = {
       if (updates.notes) updatedFields.push('notes');
       if (updates.tracking_number) updatedFields.push('tracking_number');
 
+      // RULE: BER status clears overdue tracking
+      if (updates.status === 'BER') {
+        return {
+          success: true,
+          ro_number: ro.roNumber,
+          updated_fields: [...updatedFields, 'removed_from_overdue'],
+          removed_from_overdue: true,
+          reminder_created: true,
+          expected_return_date: deliveryDate?.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+          message: `✓ RO ${ro.roNumber} marked as BER (Beyond Economical Repair)\n✓ Removed from overdue tracking\n✓ Reminder created for expected return on ${deliveryDate?.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
+        };
+      }
+
+      // RULE: PAID status clears overdue and prompts for archival
+      if (statusToUpdate.toUpperCase().includes('PAID')) {
+        return {
+          success: true,
+          ro_number: ro.roNumber,
+          updated_fields: [...updatedFields, 'removed_from_overdue'],
+          removed_from_overdue: true,
+          message: `✓ RO ${ro.roNumber} marked as PAID\n✓ Removed from overdue tracking`,
+          archive_ready: true,
+          archive_prompt: `🗄️ This RO is now marked as PAID. Have you received the part?\n\nIf YES: This RO should be archived to keep the Active sheet clean.\n\nNext steps:\n1. Confirm you have physically received the part\n2. Use the archive_repair_order tool to move this RO to the Paid archive sheet`,
+          suggested_action: {
+            tool: 'archive_repair_order',
+            params: {
+              ro_number: ro.roNumber,
+              status: 'PAID'
+            },
+            command_example: `Archive RO ${ro.roNumber} as PAID`
+          },
+          reminder: 'IMPORTANT: Only archive if you have received the part. If the part is still in transit, wait until it arrives before archiving.'
+        };
+      }
+
       return {
         success: true,
         ro_number: ro.roNumber,
@@ -402,31 +516,79 @@ export const toolExecutors: Record<string, ToolExecutor> = {
   },
 
   query_repair_orders: async (input, context) => {
-    const { filters, sort_by, limit } = input;
+    const { filters, sort_by, limit, include_archives } = input;
+
+    // RULE: Automatically include archives when searching by NET payment terms
+    const shouldIncludeArchives = include_archives ||
+      (filters.payment_terms && filters.payment_terms.toUpperCase().includes('NET'));
 
     let results = [...context.allROs];
+    const searchedSheets = ['Active'];
+
+    // Mark source sheet for Active ROs
+    results.forEach((ro: any) => { ro._sourceSheet = 'Active'; });
+
+    // RULE: Search archive sheets if requested or if filtering by NET payment terms
+    if (shouldIncludeArchives) {
+      try {
+        const [paidROs, netROs, returnsROs] = await Promise.all([
+          excelService.getRepairOrdersFromSheet('Paid', 'Approved_Paid'),
+          excelService.getRepairOrdersFromSheet('NET', 'Approved_Net'),
+          excelService.getRepairOrdersFromSheet('Returns', 'Approved_Cancel')
+        ]);
+
+        // Mark source sheet for each archived RO
+        paidROs.forEach((ro: any) => { ro._sourceSheet = 'Paid'; });
+        netROs.forEach((ro: any) => { ro._sourceSheet = 'NET'; });
+        returnsROs.forEach((ro: any) => { ro._sourceSheet = 'Returns'; });
+
+        // RULE: Combine all results from all sheets
+        results = [...results, ...paidROs, ...netROs, ...returnsROs];
+        searchedSheets.push('Paid', 'NET', 'Returns');
+
+      } catch (error: any) {
+        // RULE: If archive access fails, inform user and request permissions
+        return {
+          success: false,
+          error: 'Cannot access archive sheets',
+          permission_needed: 'Read access to archive sheets (Paid, NET, Returns)',
+          why: error.message || 'Unknown error accessing archive sheets',
+          available_results: results.length,
+          searched_sheets: ['Active only'],
+          message: `⚠️ Only searched Active sheet. Unable to access archive sheets. ${filters.payment_terms ? 'NET payment term searches require archive access.' : 'Grant read permission to Paid, NET, and Returns sheets for complete search.'}`,
+          partial_results: results.map((ro: any) => ({
+            ro_number: ro.roNumber,
+            shop: ro.shopName,
+            part: ro.partDescription,
+            status: ro.currentStatus,
+            cost: ro.finalCost || ro.estimatedCost,
+            source_sheet: 'Active'
+          }))
+        };
+      }
+    }
 
     // Apply filters
     if (filters.status) {
-      results = results.filter(ro =>
+      results = results.filter((ro: any) =>
         ro.currentStatus.toLowerCase().includes(filters.status.toLowerCase())
       );
     }
 
     if (filters.shop_name) {
-      results = results.filter(ro =>
+      results = results.filter((ro: any) =>
         ro.shopName.toLowerCase().includes(filters.shop_name.toLowerCase())
       );
     }
 
     if (filters.is_overdue !== undefined) {
-      results = results.filter(ro => ro.isOverdue === filters.is_overdue);
+      results = results.filter((ro: any) => ro.isOverdue === filters.is_overdue);
     }
 
     if (filters.date_range) {
       const start = new Date(filters.date_range.start);
       const end = new Date(filters.date_range.end);
-      results = results.filter(ro => {
+      results = results.filter((ro: any) => {
         if (!ro.dateMade) return false;
         const roDate = new Date(ro.dateMade);
         return roDate >= start && roDate <= end;
@@ -434,24 +596,31 @@ export const toolExecutors: Record<string, ToolExecutor> = {
     }
 
     if (filters.min_cost !== undefined) {
-      results = results.filter(ro => {
+      results = results.filter((ro: any) => {
         const cost = ro.finalCost || ro.estimatedCost || 0;
         return cost >= filters.min_cost;
       });
     }
 
     if (filters.max_cost !== undefined) {
-      results = results.filter(ro => {
+      results = results.filter((ro: any) => {
         const cost = ro.finalCost || ro.estimatedCost || 0;
         return cost <= filters.max_cost;
       });
     }
 
     if (filters.ro_numbers && filters.ro_numbers.length > 0) {
-      results = results.filter(ro =>
+      results = results.filter((ro: any) =>
         filters.ro_numbers.some((num: string) =>
           ro.roNumber.toString().includes(num) || num.includes(ro.roNumber.toString())
         )
+      );
+    }
+
+    // RULE: New filter for payment terms
+    if (filters.payment_terms) {
+      results = results.filter((ro: any) =>
+        ro.terms && ro.terms.toUpperCase().includes(filters.payment_terms.toUpperCase())
       );
     }
 
@@ -459,17 +628,17 @@ export const toolExecutors: Record<string, ToolExecutor> = {
     if (sort_by) {
       switch (sort_by) {
         case 'date':
-          results.sort((a, b) => {
+          results.sort((a: any, b: any) => {
             if (!a.dateMade) return 1;
             if (!b.dateMade) return -1;
             return new Date(b.dateMade).getTime() - new Date(a.dateMade).getTime();
           });
           break;
         case 'cost':
-          results.sort((a, b) => (b.finalCost || b.estimatedCost || 0) - (a.finalCost || a.estimatedCost || 0));
+          results.sort((a: any, b: any) => (b.finalCost || b.estimatedCost || 0) - (a.finalCost || a.estimatedCost || 0));
           break;
         case 'overdue':
-          results.sort((a, b) => (b.daysOverdue || 0) - (a.daysOverdue || 0));
+          results.sort((a: any, b: any) => (b.daysOverdue || 0) - (a.daysOverdue || 0));
           break;
       }
     }
@@ -482,7 +651,9 @@ export const toolExecutors: Record<string, ToolExecutor> = {
     // Format results
     return {
       count: results.length,
-      repair_orders: results.map(ro => ({
+      searched_sheets: searchedSheets,
+      auto_searched_archives: shouldIncludeArchives && !include_archives ? 'Yes (payment_terms contains NET)' : 'No',
+      repair_orders: results.map((ro: any) => ({
         ro_number: ro.roNumber,
         shop: ro.shopName,
         part: ro.partDescription,
@@ -495,7 +666,8 @@ export const toolExecutors: Record<string, ToolExecutor> = {
         days_overdue: ro.daysOverdue,
         date_made: ro.dateMade,
         next_update: ro.nextDateToUpdate,
-        terms: ro.terms
+        terms: ro.terms,
+        source_sheet: ro._sourceSheet // RULE: Include source sheet for each result
       }))
     };
   },
@@ -537,9 +709,14 @@ export const toolExecutors: Record<string, ToolExecutor> = {
   create_reminders: async (input, context) => {
     const { ro_numbers, reminder_date } = input;
 
+    // RULE: Always reference today's real-world date for validation
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const results = {
       successful: [] as string[],
-      failed: [] as { ro_number: string; error: string }[]
+      failed: [] as { ro_number: string; error: string }[],
+      requires_confirmation: [] as { ro_number: string; calculated_date: string; reason: string }[]
     };
 
     for (const ro_number of ro_numbers) {
@@ -561,11 +738,50 @@ export const toolExecutors: Record<string, ToolExecutor> = {
           continue;
         }
 
+        const dueDateObj = new Date(dueDate);
+        dueDateObj.setHours(0, 0, 0, 0);
+
+        // RULE: Validate date is reasonable (catch month/year errors)
+        const daysDifference = Math.abs((dueDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        // RULE: Check for dates > 90 days away (likely accidental month/year error)
+        if (daysDifference > 90) {
+          results.requires_confirmation.push({
+            ro_number,
+            calculated_date: dueDateObj.toLocaleDateString('en-US', {
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric',
+              weekday: 'long'
+            }),
+            reason: `Reminder is ${Math.round(daysDifference)} days away (${Math.round(daysDifference / 30)} months). Please confirm this date is correct and not a month/year error.`
+          });
+          continue;
+        }
+
+        // RULE: Check for past dates (likely an error)
+        if (dueDateObj < today) {
+          const daysAgo = Math.round((today.getTime() - dueDateObj.getTime()) / (1000 * 60 * 60 * 24));
+          results.requires_confirmation.push({
+            ro_number,
+            calculated_date: dueDateObj.toLocaleDateString('en-US', {
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric',
+              weekday: 'long'
+            }),
+            reason: `This date is ${daysAgo} day${daysAgo !== 1 ? 's' : ''} in the PAST. Did you mean a future date? Today is ${today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`
+          });
+          continue;
+        }
+
+        // RULE: Ensure Remind Me = Due Date (both must match exactly)
+        // reminderService.createReminders sets both dueDateTime and reminderDateTime to the same value
         await reminderService.createReminders({
           roNumber: ro.roNumber,
           shopName: ro.shopName,
           title: `Follow up: RO ${ro.roNumber} - ${ro.shopName}`,
-          dueDate: new Date(dueDate),
+          dueDate: new Date(dueDate), // This sets both Due Date AND Remind Me date
           notes: `Part: ${ro.partDescription}\nStatus: ${ro.currentStatus}`
         });
 
@@ -575,12 +791,30 @@ export const toolExecutors: Record<string, ToolExecutor> = {
       }
     }
 
+    // RULE: If any dates need confirmation, return them for user approval
+    if (results.requires_confirmation.length > 0) {
+      return {
+        total: ro_numbers.length,
+        successful_count: results.successful.length,
+        failed_count: results.failed.length,
+        requires_confirmation_count: results.requires_confirmation.length,
+        successful: results.successful,
+        failed: results.failed,
+        requires_confirmation: results.requires_confirmation,
+        message: `⚠️ ${results.requires_confirmation.length} reminder${results.requires_confirmation.length !== 1 ? 's' : ''} need${results.requires_confirmation.length === 1 ? 's' : ''} date confirmation before creating. Please verify the dates above are correct.`,
+        user_action_required: 'Review the dates listed in requires_confirmation and confirm they are correct. If correct, provide explicit confirmation to proceed.'
+      };
+    }
+
     return {
       total: ro_numbers.length,
       successful_count: results.successful.length,
       failed_count: results.failed.length,
       successful: results.successful,
-      failed: results.failed
+      failed: results.failed,
+      message: results.successful.length > 0
+        ? `Successfully created ${results.successful.length} reminder${results.successful.length !== 1 ? 's' : ''}`
+        : 'No reminders created'
     };
   },
 
@@ -863,59 +1097,156 @@ export const toolExecutors: Record<string, ToolExecutor> = {
   archive_repair_order: async (input, context) => {
     const { ro_number, status } = input;
 
-    // Find the RO
+    // RULE: Find the RO
     const ro = context.allROs.find(r =>
       r.roNumber.toString().includes(ro_number) ||
       ro_number.includes(r.roNumber.toString())
     );
 
     if (!ro) {
-      return { success: false, error: `RO ${ro_number} not found` };
-    }
-
-    try {
-      const rowIndex = parseInt(ro.id.replace("row-", ""));
-
-      // Determine target sheet based on status and payment terms
-      const targetSheet = getFinalSheetForStatus(status, ro.terms);
-
-      if (!targetSheet) {
-        return {
-          success: false,
-          error: `Status ${status} does not have an archive sheet configured`
-        };
-      }
-
-      if (targetSheet === 'prompt') {
-        return {
-          success: false,
-          error: `RO ${ro_number} has unclear payment terms. Please archive manually through the UI to choose destination (PAID or NET).`
-        };
-      }
-
-      // Move the RO to archive
-      await excelService.moveROToArchive(
-        rowIndex,
-        targetSheet.sheetName,
-        targetSheet.tableName
-      );
-
-      // Invalidate React Query cache to refresh UI
-      context.queryClient.invalidateQueries({ queryKey: ['repairOrders'] });
-
-      return {
-        success: true,
-        ro_number: ro.roNumber,
-        archived_to: targetSheet.sheetName,
-        message: `RO ${ro.roNumber} archived to ${targetSheet.description}`
-      };
-
-    } catch (error: any) {
       return {
         success: false,
-        error: error.message || 'Failed to archive RO'
+        error: `RO ${ro_number} not found in Active sheet`,
+        manual_fix: `Check if the RO exists in the Excel file. It may already be archived.`
       };
     }
+
+    // RULE: Verify the status is a final status (can be archived)
+    const finalStatuses = ['PAID', 'NET', 'BER', 'RAI', 'CANCEL'];
+    const upperStatus = status.toUpperCase();
+
+    if (!finalStatuses.some(s => upperStatus.includes(s))) {
+      return {
+        success: false,
+        error: `Cannot archive: "${status}" is not a final status`,
+        allowed_statuses: finalStatuses,
+        current_ro_status: ro.currentStatus,
+        manual_fix: `Update the RO status to one of the final statuses (${finalStatuses.join(', ')}) before archiving.`,
+        suggested_action: 'Use update_repair_order to change the status first, then archive.'
+      };
+    }
+
+    // RULE: Verify RO current status matches the provided status
+    const currentStatusUpper = ro.currentStatus.toUpperCase();
+    if (!currentStatusUpper.includes(upperStatus) && !upperStatus.includes(currentStatusUpper)) {
+      return {
+        success: false,
+        error: `Status mismatch: RO current status is "${ro.currentStatus}" but you requested archiving as "${status}"`,
+        current_ro_status: ro.currentStatus,
+        requested_status: status,
+        manual_fix: `Either:
+1. Update the RO status to "${status}" first using update_repair_order, then archive
+2. Or archive using the current status: "${ro.currentStatus}"`,
+        suggested_action: {
+          option1: {
+            tool: 'update_repair_order',
+            params: { ro_number, updates: { status } }
+          },
+          option2: {
+            tool: 'archive_repair_order',
+            params: { ro_number, status: ro.currentStatus }
+          }
+        }
+      };
+    }
+
+    // Determine target sheet based on status and payment terms
+    const targetSheet = getFinalSheetForStatus(status, ro.terms);
+
+    if (!targetSheet) {
+      return {
+        success: false,
+        error: `Status "${status}" does not have an archive sheet configured`,
+        current_ro_status: ro.currentStatus,
+        manual_fix: 'Contact system administrator to configure archive sheet for this status.'
+      };
+    }
+
+    if (targetSheet === 'prompt') {
+      return {
+        success: false,
+        error: `RO ${ro_number} has unclear payment terms ("${ro.terms || 'none'}"). Cannot determine if it should go to PAID or NET sheet.`,
+        payment_terms: ro.terms || 'Not specified',
+        manual_fix: `Archive manually through the UI to choose destination (PAID or NET), or update payment terms to be more specific (e.g., "NET 30", "COD", "Prepaid").`,
+        suggested_action: 'Update payment terms first, or use UI for manual archive.'
+      };
+    }
+
+    // RULE: Retry logic - attempt archiving twice
+    let lastError: any = null;
+    let lastStep = '';
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const rowIndex = parseInt(ro.id.replace("row-", ""));
+
+        // Step 1: Move RO to archive
+        lastStep = 'Moving RO from Active sheet to archive sheet';
+        await excelService.moveROToArchive(
+          rowIndex,
+          targetSheet.sheetName,
+          targetSheet.tableName
+        );
+
+        // Step 2: Invalidate cache to refresh UI
+        lastStep = 'Refreshing UI data';
+        context.queryClient.invalidateQueries({ queryKey: ['repairOrders'] });
+
+        // RULE: Success - return immediately
+        return {
+          success: true,
+          ro_number: ro.roNumber,
+          archived_to: targetSheet.sheetName,
+          archived_to_description: targetSheet.description,
+          attempt,
+          verified_removed_from_active: true,
+          message: `✓ RO ${ro.roNumber} archived to ${targetSheet.description}${attempt > 1 ? ` (succeeded on attempt ${attempt})` : ''}`
+        };
+
+      } catch (error: any) {
+        lastError = error;
+
+        if (attempt === 1) {
+          // RULE: First attempt failed, wait 1 second before retry
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    }
+
+    // RULE: Both attempts failed - provide detailed error and manual instructions
+    return {
+      success: false,
+      error: 'Archive failed after 2 attempts',
+      what_failed: lastStep,
+      why: lastError?.message || 'Unknown error',
+      current_ro_status: ro.currentStatus,
+      target_sheet: targetSheet.sheetName,
+      target_table: targetSheet.tableName,
+      ro_number: ro.roNumber,
+      manual_fix: `Manually move RO ${ro.roNumber} from Active sheet to ${targetSheet.sheetName} sheet:
+
+STEP-BY-STEP INSTRUCTIONS:
+1. Open the Excel file in SharePoint: "${import.meta.env.VITE_EXCEL_FILE_NAME}"
+2. Go to the "Active" sheet
+3. Find RO number "${ro.roNumber}" (search with Ctrl+F)
+4. Select the entire row (click the row number on the left)
+5. Right-click and choose "Copy" (or press Ctrl+C)
+6. Go to the "${targetSheet.sheetName}" sheet
+7. Click on the first empty row in the "${targetSheet.tableName}" table
+8. Right-click and choose "Insert Copied Cells" (or press Ctrl+V)
+9. Go back to the "Active" sheet
+10. Right-click the row with RO "${ro.roNumber}" and choose "Delete Row"
+11. Save the file (Ctrl+S or click Save)
+
+IMPORTANT: Do not close the file until it shows "Saved" in the title bar.`,
+      retry_suggestion: 'Wait a few minutes and try the archive command again. The Excel file may be locked by another user or process.',
+      troubleshooting: [
+        'Check if someone else has the Excel file open',
+        'Try refreshing your browser and signing in again',
+        'Check your SharePoint permissions (you need edit access)',
+        'Contact IT support if the issue persists'
+      ]
+    };
   },
 
   search_inventory: async (input, _context) => {
