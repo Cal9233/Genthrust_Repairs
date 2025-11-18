@@ -7,10 +7,9 @@ import type {
   GraphDriveResponse,
   GraphFileResponse,
   GraphTableRowResponse,
-  GraphAPIException,
   GraphSessionResponse,
-  isGraphAPIError
 } from "../types/graphApi";
+import { GraphAPIException, isGraphAPIError } from "../types/graphApi";
 import { calculateNextUpdateDate } from "./businessRules";
 import { reminderService, ReminderService } from "./reminderService";
 import { ExcelSessionManager } from "./excelSession";
@@ -21,6 +20,23 @@ const logger = createLogger('ExcelService');
 const SITE_URL = import.meta.env.VITE_SHAREPOINT_SITE_URL;
 const FILE_NAME = import.meta.env.VITE_EXCEL_FILE_NAME;
 const TABLE_NAME = import.meta.env.VITE_EXCEL_TABLE_NAME;
+
+/**
+ * AI log entry interface
+ */
+export interface AILogEntry {
+  id: string;
+  timestamp: Date;
+  date: string;
+  user: string;
+  userMessage: string;
+  aiResponse: string;
+  context?: string;
+  model?: string;
+  duration?: number;
+  success: boolean;
+  error?: string;
+}
 
 class ExcelService {
   private msalInstance: IPublicClientApplication | null = null;
@@ -1193,23 +1209,6 @@ class ExcelService {
     } catch (error) {
       // Failed to log to Excel table - logging failures shouldn't break the app
     }
-  }
-
-  /**
-   * AI log entry interface
-   */
-  interface AILogEntry {
-    id: string;
-    timestamp: Date;
-    date: string;
-    user: string;
-    userMessage: string;
-    aiResponse: string;
-    context?: string;
-    model?: string;
-    duration?: number;
-    success: boolean;
-    error?: string;
   }
 
   /**
