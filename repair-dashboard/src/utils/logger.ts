@@ -1,4 +1,5 @@
-import winston from 'winston';
+// Browser-compatible logger (replaces Winston for frontend)
+// Winston is Node.js only - this provides the same API for browser environments
 
 // Sensitive data patterns to redact
 const SENSITIVE_PATTERNS = [
@@ -43,86 +44,110 @@ const sanitizeMessage = (message: string): string => {
   return sanitized;
 };
 
-// Custom format for better readability
-const customFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-  winston.format.errors({ stack: true }),
-  winston.format.printf((info) => {
-    const correlationId = getCorrelationId();
-    const { timestamp, level, message, service, ...meta } = info;
-
-    // Sanitize message
-    const sanitizedMessage = typeof message === 'string'
-      ? sanitizeMessage(message)
-      : sanitizeMessage(JSON.stringify(message));
-
-    // Build log string
-    let logString = `[${timestamp}] [${level.toUpperCase()}]`;
-
-    if (service) {
-      logString += ` [${service}]`;
-    }
-
-    logString += ` [${correlationId}]`;
-    logString += ` ${sanitizedMessage}`;
-
-    // Add metadata if present
-    if (Object.keys(meta).length > 0) {
-      // Sanitize metadata
-      const sanitizedMeta = JSON.stringify(meta, (key, value) => {
-        if (typeof value === 'string') {
-          return sanitizeMessage(value);
-        }
-        return value;
-      }, 2);
-
-      logString += `\n${sanitizedMeta}`;
-    }
-
-    return logString;
-  })
-);
-
 // Determine environment
 const isProduction = import.meta.env.PROD;
 const isDevelopment = import.meta.env.DEV;
 
-// Configure Winston logger
-const logger = winston.createLogger({
-  level: isProduction ? 'warn' : 'debug', // Production: only warn/error, Dev: all levels
-  format: customFormat,
-  defaultMeta: {
-    service: 'genthrust-repairs',
-    environment: isProduction ? 'production' : 'development'
-  },
-  transports: [
-    // Console transport for all environments
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize({ all: !isProduction }), // Color only in dev
-        customFormat
-      )
-    })
-  ],
-  // Don't exit on error
-  exitOnError: false
-});
+// Log level priorities
+const LOG_LEVELS = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3
+};
 
-// Add file transport in production (if running in Node.js environment)
-if (isProduction && typeof window === 'undefined') {
-  logger.add(new winston.transports.File({
-    filename: 'logs/error.log',
-    level: 'error',
-    maxsize: 5242880, // 5MB
-    maxFiles: 5
-  }));
+const currentLogLevel = isProduction ? LOG_LEVELS.warn : LOG_LEVELS.debug;
 
-  logger.add(new winston.transports.File({
-    filename: 'logs/combined.log',
-    maxsize: 5242880, // 5MB
-    maxFiles: 5
-  }));
+// Browser console logger (replaces Winston)
+class BrowserLogger {
+  private shouldLog(level: keyof typeof LOG_LEVELS): boolean {
+    return LOG_LEVELS[level] >= currentLogLevel;
+  }
+
+  private formatMessage(level: string, message: string, meta?: Record<string, any>): string {
+    const timestamp = new Date().toISOString();
+    const correlationId = getCorrelationId();
+    const sanitizedMessage = typeof message === 'string'
+      ? sanitizeMessage(message)
+      : sanitizeMessage(JSON.stringify(message));
+
+    let logString = `[${timestamp}] [${level.toUpperCase()}] [${correlationId}] ${sanitizedMessage}`;
+
+    return logString;
+  }
+
+  private sanitizeMeta(meta?: Record<string, any>): Record<string, any> | undefined {
+    if (!meta) return undefined;
+
+    return JSON.parse(JSON.stringify(meta, (key, value) => {
+      if (typeof value === 'string') {
+        return sanitizeMessage(value);
+      }
+      return value;
+    }));
+  }
+
+  log(level: string, message: string, meta?: Record<string, any>) {
+    const logLevel = level as keyof typeof LOG_LEVELS;
+    if (!this.shouldLog(logLevel)) return;
+
+    const formattedMessage = this.formatMessage(level, message, meta);
+    const sanitizedMeta = this.sanitizeMeta(meta);
+
+    // Use appropriate console method with color coding in development
+    switch (level) {
+      case 'debug':
+        if (isDevelopment) {
+          console.debug(`%c${formattedMessage}`, 'color: #888', sanitizedMeta);
+        } else {
+          console.debug(formattedMessage, sanitizedMeta);
+        }
+        break;
+      case 'info':
+        if (isDevelopment) {
+          console.info(`%c${formattedMessage}`, 'color: #2196F3', sanitizedMeta);
+        } else {
+          console.info(formattedMessage, sanitizedMeta);
+        }
+        break;
+      case 'warn':
+        if (isDevelopment) {
+          console.warn(`%c${formattedMessage}`, 'color: #FF9800', sanitizedMeta);
+        } else {
+          console.warn(formattedMessage, sanitizedMeta);
+        }
+        break;
+      case 'error':
+        if (isDevelopment) {
+          console.error(`%c${formattedMessage}`, 'color: #f44336', sanitizedMeta);
+        } else {
+          console.error(formattedMessage, sanitizedMeta);
+        }
+        break;
+      default:
+        console.log(formattedMessage, sanitizedMeta);
+    }
+  }
+
+  debug(message: string, meta?: Record<string, any>) {
+    this.log('debug', message, meta);
+  }
+
+  info(message: string, meta?: Record<string, any>) {
+    this.log('info', message, meta);
+  }
+
+  warn(message: string, meta?: Record<string, any>) {
+    this.log('warn', message, meta);
+  }
+
+  error(message: string, meta?: Record<string, any>) {
+    this.log('error', message, meta);
+  }
 }
+
+// Singleton logger instance
+const browserLogger = new BrowserLogger();
 
 // Logging utility class with context management
 export class Logger {
@@ -138,10 +163,12 @@ export class Logger {
     const logMeta = {
       ...this.metadata,
       ...meta,
-      context: this.context
+      context: this.context,
+      service: 'genthrust-repairs',
+      environment: isProduction ? 'production' : 'development'
     };
 
-    logger.log(level, message, logMeta);
+    browserLogger.log(level, message, logMeta);
   }
 
   debug(message: string, meta?: Record<string, any>) {
@@ -219,7 +246,7 @@ export class PerformanceLogger {
 }
 
 // Export singleton logger instance for backward compatibility
-export default logger;
+export default browserLogger;
 
 // Helper to measure async operations
 export const measureAsync = async <T>(
