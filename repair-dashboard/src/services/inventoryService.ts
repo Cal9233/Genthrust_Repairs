@@ -6,6 +6,7 @@
 
 import type { IPublicClientApplication } from "@azure/msal-browser";
 import { mysqlInventoryService } from "./mysqlInventoryService";
+import { excelInventoryService } from "./excelInventoryService";
 import type { LowStockResponse } from "./mysqlInventoryService";
 import { createLogger } from '@/utils/logger';
 
@@ -89,20 +90,21 @@ class MySQLInventoryServiceWrapper {
   }
 
   /**
-   * Execute operation with automatic fallback
+   * Execute operation with automatic fallback to Excel
    */
   private async executeWithFallback<T>(
     operation: string,
-    mysqlFn: () => Promise<T>
+    mysqlFn: () => Promise<T>,
+    excelFn?: () => Promise<T>
   ): Promise<T> {
     // Check MySQL health first
     await this.checkMySQLHealth();
 
-    // Try MySQL
+    // Try MySQL first
     try {
       logger.info(`Attempting ${operation} via MySQL`);
       const result = await mysqlFn();
-      logger.info(`${operation} successful`);
+      logger.info(`${operation} successful via MySQL`);
 
       // Mark MySQL as available if it was previously unavailable
       if (!this.mysqlAvailable) {
@@ -111,15 +113,45 @@ class MySQLInventoryServiceWrapper {
       }
 
       return result;
-    } catch (error) {
-      logger.error(`MySQL ${operation} failed`, error);
+    } catch (mysqlError) {
+      logger.error(`MySQL ${operation} failed`, mysqlError);
 
       // Mark MySQL as unavailable
       this.mysqlAvailable = false;
       this.lastHealthCheck = Date.now();
 
+      // Try Excel fallback if provided
+      if (excelFn) {
+        try {
+          logger.warn(`Falling back to SharePoint Excel for ${operation}`);
+          const result = await excelFn();
+          logger.info(`${operation} successful via Excel fallback`, {
+            operation,
+            source: 'excel',
+            timestamp: new Date().toISOString()
+          });
+
+          // Log that we're using fallback (non-critical warning)
+          logger.warn('Operating in Excel fallback mode. MySQL backend unavailable.', {
+            mysqlError: mysqlError instanceof Error ? mysqlError.message : 'unknown error'
+          });
+
+          return result;
+        } catch (excelError) {
+          logger.error(`Excel fallback for ${operation} also failed`, excelError);
+
+          // Both failed - throw comprehensive error
+          throw new Error(
+            `Inventory operation failed on both MySQL and Excel sources:\n` +
+            `MySQL: ${mysqlError instanceof Error ? mysqlError.message : 'unknown error'}\n` +
+            `Excel: ${excelError instanceof Error ? excelError.message : 'unknown error'}`
+          );
+        }
+      }
+
+      // No fallback provided, throw original MySQL error
       throw new Error(
-        `Inventory operation failed: ${error instanceof Error ? error.message : 'unknown error'}`
+        `Inventory operation failed: ${mysqlError instanceof Error ? mysqlError.message : 'unknown error'}`
       );
     }
   }
@@ -130,7 +162,8 @@ class MySQLInventoryServiceWrapper {
   async searchInventory(partNumber: string): Promise<InventorySearchResult[]> {
     return this.executeWithFallback(
       'searchInventory',
-      () => mysqlInventoryService.searchInventory(partNumber)
+      () => mysqlInventoryService.searchInventory(partNumber),
+      () => excelInventoryService.searchInventory(partNumber)
     );
   }
 
@@ -156,6 +189,7 @@ class MySQLInventoryServiceWrapper {
 
   /**
    * Decrement inventory quantity
+   * Note: Excel fallback for decrement operations is not yet implemented
    */
   async decrementInventory(
     indexId: string,
@@ -167,7 +201,8 @@ class MySQLInventoryServiceWrapper {
   ): Promise<InventoryDecrementResult> {
     return this.executeWithFallback(
       'decrementInventory',
-      () => mysqlInventoryService.decrementInventory(indexId, partNumber, tableName, rowId, roNumber, notes)
+      () => mysqlInventoryService.decrementInventory(indexId, partNumber, tableName, rowId, roNumber, notes),
+      () => excelInventoryService.decrementInventory(indexId, partNumber, tableName, rowId, roNumber, notes)
     );
   }
 
@@ -189,17 +224,23 @@ class MySQLInventoryServiceWrapper {
   async getLowStockParts(threshold: number = 5): Promise<LowStockResponse> {
     return this.executeWithFallback(
       'getLowStockParts',
-      () => mysqlInventoryService.getLowStockParts(threshold)
+      () => mysqlInventoryService.getLowStockParts(threshold),
+      () => excelInventoryService.getLowStockParts(threshold)
     );
   }
 
   /**
    * Get current data source status
    */
-  getDataSourceStatus(): { current: 'mysql'; mysqlAvailable: boolean } {
+  getDataSourceStatus(): {
+    current: 'mysql' | 'excel' | 'unknown';
+    mysqlAvailable: boolean;
+    usingExcelFallback: boolean;
+  } {
     return {
-      current: 'mysql',
-      mysqlAvailable: this.mysqlAvailable
+      current: this.mysqlAvailable ? 'mysql' : 'excel',
+      mysqlAvailable: this.mysqlAvailable,
+      usingExcelFallback: !this.mysqlAvailable
     };
   }
 
