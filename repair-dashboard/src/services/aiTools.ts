@@ -23,8 +23,8 @@ export const tools: Tool[] = [
           properties: {
             status: {
               type: "string",
-              enum: ["TO SEND", "WAITING QUOTE", "APPROVED", "BEING REPAIRED", "SHIPPING", "PAID", "PAYMENT SENT", "RAI", "BER"],
-              description: "New status for the repair order. RAI = Return As Is, BER = Beyond Economical Repair"
+              enum: ["TO SEND", "WAITING QUOTE", "APPROVED", "BEING REPAIRED", "SHIPPING", "PAID", "PAYMENT SENT", "RAI", "BER", "SCRAPPED"],
+              description: "New status for the repair order. RAI = Return As Is, BER = Beyond Economical Repair, SCRAPPED = Scrapped onsite (shop keeps part, we pay but don't receive)"
             },
             cost: {
               type: "number",
@@ -246,8 +246,8 @@ export const tools: Tool[] = [
         },
         status: {
           type: "string",
-          enum: ["PAID", "NET", "BER", "RAI", "CANCEL"],
-          description: "The status that determines which archive sheet to use. PAID → Paid sheet, NET → NET sheet, BER/RAI/CANCEL → Returns sheet"
+          enum: ["PAID", "NET", "BER", "RAI", "CANCEL", "SCRAPPED"],
+          description: "The status that determines which archive sheet to use. PAID → Paid sheet, NET → NET sheet, BER/RAI/CANCEL/SCRAPPED → Returns sheet"
         }
       },
       required: ["ro_number", "status"]

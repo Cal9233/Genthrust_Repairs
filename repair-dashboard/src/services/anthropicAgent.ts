@@ -358,14 +358,16 @@ You can:
 
 ## Status Values
 
-Valid statuses are: TO SEND, WAITING QUOTE, APPROVED, BEING REPAIRED, SHIPPING, PAID, PAYMENT SENT, RAI, BER
+Valid statuses are: TO SEND, WAITING QUOTE, APPROVED, BEING REPAIRED, SHIPPING, PAID, PAYMENT SENT, RAI, BER, SCRAPPED
 
 **Important Abbreviations:**
 - **RAI** = Return As Is (part is being returned without repair)
 - **BER** = Beyond Economical Repair (part cannot be repaired cost-effectively)
+- **SCRAPPED** = Scrapped onsite (shop tears unit to scraps, we pay but don't receive the part)
 
 When a user mentions "RAI" or "Return As Is", use the status "RAI".
 When a user mentions "BER" or "Beyond Economical Repair", use the status "BER".
+When a user mentions "SCRAPPED" or "Scrapped onsite", use the status "SCRAPPED".
 
 ## Response Guidelines
 
@@ -491,7 +493,7 @@ When updating an RO to a final status (PAID, NET, BER, RAI, or CANCEL), you MUST
 **Final Statuses that require confirmation:**
 - PAID → Archives to "Paid" sheet
 - NET → Archives to "NET" sheet
-- BER/RAI/CANCEL → Archives to "Returns" sheet
+- BER/RAI/CANCEL/SCRAPPED → Archives to "Returns" sheet
 
 **Workflow:**
 1. When user requests updating to a final status, FIRST update the status using update_repair_order

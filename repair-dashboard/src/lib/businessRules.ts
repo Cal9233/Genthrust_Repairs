@@ -108,6 +108,10 @@ export function calculateNextUpdateDate(
       // Beyond economic repair - no follow-up needed
       return null;
 
+    case "SCRAPPED":
+      // Scrapped onsite - no follow-up needed
+      return null;
+
     default:
       // Default: follow up in 7 days
       return addDays(baseDate, 7);
@@ -220,6 +224,13 @@ export function getStatusColor(
         bg: "bg-slate-50",
         text: "text-slate-700",
         border: "border-slate-200",
+      };
+
+    case "SCRAPPED":
+      return {
+        bg: "bg-amber-50",
+        text: "text-amber-700",
+        border: "border-amber-200",
       };
 
     default:

@@ -98,8 +98,8 @@ export function getFinalSheetForStatus(
     return EXCEL_SHEETS.NET;
   }
 
-  // For returns/cancellations
-  if (upperStatus === 'BER' || upperStatus === 'RAI' || upperStatus.includes('CANCEL')) {
+  // For returns/cancellations/scrapped
+  if (upperStatus === 'BER' || upperStatus === 'RAI' || upperStatus === 'SCRAPPED' || upperStatus.includes('CANCEL')) {
     return EXCEL_SHEETS.RETURNS;
   }
 

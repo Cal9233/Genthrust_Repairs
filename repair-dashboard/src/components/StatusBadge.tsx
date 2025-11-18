@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Clock, CheckCircle, Truck, RotateCcw, XCircle, DollarSign } from "lucide-react";
+import { AlertCircle, Clock, CheckCircle, Truck, RotateCcw, XCircle, DollarSign, Trash2 } from "lucide-react";
 
 interface StatusBadgeProps {
   status: string;
@@ -36,6 +36,9 @@ export function StatusBadge({ status, isOverdue }: StatusBadgeProps) {
     if (status.includes("BER")) {
       return "bg-danger/10 text-danger border-danger/30 font-semibold"; // Red for Beyond Economical Repair
     }
+    if (status.includes("SCRAPPED")) {
+      return "bg-amber-500/10 text-amber-700 border-amber-500/30 font-semibold"; // Amber for Scrapped
+    }
 
     return "bg-secondary text-muted-foreground border-border font-medium";
   };
@@ -48,6 +51,7 @@ export function StatusBadge({ status, isOverdue }: StatusBadgeProps) {
     if (status.includes("PAYMENT SENT")) return <DollarSign className="h-3.5 w-3.5" />;
     if (status.includes("RAI")) return <RotateCcw className="h-3.5 w-3.5" />;
     if (status.includes("BER")) return <XCircle className="h-3.5 w-3.5" />;
+    if (status.includes("SCRAPPED")) return <Trash2 className="h-3.5 w-3.5" />;
     return null;
   };
 

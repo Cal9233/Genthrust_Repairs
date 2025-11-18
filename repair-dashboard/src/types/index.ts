@@ -56,6 +56,7 @@ export interface DashboardStats {
   rai: number;
   ber: number;
   cancel: number;
+  scrapped: number;
   approvedNet: number;
 }
 

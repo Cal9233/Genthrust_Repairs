@@ -21,7 +21,8 @@ export type ROStatus =
   | "PAID"
   | "PAYMENT SENT"
   | "RAI"
-  | "BER";
+  | "BER"
+  | "SCRAPPED";
 
 /**
  * Update repair order tool input
@@ -62,7 +63,7 @@ export interface QueryRepairOrdersInput {
  */
 export interface ArchiveRepairOrderInput {
   ro_number: string;
-  status: 'PAID' | 'NET' | 'BER' | 'RAI' | 'CANCEL';
+  status: 'PAID' | 'NET' | 'BER' | 'RAI' | 'CANCEL' | 'SCRAPPED';
 }
 
 /**

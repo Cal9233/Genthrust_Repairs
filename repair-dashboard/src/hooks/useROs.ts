@@ -280,7 +280,8 @@ export function useDashboardStats() {
             ro.currentStatus !== "PAYMENT SENT" &&
             ro.currentStatus !== "BER" &&
             !ro.currentStatus.includes("CANCEL") &&
-            !ro.currentStatus.includes("RAI")
+            !ro.currentStatus.includes("RAI") &&
+            !ro.currentStatus.includes("SCRAPPED")
         ).length,
         overdue: ros.filter((ro) => ro.isOverdue).length,
         waitingQuote: ros.filter((ro) =>
@@ -307,6 +308,7 @@ export function useDashboardStats() {
         rai: ros.filter((ro) => ro.currentStatus.includes("RAI")).length,
         ber: ros.filter((ro) => ro.currentStatus.includes("BER")).length,
         cancel: ros.filter((ro) => ro.currentStatus.includes("CANCEL")).length,
+        scrapped: ros.filter((ro) => ro.currentStatus.includes("SCRAPPED")).length,
         approvedNet: ros.filter((ro) =>
           ro.currentStatus.includes("NET") || ro.terms?.includes("NET")
         ).length,

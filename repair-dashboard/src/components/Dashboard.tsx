@@ -20,6 +20,7 @@ import {
   XOctagon,
   Receipt,
   ChevronDown,
+  Trash2,
 } from "lucide-react";
 
 export function Dashboard() {
@@ -168,6 +169,16 @@ export function Dashboard() {
       borderColor: "border-l-danger",
       bgGradient: "bg-card-red",
       shadow: "shadow-[0_2px_8px_rgba(239,68,68,0.12)]",
+    },
+    {
+      title: "SCRAPPED",
+      value: stats.scrapped,
+      icon: Trash2,
+      iconColor: "text-amber-700",
+      iconBg: "bg-amber-500/20",
+      borderColor: "border-l-amber-500",
+      bgGradient: "bg-card-amber",
+      shadow: "shadow-[0_2px_8px_rgba(245,158,11,0.12)]",
     },
     {
       title: "CANCELLED",

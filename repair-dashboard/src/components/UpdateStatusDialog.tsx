@@ -46,6 +46,7 @@ const STATUS_OPTIONS = [
   "PAYMENT SENT",
   "RAI",
   "BER",
+  "SCRAPPED",
 ];
 
 export function UpdateStatusDialog({
