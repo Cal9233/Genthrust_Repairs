@@ -250,6 +250,71 @@ class ExcelInventoryService {
   }
 
   /**
+   * Search in the pre-built InventoryIndexTable for fast lookups
+   * This is the first fallback layer - much faster than scanning all 11 tables
+   */
+  private async searchInIndexTable(normalizedPN: string): Promise<InventorySearchResult[]> {
+    try {
+      logger.debug(`Searching InventoryIndexTable for ${normalizedPN}`);
+
+      // Get rows from the index table (same workbook as other inventory tables)
+      const rows = await excelService.getRowsFromTable('Inventory', 'InventoryIndexTable');
+
+      // InventoryIndexTable schema (from buildInventoryIndex.js):
+      // Columns: Part Number, Table Name, Row ID, Serial Number, Qty, Condition, Location, Description, Last Seen
+      const indices = {
+        partNumber: 0,
+        tableName: 1,
+        rowId: 2,
+        serial: 3,
+        qty: 4,
+        condition: 5,
+        location: 6,
+        description: 7,
+        lastSeen: 8
+      };
+
+      const results: InventorySearchResult[] = [];
+
+      // Filter and map rows
+      rows.forEach((row, rowIndex) => {
+        if (!row || !row.values || !row.values[0]) return;
+
+        const pn = String(row.values[0][indices.partNumber] || '');
+        const normalizedRowPN = this.normalizePartNumber(pn);
+
+        // Check if part number matches
+        if (normalizedRowPN.includes(normalizedPN) || normalizedPN.includes(normalizedRowPN)) {
+          const qty = parseInt(String(row.values[0][indices.qty] || '0'), 10);
+
+          // Only include items with quantity > 0
+          if (qty > 0) {
+            results.push({
+              indexId: `excel-index-${rowIndex}`,
+              partNumber: pn,
+              tableName: String(row.values[0][indices.tableName] || ''),
+              rowId: String(row.values[0][indices.rowId] || ''),
+              serialNumber: String(row.values[0][indices.serial] || ''),
+              qty: qty,
+              condition: String(row.values[0][indices.condition] || ''),
+              location: String(row.values[0][indices.location] || ''),
+              description: String(row.values[0][indices.description] || ''),
+              lastSeen: String(row.values[0][indices.lastSeen] || new Date().toISOString())
+            });
+          }
+        }
+      });
+
+      logger.debug(`Found ${results.length} results in InventoryIndexTable`);
+      return results;
+    } catch (error) {
+      logger.error('Error searching InventoryIndexTable', error);
+      // Return empty array to trigger fallback to full scan
+      return [];
+    }
+  }
+
+  /**
    * Search inventory across all Excel tables
    */
   async searchInventory(partNumber: string): Promise<InventorySearchResult[]> {
@@ -260,6 +325,24 @@ class ExcelInventoryService {
     }
 
     const normalizedPN = this.normalizePartNumber(partNumber);
+
+    // STEP 1: Try InventoryIndexTable FIRST (fast lookup ~500ms)
+    try {
+      logger.info('Checking InventoryIndexTable for fast lookup...');
+      const indexResults = await this.searchInIndexTable(normalizedPN);
+
+      if (indexResults.length > 0) {
+        // Found in index - return immediately without checking other tables
+        logger.info(`Found ${indexResults.length} results in InventoryIndexTable (fast path)`);
+        return indexResults;
+      }
+
+      logger.info('Part not found in InventoryIndexTable, falling back to full table scan');
+    } catch (error) {
+      logger.warn('InventoryIndexTable search failed, falling back to full scan', error);
+    }
+
+    // STEP 2: Fallback to searching all 11 tables (slow path ~5-10s)
     const allResults: InventorySearchResult[] = [];
 
     // Search across all inventory tables
