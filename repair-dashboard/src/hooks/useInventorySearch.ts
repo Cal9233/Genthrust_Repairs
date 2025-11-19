@@ -31,7 +31,9 @@ export function useInventorySearch(partNumber: string) {
     },
     enabled: debouncedSearch.trim().length > 0, // Only search if there's input
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    refetchOnWindowFocus: true,
+    retry: false, // Disable retries - prevent infinite loops when MySQL is down
+    refetchInterval: false, // Disable auto-refetch - override global setting
+    refetchOnWindowFocus: false, // Disable refetch on focus - user must manually search
   });
 }
 
@@ -49,6 +51,8 @@ export function useInventoryDetails(tableName: string | null, rowId: string | nu
     },
     enabled: !!tableName && !!rowId,
     staleTime: 5 * 60 * 1000,
+    retry: false, // Disable retries
+    refetchInterval: false, // Disable auto-refetch
   });
 }
 
@@ -66,6 +70,8 @@ export function useTableColumns(tableName: string | null) {
     },
     enabled: !!tableName,
     staleTime: 30 * 60 * 1000, // Cache for 30 minutes (columns don't change often)
+    retry: false, // Disable retries
+    refetchInterval: false, // Disable auto-refetch
   });
 }
 

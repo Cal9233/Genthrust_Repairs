@@ -100,7 +100,22 @@ class MySQLInventoryServiceWrapper {
     // Check MySQL health first
     await this.checkMySQLHealth();
 
-    // Try MySQL first
+    // Skip MySQL entirely if health check determined it's unavailable
+    if (!this.mysqlAvailable && excelFn) {
+      logger.info(`MySQL marked as unavailable, using Excel fallback for ${operation}`);
+      try {
+        const result = await excelFn();
+        logger.info(`${operation} successful via Excel fallback (MySQL unavailable)`);
+        return result;
+      } catch (excelError) {
+        logger.error(`Excel fallback for ${operation} failed`, excelError);
+        throw new Error(
+          `Inventory operation failed: MySQL unavailable and Excel fallback failed: ${excelError instanceof Error ? excelError.message : 'unknown error'}`
+        );
+      }
+    }
+
+    // Try MySQL (only if health check passed or no Excel fallback available)
     try {
       logger.info(`Attempting ${operation} via MySQL`);
       const result = await mysqlFn();
