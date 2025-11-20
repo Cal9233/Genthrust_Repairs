@@ -53,19 +53,23 @@ DB_PASSWORD=your-db-password
 ### 1.3 Note Your Backend URL
 
 Once deployed, Render will give you a URL like:
+
 ```
 https://genthrust-backend-XXXX.onrender.com
 ```
 
 **Copy this URL** - you'll need it for Netlify configuration.
 
+# BluePrint-ID: exs-d4f91lmuk2gs73f6e33g
+
 ### 1.4 Test Backend Health Check
 
 Visit: `https://YOUR-BACKEND-URL.onrender.com/health`
 
 You should see:
+
 ```json
-{"status":"ok","message":"Genthrust Repairs API is running"}
+{ "status": "ok", "message": "Genthrust Repairs API is running" }
 ```
 
 ---
@@ -82,17 +86,17 @@ You should see:
 
 Click **"Add a variable"** and add each of these:
 
-| Variable Name | Value |
-|---------------|-------|
-| `VITE_CLIENT_ID` | `ee8cb926-5dda-4bbf-9360-dd94d7c433e1` |
-| `VITE_TENANT_ID` | `ddb0202c-cb5f-425e-891a-5666e58d9ad5` |
-| `VITE_BACKEND_URL` | `https://YOUR-BACKEND-URL.onrender.com` |
-| `VITE_API_BASE_URL` | `https://YOUR-BACKEND-URL.onrender.com/api` |
-| `VITE_SHAREPOINT_SITE_URL` | `https://genthrustxvii.sharepoint.com/sites/PartsQuotationsWebsite` |
-| `VITE_EXCEL_FILE_NAME` | `Book.xlsx` |
-| `VITE_EXCEL_TABLE_NAME` | `Repairs` |
-| `VITE_SHOP_TABLE_NAME` | `Table3` |
-| `VITE_INVENTORY_WORKBOOK_ID` | `01RD47DPWM335G2HPETNDZ5YGZIGVO4BYY` |
+| Variable Name                | Value                                                               |
+| ---------------------------- | ------------------------------------------------------------------- |
+| `VITE_CLIENT_ID`             | `ee8cb926-5dda-4bbf-9360-dd94d7c433e1`                              |
+| `VITE_TENANT_ID`             | `ddb0202c-cb5f-425e-891a-5666e58d9ad5`                              |
+| `VITE_BACKEND_URL`           | `https://YOUR-BACKEND-URL.onrender.com`                             |
+| `VITE_API_BASE_URL`          | `https://YOUR-BACKEND-URL.onrender.com/api`                         |
+| `VITE_SHAREPOINT_SITE_URL`   | `https://genthrustxvii.sharepoint.com/sites/PartsQuotationsWebsite` |
+| `VITE_EXCEL_FILE_NAME`       | `Book.xlsx`                                                         |
+| `VITE_EXCEL_TABLE_NAME`      | `Repairs`                                                           |
+| `VITE_SHOP_TABLE_NAME`       | `Table3`                                                            |
+| `VITE_INVENTORY_WORKBOOK_ID` | `01RD47DPWM335G2HPETNDZ5YGZIGVO4BYY`                                |
 
 **IMPORTANT:** Replace `YOUR-BACKEND-URL` with your actual Render URL from Step 1.3
 
@@ -130,10 +134,12 @@ git push origin claude/analyze-ai-docs-019Nqh8DzBy4oQvPFZWTNVCp
 ### Option A: Use Existing MySQL (Recommended if already set up)
 
 **Requirements:**
+
 - MySQL database must be accessible from the internet
 - Update `DB_HOST` in Render environment variables to your MySQL host
 
 **Security Considerations:**
+
 - Ensure your MySQL server accepts connections from Render's IP range
 - Use strong passwords
 - Consider using MySQL SSL connections
@@ -152,6 +158,7 @@ Render offers free PostgreSQL databases. To use this:
 ### Option C: Keep MySQL Local (Development Only)
 
 If you don't have remote MySQL:
+
 - AI features will work (uses Anthropic API)
 - **Inventory search will NOT work** (requires MySQL)
 - Excel/SharePoint features will work (uses Microsoft Graph API)
@@ -189,6 +196,7 @@ If you don't have remote MySQL:
 **Cause:** Missing or incorrect environment variables
 
 **Fix:**
+
 1. Check all `VITE_*` variables are set in Netlify
 2. Ensure `VITE_CLIENT_ID` and `VITE_TENANT_ID` are correct
 3. Redeploy after adding variables
@@ -198,6 +206,7 @@ If you don't have remote MySQL:
 **Cause:** Backend not accessible or API key missing
 
 **Fix:**
+
 1. Check Render service is running: `https://YOUR-BACKEND-URL.onrender.com/health`
 2. Verify `ANTHROPIC_API_KEY` is set in Render environment
 3. Check `VITE_BACKEND_URL` in Netlify matches your Render URL
@@ -207,6 +216,7 @@ If you don't have remote MySQL:
 **Cause:** MySQL database not accessible
 
 **Fix:**
+
 1. Verify MySQL is accessible from internet
 2. Check database credentials in Render environment
 3. Test connection: Try connecting to MySQL from Render shell
@@ -216,6 +226,7 @@ If you don't have remote MySQL:
 **Cause:** Azure AD redirect URI mismatch
 
 **Fix:**
+
 1. Go to https://portal.azure.com
 2. Navigate to **Azure Active Directory** → **App registrations**
 3. Find your app (Client ID: `ee8cb926-5dda-4bbf-9360-dd94d7c433e1`)
@@ -227,6 +238,7 @@ If you don't have remote MySQL:
 ## Free Tier Limitations
 
 ### Render.com (Backend)
+
 - **Free tier:** 750 hours/month (enough for 1 service running 24/7)
 - **Spin down after 15 min inactivity** (first request after inactivity takes ~30s)
 - **512 MB RAM**
@@ -235,6 +247,7 @@ If you don't have remote MySQL:
 **Tip:** Upgrade to paid plan ($7/month) to avoid spin-down delays
 
 ### Netlify (Frontend)
+
 - **Free tier:** 100 GB bandwidth/month
 - **300 build minutes/month**
 - More than enough for your use case
