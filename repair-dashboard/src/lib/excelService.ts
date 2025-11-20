@@ -1024,35 +1024,97 @@ class ExcelService {
     const fileId = await this.getFileId();
     const sessionManager = await this.getSessionManager();
 
-    await sessionManager.withSession(async (sessionId) => {
-      // Step 1: Get the row data from the active table
-      const rowResponse = await this.callGraphAPI(
-        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
-        "GET",
-        undefined,
-        sessionId
-      );
+    try {
+      logger.info('🔄 Starting archive operation', {
+        rowIndex,
+        targetSheetName,
+        targetTableName,
+        activeTableName: TABLE_NAME
+      });
 
-      const rowData = rowResponse.values[0];
+      await sessionManager.withSession(async (sessionId) => {
+        // Step 1: Get the row data from the active table
+        logger.debug('Step 1: Fetching row data from active table', {
+          rowIndex,
+          activeTable: TABLE_NAME
+        });
 
-      // Step 2: Add the row to the target table
-      await this.callGraphAPI(
-        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/${targetSheetName}/tables/${targetTableName}/rows/add`,
-        "POST",
-        {
-          values: [rowData],
-        },
-        sessionId
-      );
+        const rowResponse = await this.callGraphAPI(
+          `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
+          "GET",
+          undefined,
+          sessionId
+        );
 
-      // Step 3: Delete the row from the active table
-      await this.callGraphAPI(
-        `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
-        "DELETE",
-        undefined,
-        sessionId
-      );
-    });
+        const rowData = rowResponse.values[0];
+
+        logger.debug('✅ Row data fetched', {
+          columnCount: rowData.length,
+          rowData: rowData
+        });
+        console.log('📊 ROW DATA:', rowData);
+        console.log('📏 Column count:', rowData.length);
+
+        // Step 2: Add the row to the target table
+        logger.debug('Step 2: Adding row to archive table', {
+          targetSheetName,
+          targetTableName,
+          columnCount: rowData.length
+        });
+        console.log('🎯 Attempting to add to:', `${targetSheetName}/${targetTableName}`);
+
+        await this.callGraphAPI(
+          `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/worksheets/${targetSheetName}/tables/${targetTableName}/rows/add`,
+          "POST",
+          {
+            values: [rowData],
+          },
+          sessionId
+        );
+
+        logger.debug('✅ Row added to archive table');
+        console.log('✅ Row successfully added to archive');
+
+        // Step 3: Delete the row from the active table
+        logger.debug('Step 3: Deleting row from active table', {
+          rowIndex,
+          activeTable: TABLE_NAME
+        });
+
+        await this.callGraphAPI(
+          `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
+          "DELETE",
+          undefined,
+          sessionId
+        );
+
+        logger.info('✅ Archive operation completed successfully');
+        console.log('✅ Archive complete - row deleted from active table');
+      });
+    } catch (error: any) {
+      logger.error('❌ Archive operation failed', error, {
+        rowIndex,
+        targetSheetName,
+        targetTableName,
+        activeTableName: TABLE_NAME,
+        errorStatus: error.status,
+        errorMessage: error.message,
+        errorDetails: error.details
+      });
+
+      console.error('❌ ARCHIVE FAILED:', {
+        rowIndex,
+        targetSheet: targetSheetName,
+        targetTable: targetTableName,
+        activeTable: TABLE_NAME,
+        error: error,
+        errorStatus: error.status,
+        errorMessage: error.message,
+        errorDetails: error.details
+      });
+
+      throw error;
+    }
   }
 
   /**
