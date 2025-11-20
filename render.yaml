@@ -1,0 +1,32 @@
+services:
+  # Backend API Service
+  - type: web
+    name: genthrust-backend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: FRONTEND_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME_PROD
+        value: ro_tracker_prod
+      - key: DB_NAME_DEV
+        value: ro_tracker_dev
+      - key: DB_NAME_INVENTORY
+        value: genthrust_inventory
+    healthCheckPath: /health
+    autoDeploy: true
