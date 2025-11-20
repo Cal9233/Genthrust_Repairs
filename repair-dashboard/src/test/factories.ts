@@ -50,7 +50,6 @@ export const createRepairOrder = (overrides?: Partial<RepairOrder>): RepairOrder
     notes: '',
     lastDateUpdated: new Date(baseDate.getTime() + 86400000),
     nextDateToUpdate: new Date(baseDate.getTime() + 14 * 86400000), // +14 days
-    checked: '',
     statusHistory: [
       {
         status: 'TO SEND',
@@ -219,10 +218,9 @@ export const createGraphTableRow = (ro: RepairOrder) => {
       ro.genThrustStatus,
       ro.shopStatus,
       ro.trackingNumber,
+      ro.notes,
       ro.lastDateUpdated?.getTime(),
       ro.nextDateToUpdate?.getTime(),
-      ro.checked,
-      ro.notes
     ]]
   };
 };

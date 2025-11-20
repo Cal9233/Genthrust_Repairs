@@ -64,7 +64,6 @@ function convertToCSV(ros: RepairOrder[]): string {
     "Notes",
     "Last Date Updated",
     "Next Date to Update",
-    "Checked",
     "Days Overdue",
     "Is Overdue",
   ];
@@ -92,7 +91,6 @@ function convertToCSV(ros: RepairOrder[]): string {
     escapeCSVField(ro.notes),
     escapeCSVField(formatDateForCSV(ro.lastDateUpdated)),
     escapeCSVField(formatDateForCSV(ro.nextDateToUpdate)),
-    escapeCSVField(ro.checked),
     escapeCSVField(ro.daysOverdue),
     escapeCSVField(ro.isOverdue ? "Yes" : "No"),
   ]);

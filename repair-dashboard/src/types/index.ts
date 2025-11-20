@@ -30,7 +30,6 @@ export interface RepairOrder {
   notes: string;
   lastDateUpdated: Date | null;
   nextDateToUpdate: Date | null;
-  checked: string;
   statusHistory: StatusHistoryEntry[];
 
   // Computed

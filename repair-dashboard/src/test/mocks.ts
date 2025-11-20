@@ -158,10 +158,9 @@ export const mockExcelResponse = {
     ro.genThrustStatus,
     ro.shopStatus,
     ro.trackingNumber,
+    ro.notes,
     ro.lastDateUpdated?.toISOString(),
     ro.nextDateToUpdate?.toISOString(),
-    ro.checked,
-    ro.notes,
   ]),
 };
 

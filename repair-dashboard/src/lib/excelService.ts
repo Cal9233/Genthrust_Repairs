@@ -650,7 +650,6 @@ class ExcelService {
         notes,
         lastDateUpdated: lastUpdated,
         nextDateToUpdate: nextUpdate,
-        checked: typeof values[21] === 'string' ? values[21] : "",
         statusHistory,
         daysOverdue,
         isOverdue,
@@ -723,7 +722,6 @@ class ExcelService {
         notes,
         lastDateUpdated: lastUpdated,
         nextDateToUpdate: nextUpdate,
-        checked: typeof values[21] === 'string' ? values[21] : "",
         statusHistory,
         daysOverdue,
         isOverdue,
@@ -897,30 +895,29 @@ class ExcelService {
     const sessionManager = await this.getSessionManager();
 
     await sessionManager.withSession(async (sessionId) => {
-      // Create row with all columns (22 columns total based on RepairOrder type)
+      // Create row with all columns (21 columns total matching Excel table structure)
       const newRow = [
-        data.roNumber, // 0: RO Number
-        todayISO, // 1: Date Made
-        data.shopName, // 2: Shop Name
-        data.partNumber, // 3: Part Number
-        data.serialNumber, // 4: Serial Number
-        data.partDescription, // 5: Part Description
-        data.requiredWork, // 6: Required Work
-        "", // 7: Date Dropped Off (empty for now)
-        data.estimatedCost || "", // 8: Estimated Cost
-        "", // 9: Final Cost (empty for now)
-        data.terms || "", // 10: Terms
-        data.shopReferenceNumber || "", // 11: Shop Reference Number
-        "", // 12: Estimated Delivery Date (empty for now)
-        initialStatus, // 13: Current Status
-        todayISO, // 14: Current Status Date
-        "", // 15: GenThrust Status (empty for now)
-        "", // 16: Shop Status (empty for now)
-        "", // 17: Tracking Number (empty for now)
-        serializedNotes, // 18: Notes with initial status history
-        todayISO, // 19: Last Date Updated
-        nextUpdateISO, // 20: Next Date to Update (auto-calculated)
-        "", // 21: Checked (empty for now)
+        data.roNumber, // 0: RO #
+        todayISO, // 1: DATE MADE
+        data.shopName, // 2: SHOP NAME
+        data.partNumber, // 3: PART #
+        data.serialNumber, // 4: SERIAL #
+        data.partDescription, // 5: PART DESCRIPTION
+        data.requiredWork, // 6: REQ WORK
+        "", // 7: DATE DROPPED OFF (empty for now)
+        data.estimatedCost || "", // 8: ESTIMATED COST
+        "", // 9: FINAL COST (empty for now)
+        data.terms || "", // 10: TERMS
+        data.shopReferenceNumber || "", // 11: SHOP REF #
+        "", // 12: ESTIMATED DELIVERY DATE (empty for now)
+        initialStatus, // 13: CURENT STATUS
+        todayISO, // 14: CURENT STATUS DATE
+        "", // 15: GENTHRUST STATUS (empty for now)
+        "", // 16: SHOP STATUS (empty for now)
+        "", // 17: TRACKING NUMBER / PICKING UP (empty for now)
+        serializedNotes, // 18: NOTES (with initial status history)
+        todayISO, // 19: LAST DATE UPDATED
+        nextUpdateISO, // 20: NEXT DATE TO UPDATE (auto-calculated)
       ];
 
       await this.callGraphAPI(
