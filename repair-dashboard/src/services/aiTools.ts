@@ -4,6 +4,20 @@ import { reminderService } from '@/lib/reminderService';
 import { generateEmailForAI } from '@/lib/emailTemplates';
 import { getFinalSheetForStatus } from '@/config/excelSheets';
 import { inventoryService } from '@/services/inventoryService';
+import { repairOrderService } from '@/services/repairOrderService';
+import type { RepairOrder } from '@/types';
+
+/**
+ * Helper: Find RO by number using MySQL backend (RAG)
+ * Phase 4: All tools must use this instead of context.allROs
+ */
+async function findROByNumber(ro_number: string): Promise<RepairOrder | null> {
+  const allROs = await repairOrderService.getRepairOrders('ACTIVE');
+  return allROs.find(r =>
+    r.roNumber.toString().includes(ro_number) ||
+    ro_number.includes(r.roNumber.toString())
+  ) || null;
+}
 
 // Tool definitions
 export const tools: Tool[] = [
@@ -342,44 +356,62 @@ export const toolExecutors: Record<string, ToolExecutor> = {
   update_repair_order: async (input, context) => {
     const { ro_number, updates } = input;
 
-    // Find the RO
-    const ro = context.allROs.find(r =>
-      r.roNumber.toString().includes(ro_number) ||
-      ro_number.includes(r.roNumber.toString())
-    );
-
-    if (!ro) {
-      return { success: false, error: `RO ${ro_number} not found` };
-    }
-
     try {
-      const rowIndex = parseInt(ro.id.replace("row-", ""));
+      // Phase 4: Query from MySQL instead of context.allROs
+      const allROs = await repairOrderService.getRepairOrders('ACTIVE');
 
-      // Prepare the update data
-      const statusToUpdate = updates.status || ro.currentStatus;
-      const costToUpdate = updates.cost;
-      const deliveryDate = updates.estimated_delivery_date ? new Date(updates.estimated_delivery_date) : undefined;
-      const notes = updates.notes;
-      const trackingNumber = updates.tracking_number;
-
-      // Execute update via excelService
-      await excelService.updateROStatus(
-        rowIndex,
-        statusToUpdate,
-        notes,
-        costToUpdate,
-        deliveryDate,
-        trackingNumber
+      // Find the RO
+      const ro = allROs.find(r =>
+        r.roNumber.toString().includes(ro_number) ||
+        ro_number.includes(r.roNumber.toString())
       );
 
+      if (!ro) {
+        return { success: false, error: `RO ${ro_number} not found` };
+      }
+
+      // Prepare the update data
+      const updateData: any = {};
+
+      if (updates.status) {
+        updateData.currentStatus = updates.status;
+        updateData.currentStatusDate = new Date();
+      }
+
+      if (updates.cost !== undefined) {
+        // Determine which cost field to update based on status
+        const isFinalStatus = (updates.status || ro.currentStatus).includes("PAID") ||
+                             (updates.status || ro.currentStatus).includes("SHIPPING");
+        if (isFinalStatus) {
+          updateData.finalCost = updates.cost;
+        } else {
+          updateData.estimatedCost = updates.cost;
+        }
+      }
+
+      if (updates.estimated_delivery_date) {
+        updateData.estimatedDeliveryDate = new Date(updates.estimated_delivery_date);
+      }
+
+      if (updates.notes) {
+        updateData.notes = ro.notes ? `${ro.notes}\n${updates.notes}` : updates.notes;
+      }
+
+      if (updates.tracking_number) {
+        updateData.trackingNumber = updates.tracking_number;
+      }
+
+      // Execute update via repairOrderService (MySQL backend)
+      await repairOrderService.updateRepairOrder(ro.id, updateData);
+
       // Invalidate React Query cache to refresh UI
-      context.queryClient.invalidateQueries({ queryKey: ['repairOrders'] });
+      context.queryClient.invalidateQueries({ queryKey: ['ros'] });
 
       const updatedFields = [];
       if (updates.status) updatedFields.push('status');
       if (updates.cost !== undefined) {
-        // Determine which cost field was updated based on status
-        const isFinalStatus = statusToUpdate.includes("PAID") || statusToUpdate.includes("SHIPPING");
+        const isFinalStatus = (updates.status || ro.currentStatus).includes("PAID") ||
+                             (updates.status || ro.currentStatus).includes("SHIPPING");
         updatedFields.push(isFinalStatus ? 'final_cost' : 'estimated_cost');
       }
       if (updates.estimated_delivery_date) updatedFields.push('estimated_delivery_date');
@@ -404,9 +436,12 @@ export const toolExecutors: Record<string, ToolExecutor> = {
   query_repair_orders: async (input, context) => {
     const { filters, sort_by, limit } = input;
 
-    let results = [...context.allROs];
+    // Phase 4: Query from MySQL backend instead of context.allROs
+    // This implements RAG (Retrieval-Augmented Generation)
+    let results = await repairOrderService.getRepairOrders('ACTIVE');
 
-    // Apply filters
+    // Apply filters client-side
+    // TODO: Future optimization - push filters to backend API for better performance
     if (filters.status) {
       results = results.filter(ro =>
         ro.currentStatus.toLowerCase().includes(filters.status.toLowerCase())

@@ -43,7 +43,7 @@ export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { data: ros = [] } = useROs();
+  // Phase 4: No longer need to load all ROs - AI tools query from MySQL as needed
   const { data: shops = [] } = useShops();
   const { accounts } = useMsal();
   const queryClient = useQueryClient();
@@ -178,8 +178,9 @@ useEffect(() => {
       // Get current user from MSAL
       const currentUser = accounts[0]?.name || 'User';
 
+      // Phase 4: Removed allROs to enforce RAG (Retrieval-Augmented Generation)
+      // AI tools now query ROs from MySQL backend instead of receiving them in context
       const context: CommandContext = {
-        allROs: ros,
         allShops: shops,
         currentUser,
         queryClient

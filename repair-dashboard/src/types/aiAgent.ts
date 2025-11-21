@@ -209,8 +209,9 @@ export interface ContentBlock {
 
 // Command execution context
 export interface CommandContext {
-  allROs: RepairOrder[];
-  allShops: Shop[];
+  // Phase 4: Removed allROs to enforce RAG (Retrieval-Augmented Generation)
+  // Tools must use repairOrderService.getRepairOrders() to query ROs from MySQL
+  allShops: Shop[]; // Still needed for shop lookup/validation
   currentUser: string;
   queryClient: QueryClient;
 }
