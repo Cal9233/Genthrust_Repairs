@@ -280,18 +280,6 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* Quick Stats */}
-            <div className="hidden md:flex items-center gap-3 text-white/90 text-[13px]">
-              <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-[20px]">
-                <Package className="h-3.5 w-3.5" />
-                <span>{ros.length} ROs</span>
-              </div>
-              <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-[20px]">
-                <MessageSquare className="h-3.5 w-3.5" />
-                <span>{messages.length} messages</span>
-              </div>
-            </div>
-
             <Button
               variant="ghost"
               size="sm"
