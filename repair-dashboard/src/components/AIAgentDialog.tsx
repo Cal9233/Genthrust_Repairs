@@ -24,12 +24,21 @@ const CONVERSATION_STORAGE_KEY = 'genthrust-ai-conversation-history';
 const MAX_STORED_MESSAGES = 50; // Limit stored messages to prevent localStorage overflow
 
 export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
+  console.log('[AIAgentDialog] RENDER - open:', open);
+
   const logger = useLogger('AIAgentDialog', { open });
 
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [streamingText, setStreamingText] = useState('');
+
+  console.log('[AIAgentDialog] State:', {
+    messagesCount: messages.length,
+    isProcessing,
+    inputLength: input.length,
+    streamingTextLength: streamingText.length
+  });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -69,6 +78,7 @@ export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
 
   // Load conversation history from localStorage on mount
   useEffect(() => {
+    console.log('[AIAgentDialog] useEffect - Load conversation history TRIGGERED');
     try {
       const stored = localStorage.getItem(CONVERSATION_STORAGE_KEY);
       if (stored) {
@@ -78,27 +88,30 @@ export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
           ...msg,
           timestamp: new Date(msg.timestamp)
         }));
+        console.log('[AIAgentDialog] Setting messages from localStorage:', messagesWithDates.length);
         setMessages(messagesWithDates);
       }
     } catch (error) {
       logger.error('Failed to load conversation history', error as Error);
     }
-  }, [logger]);
+  }, []);
 
   // Save conversation history to localStorage whenever messages change
   useEffect(() => {
+    console.log('[AIAgentDialog] useEffect - Save conversation TRIGGERED, messages:', messages.length);
     if (messages.length > 0) {
       try {
         // Only store last MAX_STORED_MESSAGES messages
         const messagesToStore = messages.slice(-MAX_STORED_MESSAGES);
         localStorage.setItem(CONVERSATION_STORAGE_KEY, JSON.stringify(messagesToStore));
+        console.log('[AIAgentDialog] Saved messages to localStorage');
       } catch (error) {
         logger.error('Failed to save conversation history', error as Error, {
           messageCount: messages.length
         });
       }
     }
-  }, [messages, logger]);
+  }, [messages]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -107,6 +120,7 @@ export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
 
 // Focus textarea when dialog opens
 useEffect(() => {
+  console.log('[AIAgentDialog] useEffect - Focus textarea TRIGGERED, open:', open);
   if (open) {
     textareaRef.current?.focus();
   }
@@ -240,8 +254,13 @@ useEffect(() => {
     toast.success('Conversation history cleared');
   };
 
+  console.log('[AIAgentDialog] ABOUT TO RETURN JSX');
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      console.log('[AIAgentDialog] Dialog onOpenChange called:', newOpen);
+      onOpenChange(newOpen);
+    }}>
       <DialogContent showClose={false} className="max-w-[calc(100%-2rem)] sm:max-w-3xl md:max-w-4xl lg:max-w-5xl h-[85vh] sm:h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-[hsl(var(--bg-primary))]">
         {/* Professional Header */}
         <div className="relative bg-gradient-header px-3 sm:px-4 md:px-6 py-3 sm:py-4 shadow-vibrant-lg">
