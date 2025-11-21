@@ -176,6 +176,17 @@ export class RepairOrderRepository {
       typeof values[18] === 'string' ? values[18] : ""
     );
 
+    // Parse archiveStatus from column 21 - treat empty/null/undefined as 'ACTIVE' for backward compatibility
+    const rawArchiveStatus = values[21];
+    let archiveStatus: 'ACTIVE' | 'PAID' | 'NET' | 'RETURNED' = 'ACTIVE';
+
+    if (rawArchiveStatus && typeof rawArchiveStatus === 'string') {
+      const upperStatus = rawArchiveStatus.toUpperCase().trim();
+      if (upperStatus === 'PAID' || upperStatus === 'NET' || upperStatus === 'RETURNED') {
+        archiveStatus = upperStatus as 'PAID' | 'NET' | 'RETURNED';
+      }
+    }
+
     return {
       id: `row-${index}`,
       roNumber: String(values[0] ?? ""),
@@ -200,6 +211,7 @@ export class RepairOrderRepository {
       lastDateUpdated: lastUpdated,
       nextDateToUpdate: nextUpdate,
       statusHistory,
+      archiveStatus,
       daysOverdue,
       isOverdue,
     };
@@ -207,8 +219,9 @@ export class RepairOrderRepository {
 
   /**
    * Get all repair orders from the main table
+   * Filters to return only ACTIVE repair orders (archiveStatus === 'ACTIVE' or empty)
    *
-   * @returns Array of repair orders with computed fields
+   * @returns Array of active repair orders with computed fields
    */
   async getRepairOrders(): Promise<RepairOrder[]> {
     logger.info('Fetching repair orders from main table', { tableName: TABLE_NAME });
@@ -223,12 +236,51 @@ export class RepairOrderRepository {
     }
 
     const rows = response.value;
-    logger.debug(`Fetched ${rows.length} repair orders`);
+    logger.debug(`Fetched ${rows.length} total rows from Excel`);
 
-    return rows.map((row, index): RepairOrder => {
+    const allRepairOrders = rows.map((row, index): RepairOrder => {
       const values = row.values[0]; // First array contains the row data
       return this.mapRowToRepairOrder(values, index);
     });
+
+    // Filter to return only ACTIVE repair orders
+    const activeOrders = allRepairOrders.filter((ro) => ro.archiveStatus === 'ACTIVE');
+    logger.debug(`Filtered to ${activeOrders.length} ACTIVE repair orders`);
+
+    return activeOrders;
+  }
+
+  /**
+   * Get archived repair orders by archive status
+   *
+   * @param status - The archive status to filter by ('PAID', 'NET', or 'RETURNED')
+   * @returns Array of archived repair orders matching the specified status
+   */
+  async getArchivedRepairOrders(status: 'PAID' | 'NET' | 'RETURNED'): Promise<RepairOrder[]> {
+    logger.info('Fetching archived repair orders', { status, tableName: TABLE_NAME });
+
+    const response = await this.graphClient.callGraphAPI<GraphAPIResponse<GraphTableRowResponse>>(
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${this.fileId}/workbook/tables/${TABLE_NAME}/rows`
+    );
+
+    if (!response) {
+      logger.warn('Empty response when fetching archived repair orders');
+      return [];
+    }
+
+    const rows = response.value;
+    logger.debug(`Fetched ${rows.length} total rows from Excel`);
+
+    const allRepairOrders = rows.map((row, index): RepairOrder => {
+      const values = row.values[0]; // First array contains the row data
+      return this.mapRowToRepairOrder(values, index);
+    });
+
+    // Filter to return only repair orders with the specified archive status
+    const archivedOrders = allRepairOrders.filter((ro) => ro.archiveStatus === status);
+    logger.debug(`Filtered to ${archivedOrders.length} ${status} repair orders`);
+
+    return archivedOrders;
   }
 
   /**
@@ -297,7 +349,7 @@ export class RepairOrderRepository {
     const serializedNotes = this.serializeNotesWithHistory("", initialHistory);
 
     await this.sessionManager.withSession(async (sessionId) => {
-      // Create row with all columns (21 columns total matching Excel table structure)
+      // Create row with all columns (22 columns total matching Excel table structure)
       const newRow = [
         data.roNumber, // 0: RO #
         todayISO, // 1: DATE MADE
@@ -320,6 +372,7 @@ export class RepairOrderRepository {
         serializedNotes, // 18: NOTES (with initial status history)
         todayISO, // 19: LAST DATE UPDATED
         nextUpdateISO, // 20: NEXT DATE TO UPDATE (auto-calculated)
+        "ACTIVE", // 21: ARCHIVE STATUS (new column)
       ];
 
       await this.graphClient.callGraphAPI(
@@ -341,18 +394,19 @@ export class RepairOrderRepository {
   async updateRepairOrder(
     rowIndex: number,
     data: {
-      roNumber: string;
-      shopName: string;
-      partNumber: string;
-      serialNumber: string;
-      partDescription: string;
-      requiredWork: string;
+      roNumber?: string;
+      shopName?: string;
+      partNumber?: string;
+      serialNumber?: string;
+      partDescription?: string;
+      requiredWork?: string;
       estimatedCost?: number;
       terms?: string;
       shopReferenceNumber?: string;
+      archiveStatus?: 'ACTIVE' | 'PAID' | 'NET' | 'RETURNED';
     }
   ): Promise<void> {
-    logger.info('Updating repair order', { rowIndex, roNumber: data.roNumber });
+    logger.info('Updating repair order', { rowIndex, data });
 
     await this.sessionManager.withSession(async (sessionId) => {
       // Get current row to preserve other fields
@@ -366,16 +420,17 @@ export class RepairOrderRepository {
       const currentValues = response.values[0];
       const today = new Date().toISOString();
 
-      // Update only the editable fields, preserve all others
-      currentValues[0] = data.roNumber;
-      currentValues[2] = data.shopName;
-      currentValues[3] = data.partNumber;
-      currentValues[4] = data.serialNumber;
-      currentValues[5] = data.partDescription;
-      currentValues[6] = data.requiredWork;
-      currentValues[8] = data.estimatedCost || "";
-      currentValues[10] = data.terms || "";
-      currentValues[11] = data.shopReferenceNumber || "";
+      // Update only the provided fields, preserve all others
+      if (data.roNumber !== undefined) currentValues[0] = data.roNumber;
+      if (data.shopName !== undefined) currentValues[2] = data.shopName;
+      if (data.partNumber !== undefined) currentValues[3] = data.partNumber;
+      if (data.serialNumber !== undefined) currentValues[4] = data.serialNumber;
+      if (data.partDescription !== undefined) currentValues[5] = data.partDescription;
+      if (data.requiredWork !== undefined) currentValues[6] = data.requiredWork;
+      if (data.estimatedCost !== undefined) currentValues[8] = data.estimatedCost || "";
+      if (data.terms !== undefined) currentValues[10] = data.terms || "";
+      if (data.shopReferenceNumber !== undefined) currentValues[11] = data.shopReferenceNumber || "";
+      if (data.archiveStatus !== undefined) currentValues[21] = data.archiveStatus; // Archive Status (column 21)
       currentValues[19] = today; // Last Date Updated
 
       await this.graphClient.callGraphAPI(
@@ -526,17 +581,19 @@ export class RepairOrderRepository {
   }
 
   /**
-   * Move an RO from the active sheet to a final archive sheet
-   * @param rowIndex - The row index in the active table
-   * @param targetSheetName - The target sheet name (e.g., 'Paid', 'NET', 'Returns')
-   * @param targetTableName - The target table name (e.g., 'Approved_Paid')
+   * Archive an RO by updating its archiveStatus field
+   * (Previously moved rows to separate sheets - now just updates the status)
+   *
+   * @param rowIndex - The row index in the table
+   * @param targetSheetName - The target sheet name (e.g., 'Paid', 'NET', 'Returns') - used to determine archiveStatus
+   * @param targetTableName - The target table name (e.g., 'Approved_Paid') - for backward compatibility, not used
    */
   async moveROToArchive(
     rowIndex: number,
     targetSheetName: string,
     targetTableName: string
   ): Promise<void> {
-    logger.info('🔄 Starting archive operation', {
+    logger.info('🔄 Starting archive operation (updating archiveStatus)', {
       rowIndex,
       targetSheetName,
       targetTableName,
@@ -544,59 +601,35 @@ export class RepairOrderRepository {
     });
 
     try {
-      await this.sessionManager.withSession(async (sessionId) => {
-        // Step 1: Get the row data from the active table
-        logger.debug('Step 1: Fetching row data from active table', {
-          rowIndex,
-          activeTable: TABLE_NAME
+      // Map targetSheetName to archiveStatus
+      let archiveStatus: 'PAID' | 'NET' | 'RETURNED';
+
+      const upperSheetName = targetSheetName.toUpperCase();
+      if (upperSheetName.includes('PAID')) {
+        archiveStatus = 'PAID';
+      } else if (upperSheetName.includes('NET')) {
+        archiveStatus = 'NET';
+      } else if (upperSheetName.includes('RETURN')) {
+        archiveStatus = 'RETURNED';
+      } else {
+        // Default to PAID if we can't determine
+        logger.warn('Could not determine archive status from targetSheetName, defaulting to PAID', {
+          targetSheetName
         });
+        archiveStatus = 'PAID';
+      }
 
-        const rowResponse = await this.graphClient.callGraphAPI(
-          `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${this.fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
-          "GET",
-          undefined,
-          sessionId
-        );
+      logger.debug('Mapped targetSheetName to archiveStatus', {
+        targetSheetName,
+        archiveStatus
+      });
 
-        const rowData = rowResponse.values[0];
+      // Update the archiveStatus field (column 21) instead of moving the row
+      await this.updateRepairOrder(rowIndex, { archiveStatus });
 
-        logger.debug('✅ Row data fetched', {
-          columnCount: rowData.length,
-          rowData: rowData
-        });
-
-        // Step 2: Add the row to the target table
-        logger.debug('Step 2: Adding row to archive table', {
-          targetSheetName,
-          targetTableName,
-          columnCount: rowData.length
-        });
-
-        await this.graphClient.callGraphAPI(
-          `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${this.fileId}/workbook/worksheets/${targetSheetName}/tables/${targetTableName}/rows/add`,
-          "POST",
-          {
-            values: [rowData],
-          },
-          sessionId
-        );
-
-        logger.debug('✅ Row added to archive table');
-
-        // Step 3: Delete the row from the active table
-        logger.debug('Step 3: Deleting row from active table', {
-          rowIndex,
-          activeTable: TABLE_NAME
-        });
-
-        await this.graphClient.callGraphAPI(
-          `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${this.fileId}/workbook/tables/${TABLE_NAME}/rows/itemAt(index=${rowIndex})`,
-          "DELETE",
-          undefined,
-          sessionId
-        );
-
-        logger.info('✅ Archive operation completed successfully');
+      logger.info('✅ Archive operation completed successfully - archiveStatus updated', {
+        rowIndex,
+        archiveStatus
       });
     } catch (error: any) {
       logger.error('❌ Archive operation failed', error, {

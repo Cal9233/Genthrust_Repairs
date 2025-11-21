@@ -275,7 +275,7 @@ class ExcelService {
   // =========================================================================
 
   /**
-   * Get all repair orders from the main table
+   * Get all repair orders from the main table (filtered to ACTIVE only)
    */
   async getRepairOrders(): Promise<RepairOrder[]> {
     const repository = await this.getRepairOrderRepository();
@@ -283,7 +283,19 @@ class ExcelService {
   }
 
   /**
+   * Get archived repair orders by archive status
+   *
+   * @param status - The archive status to filter by ('PAID', 'NET', or 'RETURNED')
+   * @returns Array of archived repair orders matching the specified status
+   */
+  async getArchivedRepairOrders(status: 'PAID' | 'NET' | 'RETURNED'): Promise<RepairOrder[]> {
+    const repository = await this.getRepairOrderRepository();
+    return repository.getArchivedRepairOrders(status);
+  }
+
+  /**
    * Get repair orders from a specific sheet and table (e.g., archive sheets)
+   * @deprecated Use getArchivedRepairOrders() instead
    */
   async getRepairOrdersFromSheet(sheetName: string, tableName: string): Promise<RepairOrder[]> {
     const repository = await this.getRepairOrderRepository();
@@ -314,15 +326,16 @@ class ExcelService {
   async updateRepairOrder(
     rowIndex: number,
     data: {
-      roNumber: string;
-      shopName: string;
-      partNumber: string;
-      serialNumber: string;
-      partDescription: string;
-      requiredWork: string;
+      roNumber?: string;
+      shopName?: string;
+      partNumber?: string;
+      serialNumber?: string;
+      partDescription?: string;
+      requiredWork?: string;
       estimatedCost?: number;
       terms?: string;
       shopReferenceNumber?: string;
+      archiveStatus?: 'ACTIVE' | 'PAID' | 'NET' | 'RETURNED';
     }
   ): Promise<void> {
     const repository = await this.getRepairOrderRepository();

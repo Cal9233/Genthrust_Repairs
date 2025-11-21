@@ -31,6 +31,7 @@ export interface RepairOrder {
   lastDateUpdated: Date | null;
   nextDateToUpdate: Date | null;
   statusHistory: StatusHistoryEntry[];
+  archiveStatus: 'ACTIVE' | 'PAID' | 'NET' | 'RETURNED';
 
   // Computed
   daysOverdue: number;
