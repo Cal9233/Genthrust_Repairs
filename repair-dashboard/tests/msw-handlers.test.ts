@@ -202,10 +202,11 @@ export const graphAPIHandlers = [
     const body = await request.json() as any;
     if (body.values && body.values[0]) {
       const values = body.values[0];
-      // Simple update simulation
+      // Simple update simulation - Phase 2: Support archiveStatus update
       mockROData[index] = {
         ...mockROData[index],
-        currentStatus: values[13] || mockROData[index].currentStatus
+        currentStatus: values[13] || mockROData[index].currentStatus,
+        archiveStatus: values[21] || mockROData[index].archiveStatus, // Column 21
       };
     }
 

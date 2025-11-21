@@ -58,6 +58,7 @@ export const createRepairOrder = (overrides?: Partial<RepairOrder>): RepairOrder
         notes: 'Initial creation'
       }
     ],
+    archiveStatus: 'ACTIVE', // Phase 2: Default to ACTIVE
     isOverdue: false,
     daysOverdue: 0,
     ...overrides
@@ -200,27 +201,28 @@ export const createGraphTableRow = (ro: RepairOrder) => {
   return {
     index: parseInt(ro.id.replace('row-', '')),
     values: [[
-      ro.roNumber,
-      ro.dateMade?.getTime(),
-      ro.shopName,
-      ro.partNumber,
-      ro.serialNumber,
-      ro.partDescription,
-      ro.requiredWork,
-      ro.dateDroppedOff?.getTime(),
-      ro.estimatedCost,
-      ro.finalCost,
-      ro.terms,
-      ro.shopReferenceNumber,
-      ro.estimatedDeliveryDate?.getTime(),
-      ro.currentStatus,
-      ro.currentStatusDate?.getTime(),
-      ro.genThrustStatus,
-      ro.shopStatus,
-      ro.trackingNumber,
-      ro.notes,
-      ro.lastDateUpdated?.getTime(),
-      ro.nextDateToUpdate?.getTime(),
+      ro.roNumber,                      // 0
+      ro.dateMade?.getTime(),           // 1
+      ro.shopName,                      // 2
+      ro.partNumber,                    // 3
+      ro.serialNumber,                  // 4
+      ro.partDescription,               // 5
+      ro.requiredWork,                  // 6
+      ro.dateDroppedOff?.getTime(),     // 7
+      ro.estimatedCost,                 // 8
+      ro.finalCost,                     // 9
+      ro.terms,                         // 10
+      ro.shopReferenceNumber,           // 11
+      ro.estimatedDeliveryDate?.getTime(), // 12
+      ro.currentStatus,                 // 13
+      ro.currentStatusDate?.getTime(),  // 14
+      ro.genThrustStatus,               // 15
+      ro.shopStatus,                    // 16
+      ro.trackingNumber,                // 17
+      ro.notes,                         // 18
+      ro.lastDateUpdated?.getTime(),    // 19
+      ro.nextDateToUpdate?.getTime(),   // 20
+      ro.archiveStatus,                 // 21 - Phase 2: Archive Status
     ]]
   };
 };
