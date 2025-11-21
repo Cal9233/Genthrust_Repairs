@@ -1,8 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { excelService } from "../lib/excelService";
+import { repairOrderService } from "../services/repairOrderService";
 import type { DashboardStats } from "../types";
 import { toast } from "sonner";
-import { isDueToday, isOnTrack } from "../lib/businessRules";
 import { analyticsCache, createInvalidationEvent } from "../services/analyticsCache";
 import { createLogger } from "../utils/logger";
 
@@ -11,15 +10,15 @@ const logger = createLogger('useROs');
 export function useROs() {
   return useQuery({
     queryKey: ["ros"],
-    queryFn: () => excelService.getRepairOrders(),
+    queryFn: () => repairOrderService.getRepairOrders('ACTIVE'),
   });
 }
 
 export function useArchivedROs(sheetName: string, tableName: string) {
   return useQuery({
     queryKey: ["archived-ros", sheetName, tableName],
-    queryFn: () => excelService.getRepairOrdersFromSheet(sheetName, tableName),
-    enabled: !!sheetName && !!tableName, // Only run if sheet and table names are provided
+    queryFn: () => repairOrderService.getArchivedROs(sheetName as 'Paid' | 'NET' | 'Returns'),
+    enabled: !!sheetName, // Only run if sheet name is provided
   });
 }
 
@@ -28,36 +27,31 @@ export function useUpdateROStatus() {
 
   return useMutation({
     mutationFn: ({
-      rowIndex,
+      id,
       status,
       notes,
       cost,
       deliveryDate,
     }: {
-      rowIndex: number;
+      id: string;
       status: string;
       notes?: string;
       cost?: number;
       deliveryDate?: Date;
-    }) => excelService.updateROStatus(rowIndex, status, notes, cost, deliveryDate),
-    onSuccess: async (_, variables) => {
+    }) => repairOrderService.updateROStatus(id, status, notes, cost, deliveryDate),
+    onSuccess: async (updatedRO) => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
 
-      // Invalidate analytics cache - get RO to find affected shop
+      // Invalidate analytics cache for the affected shop
       try {
-        const ros = await excelService.getRepairOrders();
-        const updatedRO = ros.find((ro) => parseInt(ro.id.replace("row-", "")) === variables.rowIndex);
-
-        if (updatedRO) {
-          const event = createInvalidationEvent('update', [updatedRO]);
-          analyticsCache.invalidate(event);
-          logger.debug('Analytics cache invalidated after status update', {
-            roNumber: updatedRO.roNumber,
-            shopName: updatedRO.shopName,
-          });
-        }
+        const event = createInvalidationEvent('update', [updatedRO]);
+        analyticsCache.invalidate(event);
+        logger.debug('Analytics cache invalidated after status update', {
+          roNumber: updatedRO.roNumber,
+          shopName: updatedRO.shopName,
+        });
       } catch (error) {
         logger.error('Failed to invalidate analytics cache', error);
       }
@@ -85,8 +79,8 @@ export function useAddRepairOrder() {
       estimatedCost?: number;
       terms?: string;
       shopReferenceNumber?: string;
-    }) => excelService.addRepairOrder(data),
-    onSuccess: (_, variables) => {
+    }) => repairOrderService.addRepairOrder(data),
+    onSuccess: (createdRO) => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
@@ -94,12 +88,12 @@ export function useAddRepairOrder() {
       // Invalidate analytics cache for the affected shop
       analyticsCache.invalidate({
         reason: 'create',
-        affectedShops: [variables.shopName],
+        affectedShops: [createdRO.shopName],
         timestamp: Date.now(),
       });
       logger.debug('Analytics cache invalidated after RO creation', {
-        roNumber: variables.roNumber,
-        shopName: variables.shopName,
+        roNumber: createdRO.roNumber,
+        shopName: createdRO.shopName,
       });
 
       toast.success("Repair order created successfully");
@@ -116,10 +110,10 @@ export function useUpdateRepairOrder() {
 
   return useMutation({
     mutationFn: ({
-      rowIndex,
+      id,
       data,
     }: {
-      rowIndex: number;
+      id: string;
       data: {
         roNumber: string;
         shopName: string;
@@ -131,8 +125,8 @@ export function useUpdateRepairOrder() {
         terms?: string;
         shopReferenceNumber?: string;
       };
-    }) => excelService.updateRepairOrder(rowIndex, data),
-    onSuccess: (_, variables) => {
+    }) => repairOrderService.updateRepairOrder(id, data),
+    onSuccess: (updatedRO) => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
@@ -140,12 +134,12 @@ export function useUpdateRepairOrder() {
       // Invalidate analytics cache for the affected shop
       analyticsCache.invalidate({
         reason: 'update',
-        affectedShops: [variables.data.shopName],
+        affectedShops: [updatedRO.shopName],
         timestamp: Date.now(),
       });
       logger.debug('Analytics cache invalidated after RO update', {
-        roNumber: variables.data.roNumber,
-        shopName: variables.data.shopName,
+        roNumber: updatedRO.roNumber,
+        shopName: updatedRO.shopName,
       });
 
       toast.success("Repair order updated successfully");
@@ -161,17 +155,15 @@ export function useDeleteRepairOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (rowIndex: number) => excelService.deleteRepairOrder(rowIndex),
-    onSuccess: async (_, rowIndex) => {
+    mutationFn: (id: string) => repairOrderService.deleteRepairOrder(id),
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
 
       // Invalidate all analytics cache on delete (we don't know which shop was affected)
       analyticsCache.invalidateAll();
-      logger.debug('All analytics cache invalidated after RO deletion', {
-        rowIndex,
-      });
+      logger.debug('All analytics cache invalidated after RO deletion');
 
       toast.success("Repair order deleted successfully");
     },
@@ -193,16 +185,15 @@ export function useBulkUpdateStatus() {
       roNumbers: string[];
       newStatus: string;
     }) => {
-      // Get all ROs to find row indices
-      const allROs = await excelService.getRepairOrders();
+      // Get all ROs to find IDs
+      const allROs = await repairOrderService.getRepairOrders('ACTIVE');
 
       // Update each RO
       const updates = roNumbers.map((roNumber) => {
         const ro = allROs.find((r) => r.roNumber === roNumber);
         if (!ro) throw new Error(`RO ${roNumber} not found`);
 
-        const rowIndex = parseInt(ro.id.replace("row-", ""));
-        return excelService.updateROStatus(rowIndex, newStatus);
+        return repairOrderService.updateROStatus(ro.id, newStatus);
       });
 
       await Promise.all(updates);
@@ -241,14 +232,21 @@ export function useArchiveRO() {
 
   return useMutation({
     mutationFn: ({
-      rowIndex,
+      id,
       targetSheetName,
-      targetTableName,
     }: {
-      rowIndex: number;
+      id: string;
       targetSheetName: string;
-      targetTableName: string;
-    }) => excelService.moveROToArchive(rowIndex, targetSheetName, targetTableName),
+    }) => {
+      // Map sheet names to archiveStatus
+      const statusMap: Record<string, 'PAID' | 'NET' | 'RETURNED'> = {
+        'Paid': 'PAID',
+        'NET': 'NET',
+        'Returns': 'RETURNED'
+      };
+      const archiveStatus = statusMap[targetSheetName] || 'PAID';
+      return repairOrderService.archiveRepairOrder(id, archiveStatus);
+    },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
@@ -270,51 +268,6 @@ export function useArchiveRO() {
 export function useDashboardStats() {
   return useQuery({
     queryKey: ["dashboard-stats"],
-    queryFn: async (): Promise<DashboardStats> => {
-      const ros = await excelService.getRepairOrders();
-
-      const stats: DashboardStats = {
-        totalActive: ros.filter(
-          (ro) =>
-            !ro.currentStatus.includes("PAID") &&
-            ro.currentStatus !== "PAYMENT SENT" &&
-            ro.currentStatus !== "BER" &&
-            !ro.currentStatus.includes("CANCEL") &&
-            !ro.currentStatus.includes("RAI") &&
-            !ro.currentStatus.includes("SCRAPPED")
-        ).length,
-        overdue: ros.filter((ro) => ro.isOverdue).length,
-        waitingQuote: ros.filter((ro) =>
-          ro.currentStatus.includes("WAITING QUOTE")
-        ).length,
-        approved: ros.filter((ro) => ro.currentStatus.includes("APPROVED"))
-          .length,
-        beingRepaired: ros.filter((ro) =>
-          ro.currentStatus.includes("BEING REPAIRED")
-        ).length,
-        shipping: ros.filter((ro) => ro.currentStatus.includes("SHIPPING"))
-          .length,
-        totalValue: ros.reduce((sum, ro) => sum + (ro.finalCost || ro.estimatedCost || 0), 0),
-        totalEstimatedValue: ros.reduce((sum, ro) => sum + (ro.estimatedCost || 0), 0),
-        totalFinalValue: ros.reduce((sum, ro) => sum + (ro.finalCost || 0), 0),
-        // New stats
-        dueToday: ros.filter((ro) => isDueToday(ro.nextDateToUpdate)).length,
-        overdue30Plus: ros.filter((ro) => ro.daysOverdue > 30).length,
-        onTrack: ros.filter((ro) => isOnTrack(ro.nextDateToUpdate)).length,
-        // Archive stats
-        approvedPaid: ros.filter((ro) =>
-          ro.currentStatus.includes("PAID") || ro.currentStatus === "PAYMENT SENT"
-        ).length,
-        rai: ros.filter((ro) => ro.currentStatus.includes("RAI")).length,
-        ber: ros.filter((ro) => ro.currentStatus.includes("BER")).length,
-        cancel: ros.filter((ro) => ro.currentStatus.includes("CANCEL")).length,
-        scrapped: ros.filter((ro) => ro.currentStatus.includes("SCRAPPED")).length,
-        approvedNet: ros.filter((ro) =>
-          ro.currentStatus.includes("NET") || ro.terms?.includes("NET")
-        ).length,
-      };
-
-      return stats;
-    },
+    queryFn: () => repairOrderService.getDashboardStats(),
   });
 }
