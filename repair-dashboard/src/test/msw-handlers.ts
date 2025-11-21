@@ -87,8 +87,8 @@ const checkFailureMode = () => {
  * MSW Request Handlers
  */
 export const graphAPIHandlers = [
-  // Get SharePoint site
-  http.get(`${GRAPH_BASE_URL}/sites/root:*`, async () => {
+  // Get SharePoint site (fixed wildcard syntax)
+  http.get(`${GRAPH_BASE_URL}/sites/*`, async () => {
     await applyDelay();
     const failure = checkFailureMode();
     if (failure) return failure;
@@ -105,8 +105,8 @@ export const graphAPIHandlers = [
     return HttpResponse.json(createGraphDriveResponse());
   }),
 
-  // Search for file
-  http.get(`${GRAPH_BASE_URL}/drives/:driveId/root/search*`, async () => {
+  // Search for file (supports both drives/:driveId and me/drive patterns)
+  http.get(`${GRAPH_BASE_URL}/drives/:driveId/root/search(*)`, async () => {
     await applyDelay();
     const failure = checkFailureMode();
     if (failure) return failure;
@@ -116,8 +116,8 @@ export const graphAPIHandlers = [
     });
   }),
 
-  // Create workbook session
-  http.post(`${GRAPH_BASE_URL}/me/drive/items/:fileId/workbook/createSession`, async ({ params }) => {
+  // Create workbook session (supports both patterns)
+  http.post(`${GRAPH_BASE_URL}/drives/:driveId/items/:fileId/workbook/createSession`, async ({ params }) => {
     await applyDelay();
     const failure = checkFailureMode();
     if (failure) return failure;
@@ -127,8 +127,8 @@ export const graphAPIHandlers = [
     return HttpResponse.json(session);
   }),
 
-  // Close workbook session
-  http.post(`${GRAPH_BASE_URL}/me/drive/items/:fileId/workbook/closeSession`, async ({ request, params }) => {
+  // Close workbook session (supports both patterns)
+  http.post(`${GRAPH_BASE_URL}/drives/:driveId/items/:fileId/workbook/closeSession`, async ({ request, params }) => {
     await applyDelay();
     const failure = checkFailureMode();
     if (failure) return failure;
@@ -140,8 +140,33 @@ export const graphAPIHandlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
-  // Get table rows
-  http.get(`${GRAPH_BASE_URL}/me/drive/items/:fileId/workbook/tables/:tableName/rows`, async () => {
+  // Get file info (for getFileInfo method)
+  http.get(`${GRAPH_BASE_URL}/drives/:driveId/items/:fileId`, async ({ params }) => {
+    await applyDelay();
+    const failure = checkFailureMode();
+    if (failure) return failure;
+
+    return HttpResponse.json(createGraphFileResponse('Book.xlsx', params.fileId as string));
+  }),
+
+  // Get workbook tables (for listTables method)
+  http.get(`${GRAPH_BASE_URL}/drives/:driveId/items/:fileId/workbook/tables`, async () => {
+    await applyDelay();
+    const failure = checkFailureMode();
+    if (failure) return failure;
+
+    return HttpResponse.json({
+      value: [
+        { id: 'table-1', name: 'RepairTable', rowCount: mockROData.length },
+        { id: 'table-2', name: 'Paid', rowCount: 0 },
+        { id: 'table-3', name: 'NET', rowCount: 0 },
+        { id: 'table-4', name: 'Returns', rowCount: 0 }
+      ]
+    });
+  }),
+
+  // Get table rows (supports both patterns)
+  http.get(`${GRAPH_BASE_URL}/drives/:driveId/items/:fileId/workbook/tables/:tableName/rows`, async () => {
     await applyDelay();
     const failure = checkFailureMode();
     if (failure) return failure;
@@ -149,8 +174,17 @@ export const graphAPIHandlers = [
     return HttpResponse.json(createGraphTableRowsResponse(mockROData));
   }),
 
-  // Get specific row
-  http.get(`${GRAPH_BASE_URL}/me/drive/items/:fileId/workbook/tables/:tableName/rows/itemAt*`, async ({ request }) => {
+  // Get table rows from specific worksheet
+  http.get(`${GRAPH_BASE_URL}/drives/:driveId/items/:fileId/workbook/worksheets/:sheetName/tables/:tableName/rows`, async () => {
+    await applyDelay();
+    const failure = checkFailureMode();
+    if (failure) return failure;
+
+    return HttpResponse.json(createGraphTableRowsResponse([])); // Archive sheets start empty
+  }),
+
+  // Get specific row by index (improved wildcard handling)
+  http.get(`${GRAPH_BASE_URL}/drives/:driveId/items/:fileId/workbook/tables/:tableName/rows/*`, async ({ request }) => {
     await applyDelay();
     const failure = checkFailureMode();
     if (failure) return failure;
@@ -169,8 +203,8 @@ export const graphAPIHandlers = [
     return HttpResponse.json(createGraphTableRow(mockROData[index]));
   }),
 
-  // Add table row
-  http.post(`${GRAPH_BASE_URL}/me/drive/items/:fileId/workbook/tables/:tableName/rows`, async ({ request }) => {
+  // Add table row (supports standard add endpoint)
+  http.post(`${GRAPH_BASE_URL}/drives/:driveId/items/:fileId/workbook/tables/:tableName/rows/add`, async ({ request }) => {
     await applyDelay();
     const failure = checkFailureMode();
     if (failure) return failure;
@@ -182,8 +216,20 @@ export const graphAPIHandlers = [
     return HttpResponse.json(createGraphTableRow(newRO), { status: 201 });
   }),
 
-  // Update table row
-  http.patch(`${GRAPH_BASE_URL}/me/drive/items/:fileId/workbook/tables/:tableName/rows/itemAt*`, async ({ request }) => {
+  // Add table row to specific worksheet
+  http.post(`${GRAPH_BASE_URL}/drives/:driveId/items/:fileId/workbook/worksheets/:sheetName/tables/:tableName/rows/add`, async ({ request }) => {
+    await applyDelay();
+    const failure = checkFailureMode();
+    if (failure) return failure;
+
+    const body = await request.json() as any;
+    const newRO = createRepairOrder();
+
+    return HttpResponse.json(createGraphTableRow(newRO), { status: 201 });
+  }),
+
+  // Update table row (improved wildcard handling)
+  http.patch(`${GRAPH_BASE_URL}/drives/:driveId/items/:fileId/workbook/tables/:tableName/rows/*`, async ({ request }) => {
     await applyDelay();
     const failure = checkFailureMode();
     if (failure) return failure;
@@ -206,15 +252,15 @@ export const graphAPIHandlers = [
       mockROData[index] = {
         ...mockROData[index],
         currentStatus: values[13] || mockROData[index].currentStatus,
-        notes: values[21] || mockROData[index].notes
+        notes: values[18] || mockROData[index].notes
       };
     }
 
     return HttpResponse.json(createGraphTableRow(mockROData[index]));
   }),
 
-  // Delete table row
-  http.delete(`${GRAPH_BASE_URL}/me/drive/items/:fileId/workbook/tables/:tableName/rows/itemAt*`, async ({ request }) => {
+  // Delete table row (improved wildcard handling)
+  http.delete(`${GRAPH_BASE_URL}/drives/:driveId/items/:fileId/workbook/tables/:tableName/rows/*`, async ({ request }) => {
     await applyDelay();
     const failure = checkFailureMode();
     if (failure) return failure;
@@ -232,6 +278,43 @@ export const graphAPIHandlers = [
 
     mockROData.splice(index, 1);
     return new HttpResponse(null, { status: 204 });
+  }),
+
+  // Worksheets endpoint (for AI logging setup)
+  http.get(`${GRAPH_BASE_URL}/drives/:driveId/items/:fileId/workbook/worksheets/:worksheetName`, async ({ params }) => {
+    await applyDelay();
+    const failure = checkFailureMode();
+    if (failure) return failure;
+
+    // Return worksheet info if it exists, 404 if not
+    if (params.worksheetName === 'Logs') {
+      return HttpResponse.json({
+        id: 'worksheet-logs',
+        name: 'Logs',
+        position: 0,
+        visibility: 'visible'
+      });
+    }
+
+    return HttpResponse.json(
+      { error: { code: 'ItemNotFound', message: 'Worksheet not found' } },
+      { status: 404 }
+    );
+  }),
+
+  // Add worksheet (for AI logging setup)
+  http.post(`${GRAPH_BASE_URL}/drives/:driveId/items/:fileId/workbook/worksheets/add`, async ({ request }) => {
+    await applyDelay();
+    const failure = checkFailureMode();
+    if (failure) return failure;
+
+    const body = await request.json() as any;
+    return HttpResponse.json({
+      id: 'worksheet-new',
+      name: body.name || 'NewSheet',
+      position: 0,
+      visibility: 'visible'
+    }, { status: 201 });
   }),
 
   // Inventory search (backend API)
