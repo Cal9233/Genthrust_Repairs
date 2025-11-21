@@ -87,8 +87,10 @@ const checkFailureMode = () => {
  * MSW Request Handlers
  */
 export const graphAPIHandlers = [
-  // Get SharePoint site (fixed wildcard syntax)
-  http.get(`${GRAPH_BASE_URL}/sites/*`, async () => {
+  // Get SharePoint site (using RegExp to handle colons in SharePoint site paths)
+  // SharePoint URLs can be: /sites/hostname.sharepoint.com:/sites/sitename
+  // The colon is not a path parameter, so we use RegExp to avoid MSW parsing issues
+  http.get(new RegExp(`${GRAPH_BASE_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/sites/.*`), async () => {
     await applyDelay();
     const failure = checkFailureMode();
     if (failure) return failure;
@@ -105,8 +107,10 @@ export const graphAPIHandlers = [
     return HttpResponse.json(createGraphDriveResponse());
   }),
 
-  // Search for file (supports both drives/:driveId and me/drive patterns)
-  http.get(`${GRAPH_BASE_URL}/drives/:driveId/root/search(*)`, async () => {
+  // Search for file (using RegExp to handle OData query syntax in parentheses)
+  // SharePoint search URLs use: /drives/{driveId}/root/search(q='filename')
+  // We use RegExp to properly match the OData query syntax
+  http.get(new RegExp(`${GRAPH_BASE_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/drives/[^/]+/root/search\\(.*\\)`), async () => {
     await applyDelay();
     const failure = checkFailureMode();
     if (failure) return failure;
