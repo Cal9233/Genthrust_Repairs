@@ -361,6 +361,207 @@ export const graphAPIHandlers = [
       status: 'success',
       recordsIndexed: 1500
     });
+  }),
+
+  // ========== Phase 3: MySQL Backend Repair Orders API ==========
+
+  // Get repair orders (with archive status filter)
+  http.get('*/api/ros', async ({ request }) => {
+    await applyDelay();
+    const failure = checkFailureMode();
+    if (failure) return failure;
+
+    const url = new URL(request.url);
+    const archiveStatus = url.searchParams.get('archiveStatus') || 'ACTIVE';
+
+    // Filter mock data by archiveStatus
+    const filteredROs = mockROData
+      .filter(ro => ro.archiveStatus === archiveStatus)
+      .map(ro => ({
+        ...ro,
+        // Convert Date objects to ISO strings for API response
+        dateMade: ro.dateMade?.toISOString() || null,
+        dateDroppedOff: ro.dateDroppedOff?.toISOString() || null,
+        estimatedDeliveryDate: ro.estimatedDeliveryDate?.toISOString() || null,
+        currentStatusDate: ro.currentStatusDate?.toISOString() || null,
+        lastDateUpdated: ro.lastDateUpdated?.toISOString() || null,
+        nextDateToUpdate: ro.nextDateToUpdate?.toISOString() || null,
+      }));
+
+    return HttpResponse.json(filteredROs);
+  }),
+
+  // Get single repair order by ID
+  http.get('*/api/ros/:id', async ({ params }) => {
+    await applyDelay();
+    const failure = checkFailureMode();
+    if (failure) return failure;
+
+    const ro = mockROData.find(r => r.id === params.id);
+
+    if (!ro) {
+      return HttpResponse.json(
+        { error: 'Repair order not found' },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json({
+      ...ro,
+      dateMade: ro.dateMade?.toISOString() || null,
+      dateDroppedOff: ro.dateDroppedOff?.toISOString() || null,
+      estimatedDeliveryDate: ro.estimatedDeliveryDate?.toISOString() || null,
+      currentStatusDate: ro.currentStatusDate?.toISOString() || null,
+      lastDateUpdated: ro.lastDateUpdated?.toISOString() || null,
+      nextDateToUpdate: ro.nextDateToUpdate?.toISOString() || null,
+    });
+  }),
+
+  // Create new repair order
+  http.post('*/api/ros', async ({ request }) => {
+    await applyDelay();
+    const failure = checkFailureMode();
+    if (failure) return failure;
+
+    const body = await request.json() as any;
+
+    // Check for duplicate roNumber
+    if (mockROData.some(ro => ro.roNumber === body.roNumber)) {
+      return HttpResponse.json(
+        { error: 'Duplicate RO number', message: `RO ${body.roNumber} already exists` },
+        { status: 409 }
+      );
+    }
+
+    const newRO = createRepairOrder({
+      id: `db-${Date.now()}`, // Simulate database ID
+      roNumber: body.roNumber,
+      shopName: body.shopName,
+      partDescription: body.partDescription,
+      partNumber: body.partNumber || '',
+      serialNumber: body.serialNumber || '',
+      requiredWork: body.requiredWork || '',
+      estimatedCost: body.estimatedCost || null,
+      terms: body.terms || '',
+      shopReferenceNumber: body.shopReferenceNumber || '',
+      currentStatus: body.currentStatus || 'TO SEND',
+      archiveStatus: body.archiveStatus || 'ACTIVE',
+      dateMade: body.dateMade ? new Date(body.dateMade) : new Date(),
+      currentStatusDate: body.currentStatusDate ? new Date(body.currentStatusDate) : new Date(),
+      lastDateUpdated: new Date(),
+    });
+
+    mockROData.push(newRO);
+
+    return HttpResponse.json(
+      {
+        ...newRO,
+        dateMade: newRO.dateMade?.toISOString() || null,
+        dateDroppedOff: newRO.dateDroppedOff?.toISOString() || null,
+        estimatedDeliveryDate: newRO.estimatedDeliveryDate?.toISOString() || null,
+        currentStatusDate: newRO.currentStatusDate?.toISOString() || null,
+        lastDateUpdated: newRO.lastDateUpdated?.toISOString() || null,
+        nextDateToUpdate: newRO.nextDateToUpdate?.toISOString() || null,
+      },
+      { status: 201 }
+    );
+  }),
+
+  // Update repair order (including archive)
+  http.patch('*/api/ros/:id', async ({ params, request }) => {
+    await applyDelay();
+    const failure = checkFailureMode();
+    if (failure) return failure;
+
+    const roIndex = mockROData.findIndex(r => r.id === params.id);
+
+    if (roIndex === -1) {
+      return HttpResponse.json(
+        { error: 'Repair order not found' },
+        { status: 404 }
+      );
+    }
+
+    const body = await request.json() as any;
+
+    // Update the RO
+    mockROData[roIndex] = {
+      ...mockROData[roIndex],
+      ...body,
+      // Convert ISO strings back to Date objects for mock storage
+      dateMade: body.dateMade ? new Date(body.dateMade) : mockROData[roIndex].dateMade,
+      dateDroppedOff: body.dateDroppedOff ? new Date(body.dateDroppedOff) : mockROData[roIndex].dateDroppedOff,
+      estimatedDeliveryDate: body.estimatedDeliveryDate ? new Date(body.estimatedDeliveryDate) : mockROData[roIndex].estimatedDeliveryDate,
+      currentStatusDate: body.currentStatusDate ? new Date(body.currentStatusDate) : mockROData[roIndex].currentStatusDate,
+      lastDateUpdated: new Date(),
+      nextDateToUpdate: body.nextDateToUpdate ? new Date(body.nextDateToUpdate) : mockROData[roIndex].nextDateToUpdate,
+    };
+
+    const updatedRO = mockROData[roIndex];
+
+    return HttpResponse.json({
+      ...updatedRO,
+      dateMade: updatedRO.dateMade?.toISOString() || null,
+      dateDroppedOff: updatedRO.dateDroppedOff?.toISOString() || null,
+      estimatedDeliveryDate: updatedRO.estimatedDeliveryDate?.toISOString() || null,
+      currentStatusDate: updatedRO.currentStatusDate?.toISOString() || null,
+      lastDateUpdated: updatedRO.lastDateUpdated?.toISOString() || null,
+      nextDateToUpdate: updatedRO.nextDateToUpdate?.toISOString() || null,
+    });
+  }),
+
+  // Delete repair order
+  http.delete('*/api/ros/:id', async ({ params }) => {
+    await applyDelay();
+    const failure = checkFailureMode();
+    if (failure) return failure;
+
+    const roIndex = mockROData.findIndex(r => r.id === params.id);
+
+    if (roIndex === -1) {
+      return HttpResponse.json(
+        { error: 'Repair order not found' },
+        { status: 404 }
+      );
+    }
+
+    const roNumber = mockROData[roIndex].roNumber;
+    mockROData.splice(roIndex, 1);
+
+    return HttpResponse.json({
+      success: true,
+      message: `Repair order ${roNumber} deleted successfully`
+    });
+  }),
+
+  // Get dashboard statistics
+  http.get('*/api/ros/stats/dashboard', async () => {
+    await applyDelay();
+    const failure = checkFailureMode();
+    if (failure) return failure;
+
+    const activeROs = mockROData.filter(ro => ro.archiveStatus === 'ACTIVE');
+
+    return HttpResponse.json({
+      totalActive: activeROs.length,
+      overdue: activeROs.filter(ro => ro.isOverdue).length,
+      waitingQuote: activeROs.filter(ro => ro.currentStatus.includes('WAITING QUOTE')).length,
+      approved: activeROs.filter(ro => ro.currentStatus.includes('APPROVED')).length,
+      beingRepaired: activeROs.filter(ro => ro.currentStatus.includes('BEING REPAIRED')).length,
+      shipping: activeROs.filter(ro => ro.currentStatus.includes('SHIPPING')).length,
+      dueToday: 0,
+      overdue30Plus: activeROs.filter(ro => ro.daysOverdue > 30).length,
+      onTrack: activeROs.filter(ro => !ro.isOverdue).length,
+      totalValue: activeROs.reduce((sum, ro) => sum + (ro.finalCost || ro.estimatedCost || 0), 0),
+      totalEstimatedValue: activeROs.reduce((sum, ro) => sum + (ro.estimatedCost || 0), 0),
+      totalFinalValue: activeROs.reduce((sum, ro) => sum + (ro.finalCost || 0), 0),
+      approvedPaid: mockROData.filter(ro => ro.archiveStatus === 'PAID').length,
+      approvedNet: mockROData.filter(ro => ro.archiveStatus === 'NET').length,
+      rai: 0,
+      ber: 0,
+      cancel: 0,
+      scrapped: mockROData.filter(ro => ro.archiveStatus === 'RETURNED').length,
+    });
   })
 ];
 
