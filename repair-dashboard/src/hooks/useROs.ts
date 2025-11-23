@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { repairOrderService } from "../services/repairOrderService";
+import { hybridDataService } from "../services/hybridDataService";
 import type { DashboardStats } from "../types";
 import { toast } from "sonner";
 import { analyticsCache, createInvalidationEvent } from "../services/analyticsCache";
@@ -10,14 +10,14 @@ const logger = createLogger('useROs');
 export function useROs() {
   return useQuery({
     queryKey: ["ros"],
-    queryFn: () => repairOrderService.getRepairOrders('ACTIVE'),
+    queryFn: () => hybridDataService.getRepairOrders('ACTIVE'),
   });
 }
 
 export function useArchivedROs(sheetName: string, tableName: string) {
   return useQuery({
     queryKey: ["archived-ros", sheetName, tableName],
-    queryFn: () => repairOrderService.getArchivedROs(sheetName as 'Paid' | 'NET' | 'Returns'),
+    queryFn: () => hybridDataService.getArchivedROs(sheetName as 'Paid' | 'NET' | 'Returns'),
     enabled: !!sheetName, // Only run if sheet name is provided
   });
 }
@@ -38,7 +38,7 @@ export function useUpdateROStatus() {
       notes?: string;
       cost?: number;
       deliveryDate?: Date;
-    }) => repairOrderService.updateROStatus(id, status, notes, cost, deliveryDate),
+    }) => hybridDataService.updateROStatus(id, status, notes, cost, deliveryDate),
     onSuccess: async (updatedRO) => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
@@ -79,7 +79,7 @@ export function useAddRepairOrder() {
       estimatedCost?: number;
       terms?: string;
       shopReferenceNumber?: string;
-    }) => repairOrderService.addRepairOrder(data),
+    }) => hybridDataService.addRepairOrder(data),
     onSuccess: (createdRO) => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
@@ -125,7 +125,7 @@ export function useUpdateRepairOrder() {
         terms?: string;
         shopReferenceNumber?: string;
       };
-    }) => repairOrderService.updateRepairOrder(id, data),
+    }) => hybridDataService.updateRepairOrder(id, data),
     onSuccess: (updatedRO) => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
@@ -155,7 +155,7 @@ export function useDeleteRepairOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => repairOrderService.deleteRepairOrder(id),
+    mutationFn: (id: string) => hybridDataService.deleteRepairOrder(id),
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
@@ -186,14 +186,14 @@ export function useBulkUpdateStatus() {
       newStatus: string;
     }) => {
       // Get all ROs to find IDs
-      const allROs = await repairOrderService.getRepairOrders('ACTIVE');
+      const allROs = await hybridDataService.getRepairOrders('ACTIVE');
 
       // Update each RO
       const updates = roNumbers.map((roNumber) => {
         const ro = allROs.find((r) => r.roNumber === roNumber);
         if (!ro) throw new Error(`RO ${roNumber} not found`);
 
-        return repairOrderService.updateROStatus(ro.id, newStatus);
+        return hybridDataService.updateROStatus(ro.id, newStatus);
       });
 
       await Promise.all(updates);
@@ -245,7 +245,7 @@ export function useArchiveRO() {
         'Returns': 'RETURNED'
       };
       const archiveStatus = statusMap[targetSheetName] || 'PAID';
-      return repairOrderService.archiveRepairOrder(id, archiveStatus);
+      return hybridDataService.archiveRepairOrder(id, archiveStatus);
     },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
@@ -268,6 +268,6 @@ export function useArchiveRO() {
 export function useDashboardStats() {
   return useQuery({
     queryKey: ["dashboard-stats"],
-    queryFn: () => repairOrderService.getDashboardStats(),
+    queryFn: () => hybridDataService.getDashboardStats(),
   });
 }
