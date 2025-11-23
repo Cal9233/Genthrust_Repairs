@@ -13,7 +13,9 @@
       "Bash(git ls-tree:*)",
       "Bash(test -f:*)",
       "Bash(netstat:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(git reset:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []

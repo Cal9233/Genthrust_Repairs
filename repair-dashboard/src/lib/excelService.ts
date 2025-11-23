@@ -379,10 +379,11 @@ class ExcelService {
 
   /**
    * Get rows from a specific sheet/table
+   * @param fileId - Optional file ID override for accessing different workbooks (e.g., inventory)
    */
-  async getRowsFromTable(sheetName: string, tableName: string): Promise<any[]> {
+  async getRowsFromTable(sheetName: string, tableName: string, fileId?: string): Promise<any[]> {
     const repository = await this.getRepairOrderRepository();
-    return repository.getRowsFromTable(sheetName, tableName);
+    return repository.getRowsFromTable(sheetName, tableName, fileId);
   }
 
   /**

@@ -104,9 +104,9 @@ class ExcelInventoryService {
     }
 
     try {
-      // Note: Assuming inventory tables are in a sheet called "Inventory"
+      // Note: Assuming inventory tables are in a sheet called "InventoryIndex"
       // This may need to be adjusted based on actual workbook structure
-      const rows = await excelService.getRowsFromTable('Inventory', tableName);
+      const rows = await excelService.getRowsFromTable('InventoryIndex', tableName, this.inventoryWorkbookId);
 
       if (rows.length === 0) {
         logger.warn(`No rows found in table ${tableName}`);
@@ -202,7 +202,7 @@ class ExcelInventoryService {
       logger.debug(`Searching in table ${tableName} for ${normalizedPN}`);
 
       // Get rows from table
-      const rows = await excelService.getRowsFromTable('Inventory', tableName);
+      const rows = await excelService.getRowsFromTable('InventoryIndex', tableName, this.inventoryWorkbookId);
       const indices = await this.getColumnIndices(tableName);
 
       if (indices.partNumber === null) {
@@ -258,7 +258,7 @@ class ExcelInventoryService {
       logger.debug(`Searching InventoryIndexTable for ${normalizedPN}`);
 
       // Get rows from the index table (same workbook as other inventory tables)
-      const rows = await excelService.getRowsFromTable('Inventory', 'InventoryIndexTable');
+      const rows = await excelService.getRowsFromTable('InventoryIndex', 'InventoryIndexTable', this.inventoryWorkbookId);
 
       // InventoryIndexTable schema (from buildInventoryIndex.js):
       // Columns: Part Number, Table Name, Row ID, Serial Number, Qty, Condition, Location, Description, Last Seen
@@ -372,7 +372,7 @@ class ExcelInventoryService {
     // Scan all tables for low stock
     for (const tableName of INVENTORY_TABLE_NAMES) {
       try {
-        const rows = await excelService.getRowsFromTable('Inventory', tableName);
+        const rows = await excelService.getRowsFromTable('InventoryIndex', tableName, this.inventoryWorkbookId);
         const indices = await this.getColumnIndices(tableName);
 
         if (indices.partNumber === null || indices.qty === null) {
@@ -450,7 +450,7 @@ class ExcelInventoryService {
 
     try {
       // Get current row data
-      const rows = await excelService.getRowsFromTable('Inventory', tableName);
+      const rows = await excelService.getRowsFromTable('InventoryIndex', tableName, this.inventoryWorkbookId);
       const rowIndex = parseInt(rowId, 10);
 
       if (rowIndex < 0 || rowIndex >= rows.length) {

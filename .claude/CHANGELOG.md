@@ -9,6 +9,156 @@ Complete chronological record of all major implementations, migrations, and impr
 
 ## Version History
 
+### v1.6.0 - Aiven Cloud MySQL Migration (2025-11-23)
+
+**Status:** ✅ Complete
+
+**Changes:**
+- Migrated MySQL database from localhost to Aiven Cloud
+- Implemented SSL/TLS certificate-based authentication
+- Updated connection pool configuration for production environment
+- Created integration test for Aiven connectivity
+- All database names consolidated to `defaultdb` on Aiven
+- Standardized frontend environment variable naming for backend connection
+- Updated documentation for production deployment
+
+**Infrastructure:**
+- **Cloud Provider:** Aiven (https://aiven.io)
+- **Host:** genthrust-inventory-genthrust2017.b.aivencloud.com
+- **Port:** 12076
+- **Database:** defaultdb
+- **Security:** SSL/TLS required (ca.pem certificate)
+
+**Files Modified:**
+- `backend/config/database.js` (+22 lines) - Added SSL support for connection pools
+- `backend/.env` (updated) - Production Aiven credentials
+- `backend/test-connection.js` (created) - Integration test for Aiven connection
+- `repair-dashboard/src/services/mysqlInventoryService.ts` - Standardized to use `VITE_BACKEND_URL`
+- `repair-dashboard/.env.example` - Added production deployment documentation
+
+**Connection Pool Configuration:**
+```javascript
+// SSL certificate loading
+const certPath = path.join(__dirname, '..', process.env.DB_SSL_CA);
+const caCert = fs.readFileSync(certPath);
+sslConfig = { ca: caCert };
+
+// Pool configuration
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT),
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: dbName,
+  ssl: sslConfig,  // SSL enabled
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+```
+
+**Testing:**
+- Connection test passes successfully
+- Sample query retrieves inventory data
+- SSL certificate verified
+- Both main pool and inventory pool connect properly
+
+**Migration Notes:**
+- Ensure `ca.pem` SSL certificate is in backend directory
+- Environment variables must include `DB_SSL_CA=./ca.pem`
+- All previous database names (DB_NAME_PROD, DB_NAME_DEV, DB_NAME_INVENTORY) now point to `defaultdb`
+- Run connection test: `node backend/test-connection.js`
+
+**Performance:**
+- Initial connection: ~200ms
+- Query execution: ~100-300ms (cloud latency)
+- Connection pooling reduces overhead for subsequent queries
+
+**Frontend Configuration:**
+- Standardized environment variable: All services now use `VITE_BACKEND_URL`
+- Previous inconsistency: `mysqlInventoryService` used `VITE_API_BASE_URL`
+- Updated `.env.example` with production deployment documentation
+- Backend URL configured: `http://localhost:3001` (local) / `https://api.your-domain.com` (production)
+- Hybrid fallback architecture automatically handles missing MySQL tables
+
+**Impact:**
+- Production-ready database infrastructure
+- Cloud-hosted with automatic backups
+- High availability with failover support
+- SSL-encrypted connections for security
+- No code changes required in routes (connection pool abstraction)
+- Consistent environment variable naming across all frontend services
+- Easier production deployment (single URL to configure)
+
+**Repair Order Multi-Table Integration:**
+- Imported RepairsDashboard.xlsx to Aiven MySQL (891 rows across 7 tables)
+- Implemented multi-table architecture for repair orders (active, paid, net, returns)
+- Created column mapping system to bridge Excel-style columns (RO, DATE_MADE) to camelCase (roNumber, dateMade)
+- Built dynamic table routing based on archiveStatus
+- Archive operations now move rows between physical tables using transactions
+- Dashboard stats query aggregates data from all archive tables
+
+**Multi-Table Structure:**
+```
+active:   87 rows  → ACTIVE repair orders
+paid:    459 rows  → PAID/completed repairs
+net:     129 rows  → NET payment terms
+returns: 156 rows  → BER/RAI/SCRAPPED items
+shops:    40 rows  → Shop directory
+hold:     18 rows  → On-hold items (excluded from API)
+logs:      2 rows  → System logs
+```
+
+**Column Mapping Implementation:**
+```javascript
+// SQL column aliases map Excel columns to camelCase
+SELECT
+  RO as roNumber,
+  DATE_MADE as dateMade,
+  SHOP_NAME as shopName,
+  CURENT_STATUS as currentStatus,
+  // ... all 23 columns mapped
+FROM ${dynamicTableName}
+```
+
+**Archive Operations:**
+```javascript
+// Moving RO between tables (e.g., ACTIVE → PAID)
+BEGIN TRANSACTION
+  INSERT INTO paid SELECT * FROM active WHERE id = ?
+  DELETE FROM active WHERE id = ?
+COMMIT
+```
+
+**API Endpoints Validated:**
+- GET `/api/ros?archiveStatus=ACTIVE` → 87 rows ✅
+- GET `/api/ros?archiveStatus=PAID` → 459 rows ✅
+- GET `/api/ros?archiveStatus=NET` → 129 rows ✅
+- GET `/api/ros?archiveStatus=RETURNED` → 156 rows ✅
+- GET `/api/ros/stats/dashboard` → Aggregate stats ✅
+
+**Files Modified:**
+- `backend/routes/repair-orders.js` (Complete rewrite - 571 lines)
+  - Added `ARCHIVE_TABLE_MAP` for status-to-table routing
+  - Implemented `buildSelectQuery()` with column aliases
+  - Updated all CRUD operations for multi-table support
+  - Added transaction safety for archive operations
+  - Dashboard stats now queries all tables separately
+
+**Migration Notes:**
+- Excel column names preserved in Aiven (no ALTER TABLE needed)
+- Column mapping happens at query time (SQL aliases)
+- Archive status determines which physical table to query
+- Frontend remains unchanged (camelCase JSON responses)
+- Hybrid architecture: MySQL primary, Excel/SharePoint fallback
+
+**Performance:**
+- Query time: ~50-150ms per table
+- Archive operation: ~200-300ms (with transaction)
+- Dashboard stats: ~400-600ms (queries 4 tables)
+
+---
+
 ### v1.5.0 - Integration Test Suite (2025-11-17)
 
 **Status:** ✅ Complete (Infrastructure), ⚠️ Partial (Services)

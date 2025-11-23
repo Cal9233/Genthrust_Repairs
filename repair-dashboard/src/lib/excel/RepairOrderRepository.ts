@@ -650,12 +650,14 @@ export class RepairOrderRepository {
    * Get rows from a specific sheet/table
    * @param sheetName - The sheet name
    * @param tableName - The table name
+   * @param fileId - Optional file ID override (defaults to repair orders file)
    */
-  async getRowsFromTable(sheetName: string, tableName: string): Promise<any[]> {
+  async getRowsFromTable(sheetName: string, tableName: string, fileId?: string): Promise<any[]> {
+    const targetFileId = fileId || this.fileId;
     logger.info('Fetching rows from table', { sheetName, tableName });
 
     const response = await this.graphClient.callGraphAPI(
-      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${this.fileId}/workbook/worksheets/${sheetName}/tables/${tableName}/rows`
+      `https://graph.microsoft.com/v1.0/drives/${this.driveId}/items/${targetFileId}/workbook/worksheets/${sheetName}/tables/${tableName}/rows`
     );
 
     return response.value || [];

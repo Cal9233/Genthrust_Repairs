@@ -102,7 +102,7 @@ export function LoadingSpinner({
             <div className="absolute inset-0 animate-orbit">
               <Plane
                 className={cn(
-                  'absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2',
+                  'absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-45',
                   'text-bright-blue dark:text-electric drop-shadow-lg',
                   config.plane
                 )}
@@ -164,7 +164,7 @@ export function LoadingSpinner({
           <div className="absolute inset-0 animate-orbit">
             <Plane
               className={cn(
-                'absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2',
+                'absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-45',
                 'text-bright-blue dark:text-electric drop-shadow-lg',
                 config.plane
               )}
