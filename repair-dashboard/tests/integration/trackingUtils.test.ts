@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectCarrier, getTrackingInfo } from './trackingUtils';
+import { detectCarrier, getTrackingInfo } from '../../src/lib/trackingUtils';
 
 describe('trackingUtils', () => {
   describe('detectCarrier', () => {

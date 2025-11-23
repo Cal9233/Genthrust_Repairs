@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '../test/test-utils';
-import { RODetailDialog } from './RODetailDialog';
+import { RODetailDialog } from '../../src/components/RODetailDialog';
 import { mockRepairOrders, mockShops } from '../test/mocks';
-import * as useShopsModule from '../hooks/useShops';
-import * as useROsModule from '../hooks/useROs';
-import { reminderService } from '../lib/reminderService';
+import * as useShopsModule from '../../src/hooks/useShops';
+import * as useROsModule from '../../src/hooks/useROs';
+import { reminderService } from '../../src/lib/reminderService';
 import { toast } from 'sonner';
 
 // Mock dependencies

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '../test/test-utils';
-import { ReminderTypeDialog } from './ReminderTypeDialog';
+import { ReminderTypeDialog } from '../../src/components/ReminderTypeDialog';
 
 describe('ReminderTypeDialog', () => {
   const mockOnClose = vi.fn();

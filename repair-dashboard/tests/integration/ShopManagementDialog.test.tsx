@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '../test/test-utils';
-import { ShopManagementDialog } from './ShopManagementDialog';
+import { ShopManagementDialog } from '../../src/components/ShopManagementDialog';
 import { mockShops } from '../test/mocks';
-import * as useShopsModule from '../hooks/useShops';
+import * as useShopsModule from '../../src/hooks/useShops';
 
 // Mock dependencies
 vi.mock('../hooks/useShops');

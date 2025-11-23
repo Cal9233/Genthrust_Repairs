@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '../test/test-utils';
-import { AddRODialog } from './AddRODialog';
+import { AddRODialog } from '../../src/components/AddRODialog';
 import { mockRepairOrders, mockShops } from '../test/mocks';
-import * as useROsModule from '../hooks/useROs';
-import * as useShopsModule from '../hooks/useShops';
+import * as useROsModule from '../../src/hooks/useROs';
+import * as useShopsModule from '../../src/hooks/useShops';
 
 // Mock dependencies
 vi.mock('../hooks/useROs');

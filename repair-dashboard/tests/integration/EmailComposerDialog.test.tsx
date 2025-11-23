@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '../test/test-utils';
-import { EmailComposerDialog } from './EmailComposerDialog';
+import { EmailComposerDialog } from '../../src/components/EmailComposerDialog';
 import { mockRepairOrders, mockShops } from '../test/mocks';
 import { toast } from 'sonner';
 

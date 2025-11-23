@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render, screen } from '../../test/test-utils';
-import { Textarea } from './textarea';
+import { Textarea } from '../../src/components/ui/textarea';
 
 describe('Textarea', () => {
   describe('Rendering', () => {

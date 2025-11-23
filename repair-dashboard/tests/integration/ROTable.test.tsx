@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '../test/test-utils';
-import { ROTable } from './ROTable';
+import { ROTable } from '../../src/components/ROTable';
 import { mockRepairOrders, mockShops } from '../test/mocks';
-import * as useROsModule from '../hooks/useROs';
-import * as useShopsModule from '../hooks/useShops';
-import * as useROFiltersModule from '../hooks/useROFilters';
+import * as useROsModule from '../../src/hooks/useROs';
+import * as useShopsModule from '../../src/hooks/useShops';
+import * as useROFiltersModule from '../../src/hooks/useROFilters';
 
 // Mock the hooks
 vi.mock('../hooks/useROs');

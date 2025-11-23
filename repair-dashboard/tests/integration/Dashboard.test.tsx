@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '../test/test-utils';
-import { Dashboard } from './Dashboard';
-import * as useROsModule from '../hooks/useROs';
+import { Dashboard } from '../../src/components/Dashboard';
+import * as useROsModule from '../../src/hooks/useROs';
 
 vi.mock('../hooks/useROs');
 

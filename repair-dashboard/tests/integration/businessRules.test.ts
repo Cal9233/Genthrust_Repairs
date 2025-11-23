@@ -7,7 +7,7 @@ import {
   isDueWithinDays,
   isOnTrack,
   formatDateForDisplay,
-} from './businessRules';
+} from '../../src/lib/businessRules';
 
 describe('businessRules', () => {
   let baseDate: Date;

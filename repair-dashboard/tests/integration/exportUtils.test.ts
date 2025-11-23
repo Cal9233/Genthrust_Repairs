@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { exportToCSV } from './exportUtils';
-import { mockRepairOrders } from '../test/mocks';
+import { exportToCSV } from '../../src/lib/exportUtils';
+import { mockRepairOrders } from '../../src/test/mocks';
 
 // Mock URL.createObjectURL and related DOM APIs
 globalThis.URL.createObjectURL = vi.fn(() => 'mock-url');

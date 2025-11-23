@@ -7,9 +7,9 @@ import {
   useAddShop,
   useUpdateShop,
   useDeleteShop,
-} from './useShops';
-import { shopService } from '../lib/shopService';
-import { mockShops } from '../test/mocks';
+} from '../../src/hooks/useShops';
+import { shopService } from '../../src/lib/shopService';
+import { mockShops } from '../../src/test/mocks';
 import { toast } from 'sonner';
 
 // Create wrapper with QueryClient

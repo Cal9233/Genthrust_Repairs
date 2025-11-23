@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render, screen } from '../../test/test-utils';
-import { Checkbox } from './checkbox';
+import { Checkbox } from '../../src/components/ui/checkbox';
 
 describe('Checkbox', () => {
   describe('Rendering', () => {

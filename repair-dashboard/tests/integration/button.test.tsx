@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '../../test/test-utils';
-import { Button } from './button';
+import { Button } from '../../src/components/ui/button';
 
 describe('Button', () => {
   describe('Rendering', () => {

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '../test/test-utils';
-import { UpdateStatusDialog } from './UpdateStatusDialog';
+import { UpdateStatusDialog } from '../../src/components/UpdateStatusDialog';
 import { mockRepairOrders } from '../test/mocks';
-import * as useROsModule from '../hooks/useROs';
+import * as useROsModule from '../../src/hooks/useROs';
 
 vi.mock('../hooks/useROs');
 

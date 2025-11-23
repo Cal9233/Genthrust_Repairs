@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '../test/test-utils';
-import { StatusTimeline } from './StatusTimeline';
-import type { StatusHistoryEntry } from '../types';
+import { StatusTimeline } from '../../src/components/StatusTimeline';
+import type { StatusHistoryEntry } from '../../src/types';
 
 describe('StatusTimeline', () => {
   const mockHistory: StatusHistoryEntry[] = [

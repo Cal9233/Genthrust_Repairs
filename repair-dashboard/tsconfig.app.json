@@ -17,7 +17,6 @@
     "jsx": "react-jsx",
 
     /* Path Aliases */
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
@@ -30,5 +29,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": false  // Temporarily disabled for build
   },
-  "include": ["src"]
+  "include": ["src", "tests/integration/businessRules.test.ts", "tests/integration/emailTemplates.test.ts", "tests/integration/excelSession.test.ts", "tests/integration/exportUtils.test.ts", "tests/integration/trackingUtils.test.ts", "tests/integration/useROFilters.test.ts", "tests/integration/useROs.test.tsx", "tests/integration/useShops.test.tsx", "tests/integration/AddRODialog.test.tsx", "tests/integration/BulkActionsBar.test.tsx", "tests/integration/Dashboard.test.tsx", "tests/integration/EmailComposerDialog.test.tsx", "tests/integration/ReminderTypeDialog.test.tsx", "tests/integration/RODetailDialog.test.tsx", "tests/integration/ROTable.test.tsx", "tests/integration/ShopDirectory.test.tsx", "tests/integration/ShopManagementDialog.test.tsx", "tests/integration/StatusBadge.test.tsx", "tests/integration/StatusTimeline.test.tsx", "tests/integration/UpdateStatusDialog.test.tsx", "tests/integration/textarea.test.tsx", "tests/integration/label.test.tsx", "tests/integration/input.test.tsx", "tests/integration/checkbox.test.tsx", "tests/integration/card.test.tsx", "tests/integration/button.test.tsx", "tests/integration/badge.test.tsx"]
 }

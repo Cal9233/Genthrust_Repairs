@@ -7,9 +7,9 @@ import {
   generateReceiptConfirmationEmail,
   getAvailableTemplates,
   generateEmail,
-} from './emailTemplates';
-import { mockRepairOrders, mockShops } from '../test/mocks';
-import type { RepairOrder, Shop } from '../types';
+} from '../../src/lib/emailTemplates';
+import { mockRepairOrders, mockShops } from '../../src/test/mocks';
+import type { RepairOrder, Shop } from '../../src/types';
 
 describe('emailTemplates', () => {
   const mockRO: RepairOrder = mockRepairOrders[0];

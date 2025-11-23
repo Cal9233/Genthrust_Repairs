@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render, screen } from '../../test/test-utils';
-import { Input } from './input';
+import { Input } from '../../src/components/ui/input';
 
 describe('Input', () => {
   describe('Rendering', () => {

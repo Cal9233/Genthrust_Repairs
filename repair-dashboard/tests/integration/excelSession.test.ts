@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ExcelSessionManager, GraphAPIError } from './excelSession';
+import { ExcelSessionManager, GraphAPIError } from '../../src/lib/excelSession';
 
 describe('ExcelSessionManager', () => {
   let sessionManager: ExcelSessionManager;

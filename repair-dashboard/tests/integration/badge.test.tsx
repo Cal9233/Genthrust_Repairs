@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '../../test/test-utils';
-import { Badge } from './badge';
+import { Badge } from '../../src/components/ui/badge';
 
 describe('Badge', () => {
   describe('Rendering', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '../../test/test-utils';
-import { Label } from './label';
-import { Input } from './input';
+import { Label } from '../../src/components/ui/label';
+import { Input } from '../../src/components/ui/input';
 
 describe('Label', () => {
   describe('Rendering', () => {

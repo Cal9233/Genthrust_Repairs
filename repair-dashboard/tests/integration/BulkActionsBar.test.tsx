@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '../test/test-utils';
-import { BulkActionsBar } from './BulkActionsBar';
+import { BulkActionsBar } from '../../src/components/BulkActionsBar';
 
 describe('BulkActionsBar', () => {
   const mockHandlers = {
