@@ -11,6 +11,7 @@ import { useROFilters } from "../../hooks/useROFilters";
 import { buildShopAnalytics, predictCompletion } from "../../services/analyticsEngine";
 import { Table } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   Dialog,
   DialogContent,
@@ -281,14 +282,7 @@ export function ROTable() {
 
   // Loading state
   if (currentIsLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading repair orders...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner size="md" text="Loading repair orders..." />;
   }
 
   return (
