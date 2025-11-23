@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import inventoryRoutes from './routes/inventory.js';
 import aiLogsRoutes from './routes/ai-logs.js';
 import aiRoutes from './routes/ai.js';
+import repairOrderRoutes from './routes/repair-orders.js';
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use((req, res, next) => {
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/ai-logs', aiLogsRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/ros', repairOrderRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -52,6 +54,7 @@ app.listen(PORT, () => {
   console.log(`[Server] Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`[Server] CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
   console.log(`[Server] Health check: http://localhost:${PORT}/health`);
+  console.log(`[Server] Repair Orders API: http://localhost:${PORT}/api/ros`);
   console.log(`[Server] Inventory API: http://localhost:${PORT}/api/inventory`);
   console.log(`[Server] AI Logs API: http://localhost:${PORT}/api/ai-logs`);
   console.log(`[Server] AI Proxy API: http://localhost:${PORT}/api/ai`);

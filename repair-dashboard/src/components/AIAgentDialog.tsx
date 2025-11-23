@@ -43,7 +43,7 @@ export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { data: ros = [] } = useROs();
+  // Phase 4: No longer need to load all ROs - AI tools query from MySQL as needed
   const { data: shops = [] } = useShops();
   const { accounts } = useMsal();
   const queryClient = useQueryClient();
@@ -178,8 +178,9 @@ useEffect(() => {
       // Get current user from MSAL
       const currentUser = accounts[0]?.name || 'User';
 
+      // Phase 4: Removed allROs to enforce RAG (Retrieval-Augmented Generation)
+      // AI tools now query ROs from MySQL backend instead of receiving them in context
       const context: CommandContext = {
-        allROs: ros,
         allShops: shops,
         currentUser,
         queryClient
@@ -276,18 +277,6 @@ useEffect(() => {
                 <p className="text-[10px] sm:text-xs text-white/70 mt-0.5 hidden sm:block">
                   Powered by Claude Sonnet 4
                 </p>
-              </div>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="hidden md:flex items-center gap-3 text-white/90 text-[13px]">
-              <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-[20px]">
-                <Package className="h-3.5 w-3.5" />
-                <span>{ros.length} ROs</span>
-              </div>
-              <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-[20px]">
-                <MessageSquare className="h-3.5 w-3.5" />
-                <span>{messages.length} messages</span>
               </div>
             </div>
 
