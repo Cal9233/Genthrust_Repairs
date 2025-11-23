@@ -10,3 +10,6 @@
 # Temporary docs
 cleanup.md
 **/DEMO_*.md
+
+# Git worktrees
+.trees/
