@@ -1,14 +1,10 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+
+// REMOVED: fs, path, and url imports because we don't read files anymore
+// REMOVED: __filename and __dirname definitions (This fixes the crash!)
 
 dotenv.config();
-
-// Get __dirname equivalent in ES6 modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Determine which database to use based on NODE_ENV
 const isProduction = process.env.NODE_ENV === 'production';
@@ -19,18 +15,31 @@ const dbName = isProduction
 console.log(`[Database] Environment: ${process.env.NODE_ENV}`);
 console.log(`[Database] Using database: ${dbName}`);
 
-// Read SSL certificate if specified (required for Aiven Cloud)
+// --- SSL CONFIGURATION (The Netlify Way) ---
+// Instead of reading a file, we read the text variable we set in Netlify
 let sslConfig = undefined;
-if (process.env.DB_SSL_CA) {
+let caContent = process.env.DB_SSL_CA_CONTENT;
+
+if (caContent) {
   try {
-    const certPath = path.join(__dirname, '..', process.env.DB_SSL_CA);
-    const caCert = fs.readFileSync(certPath);
-    sslConfig = { ca: caCert };
-    console.log(`[Database] SSL certificate loaded from: ${process.env.DB_SSL_CA}`);
+    // Clean up the certificate string (remove spaces/newlines that getting copy-pasted often breaks)
+    const cleanBase64 = caContent.replace(/\s/g, '').replace(/\\n/g, '');
+    
+    // Re-add the proper headers if they got messed up
+    if (!cleanBase64.includes('BEGINCERTIFICATE')) {
+        caContent = `-----BEGIN CERTIFICATE-----\n${cleanBase64}\n-----END CERTIFICATE-----`;
+    }
+
+    sslConfig = {
+        ca: caContent,
+        rejectUnauthorized: true
+    };
+    console.log(`[Database] SSL certificate loaded from Environment Variable`);
   } catch (error) {
-    console.error(`[Database] Warning: Failed to load SSL certificate from ${process.env.DB_SSL_CA}:`, error.message);
+    console.error(`[Database] Warning: Failed to process SSL variable:`, error.message);
   }
 }
+// -------------------------------------------
 
 // Create a connection pool
 const pool = mysql.createPool({
@@ -39,7 +48,7 @@ const pool = mysql.createPool({
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD,
   database: dbName,
-  ssl: sslConfig,
+  ssl: sslConfig, // <--- Use our new config
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
@@ -47,14 +56,14 @@ const pool = mysql.createPool({
   keepAliveInitialDelay: 0
 });
 
-// Create separate pool for legacy inventory database (for backward compatibility)
+// Create separate pool for legacy inventory database
 export const inventoryPool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '3306'),
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME_INVENTORY || 'genthrust_inventory',
-  ssl: sslConfig,
+  ssl: sslConfig, // <--- Use our new config
   waitForConnections: true,
   connectionLimit: 5,
   queueLimit: 0,
@@ -63,23 +72,16 @@ export const inventoryPool = mysql.createPool({
 });
 
 // Test the main connection
+// Note: We don't block the export, just log the result
 pool.getConnection()
   .then(connection => {
     console.log(`[Database] MySQL connection pool established successfully to ${dbName}`);
     connection.release();
   })
   .catch(err => {
+    // Don't crash the app here, just log error. 
+    // Netlify functions might start "cold" so immediate connection isn't always guaranteed.
     console.error('[Database] Error connecting to MySQL:', err.message);
-  });
-
-// Test the inventory connection
-inventoryPool.getConnection()
-  .then(connection => {
-    console.log(`[Database] Legacy inventory connection established successfully`);
-    connection.release();
-  })
-  .catch(err => {
-    console.warn('[Database] Warning: Legacy inventory connection failed:', err.message);
   });
 
 export default pool;
