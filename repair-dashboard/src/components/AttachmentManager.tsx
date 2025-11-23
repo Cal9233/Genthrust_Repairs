@@ -7,6 +7,7 @@ import {
 } from '../hooks/useAttachments';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { LoadingSpinner } from './ui/loading-spinner';
 import {
   Upload,
   Download,
@@ -151,10 +152,7 @@ export function AttachmentManager({ roNumber }: AttachmentManagerProps) {
             className="hidden"
           />
           {uploadMutation.isPending ? (
-            <div className="flex flex-col items-center gap-2">
-              <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
-              <p className="text-sm text-muted-foreground">Uploading files...</p>
-            </div>
+            <LoadingSpinner size="sm" text="Uploading files..." />
           ) : (
             <>
               <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -170,10 +168,7 @@ export function AttachmentManager({ roNumber }: AttachmentManagerProps) {
 
         {/* Loading State */}
         {isLoading && (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
-            <span className="ml-2 text-sm text-muted-foreground">Loading attachments...</span>
-          </div>
+          <LoadingSpinner size="sm" text="Loading attachments..." />
         )}
 
         {/* Attachments List */}

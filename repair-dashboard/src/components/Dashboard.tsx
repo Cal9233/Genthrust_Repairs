@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useDashboardStats } from "../hooks/useROs";
 import { ROTable } from "./ROTable";
 import {
@@ -28,7 +29,7 @@ export function Dashboard() {
   const [isStatsExpanded, setIsStatsExpanded] = useState(false);
 
   if (isLoading) {
-    return <div className="p-8">Loading dashboard...</div>;
+    return <LoadingSpinner size="lg" text="Loading dashboard..." />;
   }
 
   if (!stats) {

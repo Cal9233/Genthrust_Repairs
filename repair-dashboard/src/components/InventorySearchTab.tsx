@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import {
   Dialog,
   DialogContent,
@@ -203,11 +204,8 @@ export function InventorySearchTab() {
       {/* Loading State */}
       {isLoading && searchQuery && (
         <Card>
-          <CardContent className="py-12">
-            <div className="flex flex-col items-center justify-center gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-bright-blue" />
-              <p className="text-sm text-muted-foreground">Searching inventory...</p>
-            </div>
+          <CardContent className="py-2">
+            <LoadingSpinner size="md" text="Searching inventory..." />
           </CardContent>
         </Card>
       )}
@@ -423,9 +421,7 @@ export function InventorySearchTab() {
           </DialogHeader>
 
           {detailsLoading && (
-            <div className="py-12 flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-bright-blue" />
-            </div>
+            <LoadingSpinner size="sm" />
           )}
 
           {details && columns.length > 0 && (

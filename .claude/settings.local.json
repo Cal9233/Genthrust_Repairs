@@ -4,7 +4,9 @@
       "Bash(wc:*)",
       "Bash(npx tsc:*)",
       "Bash(npm run preview:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm install)"
     ],
     "deny": [],
     "ask": []
