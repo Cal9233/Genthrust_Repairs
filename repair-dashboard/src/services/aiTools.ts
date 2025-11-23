@@ -4,7 +4,7 @@ import { reminderService } from '@/lib/reminderService';
 import { generateEmailForAI } from '@/lib/emailTemplates';
 import { getFinalSheetForStatus } from '@/config/excelSheets';
 import { inventoryService } from '@/services/inventoryService';
-import { repairOrderService } from '@/services/repairOrderService';
+import { hybridDataService } from '@/services/hybridDataService';
 import type { RepairOrder } from '@/types';
 
 /**
@@ -12,7 +12,7 @@ import type { RepairOrder } from '@/types';
  * Phase 4: All tools must use this instead of context.allROs
  */
 async function findROByNumber(ro_number: string): Promise<RepairOrder | null> {
-  const allROs = await repairOrderService.getRepairOrders('ACTIVE');
+  const allROs = await hybridDataService.getRepairOrders('ACTIVE');
   return allROs.find(r =>
     r.roNumber.toString().includes(ro_number) ||
     ro_number.includes(r.roNumber.toString())
@@ -358,7 +358,7 @@ export const toolExecutors: Record<string, ToolExecutor> = {
 
     try {
       // Phase 4: Query from MySQL instead of context.allROs
-      const allROs = await repairOrderService.getRepairOrders('ACTIVE');
+      const allROs = await hybridDataService.getRepairOrders('ACTIVE');
 
       // Find the RO
       const ro = allROs.find(r =>
@@ -401,8 +401,8 @@ export const toolExecutors: Record<string, ToolExecutor> = {
         updateData.trackingNumber = updates.tracking_number;
       }
 
-      // Execute update via repairOrderService (MySQL backend)
-      await repairOrderService.updateRepairOrder(ro.id, updateData);
+      // Execute update via hybridDataService (MySQL backend)
+      await hybridDataService.updateRepairOrder(ro.id, updateData);
 
       // Invalidate React Query cache to refresh UI
       context.queryClient.invalidateQueries({ queryKey: ['ros'] });
@@ -438,7 +438,7 @@ export const toolExecutors: Record<string, ToolExecutor> = {
 
     // Phase 4: Query from MySQL backend instead of context.allROs
     // This implements RAG (Retrieval-Augmented Generation)
-    let results = await repairOrderService.getRepairOrders('ACTIVE');
+    let results = await hybridDataService.getRepairOrders('ACTIVE');
 
     // Apply filters client-side
     // TODO: Future optimization - push filters to backend API for better performance
