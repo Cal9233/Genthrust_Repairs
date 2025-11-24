@@ -35,7 +35,8 @@ app.use((req, res, next) => {
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/ai-logs', aiLogsRoutes);
 app.use('/api/ai', aiRoutes);
-app.use('/api/ros', repairOrderRoutes);
+// backend/app.js
+app.use('/api/ros', repairOrderRoutes.default || repairOrderRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

@@ -267,6 +267,86 @@ router.post('/', async (req, res) => {
 });
 
 /**
+ * Get dashboard statistics
+ * GET /api/ros/stats/dashboard
+ */
+router.get('/stats/dashboard', async (req, res) => {
+  try {
+    console.log('[RO API] Getting dashboard statistics');
+
+    // Initialize stats
+    let stats = {
+      totalActive: 0,
+      overdue: 0,
+      waitingQuote: 0,
+      approved: 0,
+      beingRepaired: 0,
+      shipping: 0,
+      dueToday: 0,
+      overdue30Plus: 0,
+      onTrack: 0,
+      totalValue: 0,
+      totalEstimatedValue: 0,
+      totalFinalValue: 0,
+      approvedPaid: 0,
+      approvedNet: 0,
+      scrapped: 0,
+      rai: 0,
+      ber: 0,
+      cancel: 0
+    };
+
+    // Get active RO statistics
+    const [activeRows] = await pool.query(`
+      SELECT
+        COUNT(*) as totalActive,
+        COUNT(CASE WHEN NEXT_DATE_TO_UPDATE < CURDATE() THEN 1 END) as overdue,
+        COUNT(CASE WHEN CURENT_STATUS = 'WAITING QUOTE' THEN 1 END) as waitingQuote,
+        COUNT(CASE WHEN CURENT_STATUS LIKE 'APPROVED%' THEN 1 END) as approved,
+        COUNT(CASE WHEN CURENT_STATUS = 'BEING REPAIRED' THEN 1 END) as beingRepaired,
+        COUNT(CASE WHEN CURENT_STATUS IN ('SHIPPING', 'CURRENTLY BEING SHIPPED') THEN 1 END) as shipping,
+        COUNT(CASE WHEN NEXT_DATE_TO_UPDATE = CURDATE() THEN 1 END) as dueToday,
+        COUNT(CASE WHEN NEXT_DATE_TO_UPDATE < DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 END) as overdue30Plus,
+        COALESCE(SUM(FINAL_COST), 0) as totalValue,
+        COALESCE(SUM(ESTIMATED_COST), 0) as totalEstimatedValue
+      FROM active
+    `);
+
+    if (activeRows.length > 0) {
+      const row = activeRows[0];
+      stats.totalActive = parseInt(row.totalActive) || 0;
+      stats.overdue = parseInt(row.overdue) || 0;
+      stats.waitingQuote = parseInt(row.waitingQuote) || 0;
+      stats.approved = parseInt(row.approved) || 0;
+      stats.beingRepaired = parseInt(row.beingRepaired) || 0;
+      stats.shipping = parseInt(row.shipping) || 0;
+      stats.dueToday = parseInt(row.dueToday) || 0;
+      stats.overdue30Plus = parseInt(row.overdue30Plus) || 0;
+      stats.totalValue = parseFloat(row.totalValue) || 0;
+      stats.totalEstimatedValue = parseFloat(row.totalEstimatedValue) || 0;
+      stats.totalFinalValue = parseFloat(row.totalValue) || 0;
+      stats.onTrack = stats.totalActive - stats.overdue;
+    }
+
+    // Get archive counts
+    const [paidCount] = await pool.query('SELECT COUNT(*) as count FROM paid');
+    stats.approvedPaid = parseInt(paidCount[0].count) || 0;
+
+    const [netCount] = await pool.query('SELECT COUNT(*) as count FROM net');
+    stats.approvedNet = parseInt(netCount[0].count) || 0;
+
+    const [returnsCount] = await pool.query('SELECT COUNT(*) as count FROM returns');
+    stats.scrapped = parseInt(returnsCount[0].count) || 0;
+
+    console.log('[RO API] Dashboard stats calculated', stats);
+    res.json(stats);
+  } catch (error) {
+    console.error('[RO API] Dashboard stats error:', error);
+    res.status(500).json({ error: 'Database error', message: error.message });
+  }
+});
+
+/**
  * Update repair order (including archiveStatus for archiving)
  * PATCH /api/ros/:id
  *
@@ -483,86 +563,6 @@ router.delete('/:id', async (req, res) => {
     return res.status(404).json({ error: 'Repair order not found' });
   } catch (error) {
     console.error('[RO API] Delete repair order error:', error);
-    res.status(500).json({ error: 'Database error', message: error.message });
-  }
-});
-
-/**
- * Get dashboard statistics
- * GET /api/ros/stats/dashboard
- */
-router.get('/stats/dashboard', async (req, res) => {
-  try {
-    console.log('[RO API] Getting dashboard statistics');
-
-    // Initialize stats
-    let stats = {
-      totalActive: 0,
-      overdue: 0,
-      waitingQuote: 0,
-      approved: 0,
-      beingRepaired: 0,
-      shipping: 0,
-      dueToday: 0,
-      overdue30Plus: 0,
-      onTrack: 0,
-      totalValue: 0,
-      totalEstimatedValue: 0,
-      totalFinalValue: 0,
-      approvedPaid: 0,
-      approvedNet: 0,
-      scrapped: 0,
-      rai: 0,
-      ber: 0,
-      cancel: 0
-    };
-
-    // Get active RO statistics
-    const [activeRows] = await pool.query(`
-      SELECT
-        COUNT(*) as totalActive,
-        COUNT(CASE WHEN NEXT_DATE_TO_UPDATE < CURDATE() THEN 1 END) as overdue,
-        COUNT(CASE WHEN CURENT_STATUS = 'WAITING QUOTE' THEN 1 END) as waitingQuote,
-        COUNT(CASE WHEN CURENT_STATUS LIKE 'APPROVED%' THEN 1 END) as approved,
-        COUNT(CASE WHEN CURENT_STATUS = 'BEING REPAIRED' THEN 1 END) as beingRepaired,
-        COUNT(CASE WHEN CURENT_STATUS IN ('SHIPPING', 'CURRENTLY BEING SHIPPED') THEN 1 END) as shipping,
-        COUNT(CASE WHEN NEXT_DATE_TO_UPDATE = CURDATE() THEN 1 END) as dueToday,
-        COUNT(CASE WHEN NEXT_DATE_TO_UPDATE < DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 END) as overdue30Plus,
-        COALESCE(SUM(FINAL_COST), 0) as totalValue,
-        COALESCE(SUM(ESTIMATED_COST), 0) as totalEstimatedValue
-      FROM active
-    `);
-
-    if (activeRows.length > 0) {
-      const row = activeRows[0];
-      stats.totalActive = parseInt(row.totalActive) || 0;
-      stats.overdue = parseInt(row.overdue) || 0;
-      stats.waitingQuote = parseInt(row.waitingQuote) || 0;
-      stats.approved = parseInt(row.approved) || 0;
-      stats.beingRepaired = parseInt(row.beingRepaired) || 0;
-      stats.shipping = parseInt(row.shipping) || 0;
-      stats.dueToday = parseInt(row.dueToday) || 0;
-      stats.overdue30Plus = parseInt(row.overdue30Plus) || 0;
-      stats.totalValue = parseFloat(row.totalValue) || 0;
-      stats.totalEstimatedValue = parseFloat(row.totalEstimatedValue) || 0;
-      stats.totalFinalValue = parseFloat(row.totalValue) || 0;
-      stats.onTrack = stats.totalActive - stats.overdue;
-    }
-
-    // Get archive counts
-    const [paidCount] = await pool.query('SELECT COUNT(*) as count FROM paid');
-    stats.approvedPaid = parseInt(paidCount[0].count) || 0;
-
-    const [netCount] = await pool.query('SELECT COUNT(*) as count FROM net');
-    stats.approvedNet = parseInt(netCount[0].count) || 0;
-
-    const [returnsCount] = await pool.query('SELECT COUNT(*) as count FROM returns');
-    stats.scrapped = parseInt(returnsCount[0].count) || 0;
-
-    console.log('[RO API] Dashboard stats calculated', stats);
-    res.json(stats);
-  } catch (error) {
-    console.error('[RO API] Dashboard stats error:', error);
     res.status(500).json({ error: 'Database error', message: error.message });
   }
 });
