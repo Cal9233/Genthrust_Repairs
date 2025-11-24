@@ -8,7 +8,9 @@ import { RepairOrder, DashboardStats } from '@/types';
 import { createLogger } from '@/utils/logger';
 
 const logger = createLogger('RepairOrderService');
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+// Hardcoded to Netlify Functions path - frontend and backend on same domain
+// This eliminates environment variable confusion and ensures reliable deployment
+const API_BASE_URL = '/.netlify/functions/api';
 
 /**
  * Helper: Convert date string from API to Date object
