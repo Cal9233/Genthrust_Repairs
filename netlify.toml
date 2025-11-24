@@ -2,7 +2,7 @@
 
 [build]
   # Build command - runs in repair-dashboard directory
-  command = "cd repair-dashboard && npm install && npm run build"
+  command = "cd repair-dashboard && npm install --include=dev && npm run build"
 
   # Publish directory - where Vite outputs the built files
   publish = "repair-dashboard/dist"
