@@ -32,10 +32,9 @@ app.use((req, res, next) => {
 // Routes
 // IMPORTANT: Keep these exactly as they are. 
 // Netlify will pass the full URL (e.g., /api/inventory) to this router.
-app.use('/api/inventory', inventoryRoutes);
-app.use('/api/ai-logs', aiLogsRoutes);
-app.use('/api/ai', aiRoutes);
-// backend/app.js
+app.use('/api/inventory', inventoryRoutes.default || inventoryRoutes);
+app.use('/api/ai-logs', aiLogsRoutes.default || aiLogsRoutes);
+app.use('/api/ai', aiRoutes.default || aiRoutes);
 app.use('/api/ros', repairOrderRoutes.default || repairOrderRoutes);
 
 // Health check endpoint
