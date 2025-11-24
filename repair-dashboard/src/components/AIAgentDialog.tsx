@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { Sparkles, Send, Loader2, User, Bot, Zap, MessageSquare, TrendingUp, Package, X, Mic, MicOff } from 'lucide-react';
+import { Sparkles, Send, Loader2, User, Bot, Zap, MessageSquare, TrendingUp, Package, X, Mic, MicOff, MessageSquarePlus } from 'lucide-react';
 import { useROs } from '@/hooks/useROs';
 import { useShops } from '@/hooks/useShops';
 import { anthropicAgent } from '@/services/anthropicAgent';
@@ -20,8 +20,7 @@ interface AIAgentDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const CONVERSATION_STORAGE_KEY = 'genthrust-ai-conversation-history';
-const MAX_STORED_MESSAGES = 50; // Limit stored messages to prevent localStorage overflow
+const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
 
 export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
   console.log('[AIAgentDialog] RENDER - open:', open);
@@ -76,42 +75,8 @@ export function AIAgentDialog({ open, onOpenChange }: AIAgentDialogProps) {
       .join('\n');
   };
 
-  // Load conversation history from localStorage on mount
-  useEffect(() => {
-    console.log('[AIAgentDialog] useEffect - Load conversation history TRIGGERED');
-    try {
-      const stored = localStorage.getItem(CONVERSATION_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Reconstruct Date objects
-        const messagesWithDates = parsed.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp)
-        }));
-        console.log('[AIAgentDialog] Setting messages from localStorage:', messagesWithDates.length);
-        setMessages(messagesWithDates);
-      }
-    } catch (error) {
-      logger.error('Failed to load conversation history', error as Error);
-    }
-  }, []);
-
-  // Save conversation history to localStorage whenever messages change
-  useEffect(() => {
-    console.log('[AIAgentDialog] useEffect - Save conversation TRIGGERED, messages:', messages.length);
-    if (messages.length > 0) {
-      try {
-        // Only store last MAX_STORED_MESSAGES messages
-        const messagesToStore = messages.slice(-MAX_STORED_MESSAGES);
-        localStorage.setItem(CONVERSATION_STORAGE_KEY, JSON.stringify(messagesToStore));
-        console.log('[AIAgentDialog] Saved messages to localStorage');
-      } catch (error) {
-        logger.error('Failed to save conversation history', error as Error, {
-          messageCount: messages.length
-        });
-      }
-    }
-  }, [messages]);
+  // Note: Conversation persistence will be implemented in a future phase
+  // For now, conversations are session-only (cleared when dialog closes)
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -248,11 +213,11 @@ useEffect(() => {
     }
   };
 
-  const clearHistory = () => {
+  const handleNewConversation = () => {
     setMessages([]);
     setStreamingText('');
-    localStorage.removeItem(CONVERSATION_STORAGE_KEY);
-    toast.success('Conversation history cleared');
+    setInput('');
+    toast.success('Started new conversation');
   };
 
   console.log('[AIAgentDialog] ABOUT TO RETURN JSX');
@@ -518,12 +483,12 @@ useEffect(() => {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={clearHistory}
+                  onClick={handleNewConversation}
                   disabled={isProcessing}
                   className="text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg text-xs"
                 >
-                  <X className="h-3 w-3 mr-1" />
-                  Clear Chat
+                  <MessageSquarePlus className="h-3 w-3 mr-1" />
+                  New Chat
                 </Button>
               )}
             </div>

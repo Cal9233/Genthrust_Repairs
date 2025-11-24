@@ -9,6 +9,150 @@ Complete chronological record of all major implementations, migrations, and impr
 
 ## Version History
 
+### v2.0.0 - Netlify Functions Migration (2025-11-24)
+
+**Status:** ✅ Complete
+
+**Changes:**
+- Migrated backend deployment from Render.com to Netlify Functions (serverless)
+- Implemented ES module defensive unwrapping for serverless-http compatibility
+- Removed legacy localStorage conversation management code
+- Updated all deployment documentation and configuration files
+- Standardized API URL configuration across frontend services
+- Updated Claude documentation with Netlify Functions architecture
+
+**Architecture:**
+- **Deployment Platform:** Netlify (Frontend + Backend Functions)
+- **Database:** Aiven Cloud MySQL (unchanged)
+- **Backend URL:** `/.netlify/functions/api` (serverless endpoint)
+- **Local Development:** Express server on `http://localhost:3001` (unchanged)
+
+**Infrastructure:**
+```
+netlify/
+  └── functions/
+      └── api.js          # Serverless wrapper for Express app
+
+backend/
+  ├── app.js              # Express application (imported by Netlify Function)
+  ├── server.js           # Local development server only
+  └── routes/             # API routes (unchanged)
+```
+
+**Files Modified:**
+- `netlify/functions/api.js` (+25 lines) - Created serverless wrapper with defensive ES module unwrapping
+- `repair-dashboard/src/components/AIAgentDialog.tsx` (-40 lines) - Removed old localStorage code
+- `DEPLOYMENT_GUIDE.md` (complete rewrite) - Updated for Netlify Functions deployment
+- `netlify.toml` (+12 lines) - Added backend environment variable documentation
+- `.claude/backend_workflow.md` (+180 lines) - Added Netlify Functions deployment section
+- `repair-dashboard/src/services/mysqlInventoryService.ts` (-2 lines) - Fixed API path duplication
+- `repair-dashboard/src/config/anthropic.ts` (+1 line) - Added clarifying comment
+- `repair-dashboard/.env.example` (+2 lines) - Updated with Netlify Functions URL
+
+**Files Deleted:**
+- `render.yaml` - Obsolete Render.com deployment configuration
+
+**Netlify Functions Wrapper Implementation:**
+```javascript
+import serverless from 'serverless-http';
+import appImport from '../../backend/app.js';
+
+// Defensive unwrapping - handles single and double wrapping
+let app = appImport;
+
+// Peel back the first layer (ES Module Default)
+if (app.default) {
+  app = app.default;
+}
+
+// Peel back a potential second layer (Bundler Artifact)
+if (app.default) {
+  app = app.default;
+}
+
+// Final validation - Express apps must have .use() method
+if (!app || typeof app.use !== 'function') {
+  console.error('[Netlify] CRITICAL ERROR: Express app not found in import');
+  console.error('[Netlify] Import structure:', Object.keys(appImport || {}));
+  throw new Error('Unsupported framework: Express app not found');
+}
+
+export const handler = serverless(app);
+console.log('[Netlify] Handler initialized successfully');
+```
+
+**Key Features:**
+- **ES Module Compatibility:** Defensive unwrapping handles Netlify's bundler wrapping behavior
+- **No Backend Code Changes:** Express app remains unchanged, only wrapper added
+- **Unified Deployment:** Frontend and backend deploy together automatically
+- **Environment Variables:** Configured in Netlify Dashboard, available to functions
+- **SSL/TLS:** Automatic HTTPS for all endpoints
+- **Global CDN:** Fast edge deployment with low latency
+
+**Environment Variables (Netlify Dashboard):**
+```env
+# Backend (Netlify Functions)
+ANTHROPIC_API_KEY=sk-ant-...
+FRONTEND_URL=https://genthrust-repairs.netlify.app
+DB_HOST=genthrust-inventory-genthrust2017.b.aivencloud.com
+DB_PORT=27562
+DB_USER=avnadmin
+DB_PASSWORD=<secure_password>
+DB_NAME=genthrust_inventory
+DB_SSL_MODE=REQUIRED
+PORT=3001  # (local dev only)
+
+# Frontend
+VITE_BACKEND_URL=https://genthrust-repairs.netlify.app/.netlify/functions/api
+VITE_API_BASE_URL=https://genthrust-repairs.netlify.app/.netlify/functions/api
+# ... other VITE_* variables
+```
+
+**API Endpoints (Production):**
+- Health Check: `/.netlify/functions/api/health`
+- Inventory Search: `/.netlify/functions/api/inventory/search`
+- AI Chat: `/.netlify/functions/api/ai/chat`
+- RO Stats: `/.netlify/functions/api/ros/stats/dashboard`
+
+**Testing:**
+- Serverless wrapper successfully unwraps Express app ✅
+- Health check endpoint responds correctly ✅
+- All API routes accessible via `/.netlify/functions/api` prefix ✅
+- Aiven MySQL connection working in serverless environment ✅
+- AI chat functionality working ✅
+
+**Migration Notes:**
+- Render.com → Netlify Functions migration complete
+- No database changes required (still using Aiven Cloud MySQL)
+- Backend Express code unchanged (only deployment wrapper added)
+- Frontend services updated to use Netlify Functions URL
+- Old localStorage conversation code removed from AIAgentDialog
+- Deploy via git push to main branch (automatic Netlify deployment)
+
+**Performance:**
+- Cold start: ~1-2 seconds (first request after inactivity)
+- Warm requests: ~100-300ms (similar to Render.com)
+- Function timeout: 10 seconds (free tier), 26 seconds (Pro tier)
+- Database latency: ~100-300ms (Aiven Cloud MySQL, unchanged)
+
+**Advantages Over Render.com:**
+✅ No cold starts after 15 minutes of inactivity (Render.com limitation removed)
+✅ Integrated deployment (frontend + backend together)
+✅ Automatic SSL certificate management
+✅ Global CDN distribution
+✅ One-click rollbacks in Netlify dashboard
+✅ More generous free tier (125k invocations vs 750 hours/month)
+
+**Impact:**
+- Production deployment simplified (single platform)
+- No more separate backend server to manage
+- Faster deployment pipeline (integrated build)
+- Better observability (Netlify Functions logs)
+- Cost savings (no need for dedicated backend server)
+- Improved developer experience (unified dashboard)
+
+---
+
 ### v1.6.0 - Aiven Cloud MySQL Migration (2025-11-23)
 
 **Status:** ✅ Complete

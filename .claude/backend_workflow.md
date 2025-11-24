@@ -1,8 +1,9 @@
 # GenThrust RO Tracker - Backend Workflow Documentation
 
-**Version:** 1.0
-**Last Updated:** 2025-11-23
+**Version:** 2.0
+**Last Updated:** 2025-11-24
 **Purpose:** Comprehensive reference for the GenThrust RO Tracker backend API
+**Deployment:** Netlify Functions (serverless) + Aiven Cloud MySQL
 
 ---
 
@@ -1994,6 +1995,188 @@ curl http://localhost:3001/health
 ```bash
 curl http://localhost:3001/api/ros?limit=1
 ```
+
+---
+
+### Netlify Functions Deployment (Current Architecture)
+
+**Current Deployment:** The backend is deployed as **Netlify Functions** (serverless) alongside the frontend.
+
+#### Architecture Overview
+
+```
+netlify/
+  └── functions/
+      └── api.js          # Serverless wrapper for Express app
+
+backend/
+  ├── app.js              # Express application (imported by Netlify Function)
+  ├── server.js           # Local development server only
+  └── routes/             # API routes
+```
+
+**How It Works:**
+- **Local Development:** `npm start` runs Express on `http://localhost:3001`
+- **Production:** Netlify Functions wraps Express and deploys to `/.netlify/functions/api`
+
+#### 1. Netlify Functions Wrapper (`netlify/functions/api.js`)
+
+```javascript
+import serverless from 'serverless-http';
+import appImport from '../../backend/app.js';
+
+// Defensive unwrapping - handles ES module default export wrapping
+let app = appImport;
+
+// Peel back the first layer (ES Module Default)
+if (app.default) {
+  app = app.default;
+}
+
+// Peel back a potential second layer (Bundler Artifact)
+if (app.default) {
+  app = app.default;
+}
+
+// Final validation - Express apps must have .use() method
+if (!app || typeof app.use !== 'function') {
+  console.error('[Netlify] CRITICAL ERROR: Express app not found in import');
+  console.error('[Netlify] Import structure:', Object.keys(appImport || {}));
+  throw new Error('Unsupported framework: Express app not found');
+}
+
+export const handler = serverless(app);
+console.log('[Netlify] Handler initialized successfully');
+```
+
+**Key Points:**
+- Uses `serverless-http` to wrap Express for serverless deployment
+- Handles ES module default export wrapping (single and double wrapping)
+- Validates Express app before wrapping
+- No need to modify `backend/app.js` - it remains a standard Express app
+
+#### 2. Environment Variables Configuration
+
+**Set in Netlify Dashboard:** Site Settings → Environment Variables
+
+**Backend Environment Variables:**
+```env
+# Required
+ANTHROPIC_API_KEY=your-anthropic-api-key
+FRONTEND_URL=https://genthrust-repairs.netlify.app
+
+# Aiven Cloud MySQL
+DB_HOST=genthrust-inventory-genthrust2017.b.aivencloud.com
+DB_PORT=27562
+DB_USER=avnadmin
+DB_PASSWORD=your-aiven-password
+DB_NAME=genthrust_inventory
+DB_SSL_MODE=REQUIRED
+
+# Optional (for local dev only)
+PORT=3001
+```
+
+**Frontend Environment Variables:**
+```env
+VITE_BACKEND_URL=https://genthrust-repairs.netlify.app/.netlify/functions/api
+VITE_API_BASE_URL=https://genthrust-repairs.netlify.app/.netlify/functions/api
+# ... other VITE_* variables
+```
+
+#### 3. API Endpoints
+
+All API routes are prefixed with `/.netlify/functions/api`:
+
+| Endpoint | Production URL |
+|----------|----------------|
+| Health Check | `/.netlify/functions/api/health` |
+| Inventory Search | `/.netlify/functions/api/inventory/search` |
+| AI Chat | `/.netlify/functions/api/ai/chat` |
+| RO Stats | `/.netlify/functions/api/ros/stats/dashboard` |
+
+#### 4. Configuration Files
+
+**`netlify.toml`:**
+```toml
+[build]
+  command = "cd repair-dashboard && npm install --include=dev && npm run build"
+  publish = "repair-dashboard/dist"
+  base = "/"
+
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_VERSION = "10"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+```
+
+**Note:** Netlify automatically detects functions in `netlify/functions/` directory - no additional configuration needed.
+
+#### 5. Deployment Process
+
+**Automatic Deployment:**
+1. Push to main branch on GitHub
+2. Netlify detects changes and triggers build
+3. Builds frontend: `cd repair-dashboard && npm run build`
+4. Bundles Netlify Functions: Packages `netlify/functions/api.js` and `backend/` dependencies
+5. Deploys both frontend and backend together
+
+**Manual Deployment:**
+```bash
+# Install Netlify CLI
+npm install -g netlify-cli
+
+# Login to Netlify
+netlify login
+
+# Deploy
+netlify deploy --prod
+```
+
+#### 6. Monitoring & Debugging
+
+**View Logs:**
+- Go to Netlify Dashboard → Functions → [api] → Logs
+- Real-time logs show function invocations and errors
+
+**Health Check:**
+```bash
+curl https://genthrust-repairs.netlify.app/.netlify/functions/api/health
+```
+
+**Common Issues:**
+
+1. **"Unsupported framework" error**
+   - Cause: ES module default export wrapping issue
+   - Fix: Defensive unwrapping in `netlify/functions/api.js` (already implemented)
+
+2. **Function timeout (10 seconds)**
+   - Cause: Long-running operations (e.g., AI requests)
+   - Fix: Optimize queries, use streaming responses, or upgrade to Pro plan (26 seconds)
+
+3. **Cold starts (1-2 seconds)**
+   - Cause: Function hasn't been invoked recently
+   - Fix: Normal behavior for serverless - consider using keep-alive service or upgrade plan
+
+#### 7. Advantages of Netlify Functions
+
+✅ **No server management** - Fully managed, auto-scaling
+✅ **Automatic SSL** - HTTPS included
+✅ **Global CDN** - Fast edge deployment
+✅ **Integrated deployment** - Frontend + backend deployed together
+✅ **Free tier generous** - 125k invocations/month, 100 hours runtime
+✅ **Easy rollbacks** - One-click rollback in Netlify dashboard
+
+#### 8. Limitations
+
+⚠️ **Function timeout:** 10 seconds (free), 26 seconds (Pro)
+⚠️ **Cold starts:** 1-2 seconds for first request after inactivity
+⚠️ **Memory limit:** 1024 MB
+⚠️ **No long-lived connections:** Each invocation is stateless
 
 ---
 

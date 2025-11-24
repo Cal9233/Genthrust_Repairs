@@ -6,9 +6,9 @@
 import { createLogger } from '@/utils/logger';
 
 const logger = createLogger('MySQLInventoryService');
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL
-  ? `${import.meta.env.VITE_BACKEND_URL}/api`
-  : 'http://localhost:3001/api';
+// VITE_BACKEND_URL should already include the full API path (e.g., /.netlify/functions/api)
+// No need to append '/api' - that would cause duplication
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 export interface InventorySearchResult {
   indexId: string;

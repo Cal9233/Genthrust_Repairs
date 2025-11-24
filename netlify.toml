@@ -44,14 +44,26 @@
 # Go to: Site Settings > Environment Variables
 # Add the following variables (values shown are for reference):
 #
+# Frontend Environment Variables:
 # VITE_CLIENT_ID=ee8cb926-5dda-4bbf-9360-dd94d7c433e1
 # VITE_TENANT_ID=ddb0202c-cb5f-425e-891a-5666e58d9ad5
-# VITE_BACKEND_URL=https://YOUR-BACKEND-URL.onrender.com
-# VITE_API_BASE_URL=https://YOUR-BACKEND-URL.onrender.com/api
+# VITE_BACKEND_URL=https://genthrust-repairs.netlify.app/.netlify/functions/api
+# VITE_API_BASE_URL=https://genthrust-repairs.netlify.app/.netlify/functions/api
 # VITE_SHAREPOINT_SITE_URL=https://genthrustxvii.sharepoint.com/sites/PartsQuotationsWebsite
 # VITE_EXCEL_FILE_NAME=Book.xlsx
 # VITE_EXCEL_TABLE_NAME=Repairs
 # VITE_SHOP_TABLE_NAME=Table3
 # VITE_INVENTORY_WORKBOOK_ID=01RD47DPWM335G2HPETNDZ5YGZIGVO4BYY
 #
-# DO NOT ADD: VITE_ANTHROPIC_API_KEY (security risk - should only be in backend)
+# Backend Environment Variables (for Netlify Functions):
+# ANTHROPIC_API_KEY=your-anthropic-api-key
+# FRONTEND_URL=https://genthrust-repairs.netlify.app
+# DB_HOST=genthrust-inventory-genthrust2017.b.aivencloud.com
+# DB_PORT=27562
+# DB_USER=avnadmin
+# DB_PASSWORD=your-aiven-password
+# DB_NAME=genthrust_inventory
+# DB_SSL_MODE=REQUIRED
+# PORT=3001  (only used for local development)
+#
+# DO NOT ADD: VITE_ANTHROPIC_API_KEY (security risk - API key must only be in backend environment)

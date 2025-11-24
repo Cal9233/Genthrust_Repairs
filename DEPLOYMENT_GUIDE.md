@@ -1,70 +1,82 @@
 # GenThrust RO Tracker - Production Deployment Guide
 
-This guide will help you deploy your application to production using Render.com (backend) and Netlify (frontend).
+This guide will help you deploy your application to production using Netlify (frontend and backend via Netlify Functions).
 
 ---
 
 ## Prerequisites
 
 - [x] GitHub account
-- [x] Render.com account (sign up at https://render.com - free tier available)
 - [x] Netlify account (already set up)
-- [x] MySQL database accessible from the internet (or use Render's managed database)
+- [x] MySQL database accessible from the internet (using Aiven Cloud)
 
 ---
 
-## Step 1: Deploy Backend to Render.com
+## Step 1: Backend Deployment (Netlify Functions)
 
-### 1.1 Connect GitHub Repository to Render
+The backend is now deployed as **Netlify Functions** (serverless), automatically deployed alongside the frontend.
 
-1. Go to https://render.com and sign in
-2. Click **"New +"** → **"Blueprint"**
-3. Connect your GitHub account if not already connected
-4. Select repository: **`Cal9233/Genthrust_Repairs`**
-5. Render will detect the `render.yaml` file automatically
-6. Click **"Apply"**
+### 1.1 Backend Structure
 
-### 1.2 Configure Environment Variables on Render
+```
+netlify/
+  └── functions/
+      └── api.js    # Serverless wrapper for Express app
+backend/
+  ├── app.js        # Express application
+  ├── server.js     # Local development server
+  └── routes/       # API routes
+```
 
-After creating the service, go to your backend service settings:
+**How it works:**
+- Local development: `npm start` runs Express on `http://localhost:3001`
+- Production: Netlify Functions wraps Express app and deploys to `/.netlify/functions/api`
 
-1. Navigate to **Environment** tab
-2. Add the following environment variables:
+### 1.2 Configure Backend Environment Variables on Netlify
+
+1. Go to https://app.netlify.com
+2. Select your site: **genthrust-repairs**
+3. Go to **Site Settings** → **Environment Variables**
+4. Add the following **backend** environment variables:
 
 ```bash
-# Required - Your Netlify frontend URL
-FRONTEND_URL=https://genthrust-repairs.netlify.app
-
 # Required - Anthropic AI API Key
 ANTHROPIC_API_KEY=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
 
-# Database Configuration (Option A: Use your existing MySQL)
-DB_HOST=your-mysql-host.com
-DB_USER=your-db-user
-DB_PASSWORD=your-db-password
+# Required - Frontend URL for CORS
+FRONTEND_URL=https://genthrust-repairs.netlify.app
 
-# Database Configuration (Option B: Use Render PostgreSQL - requires migration)
-# See section "Database Options" below
+# Database Configuration (Aiven Cloud MySQL)
+DB_HOST=genthrust-inventory-genthrust2017.b.aivencloud.com
+DB_PORT=27562
+DB_USER=avnadmin
+DB_PASSWORD=your-aiven-password
+DB_NAME=genthrust_inventory
+DB_SSL_MODE=REQUIRED
+
+# Optional - Port (only used for local dev)
+PORT=3001
 ```
 
-3. Click **"Save Changes"**
-4. The service will automatically redeploy
+5. Click **"Save"**
+6. Netlify will automatically redeploy
 
-### 1.3 Note Your Backend URL
+### 1.3 Backend URL
 
-Once deployed, Render will give you a URL like:
+Your backend API is accessible at:
 
 ```
-https://genthrust-backend-XXXX.onrender.com
+https://genthrust-repairs.netlify.app/.netlify/functions/api
 ```
 
-**Copy this URL** - you'll need it for Netlify configuration.
-
-# BluePrint-ID: exs-d4f91lmuk2gs73f6e33g
+All API routes are prefixed with `/.netlify/functions/api`, for example:
+- Health check: `/.netlify/functions/api/health`
+- Inventory search: `/.netlify/functions/api/inventory/search`
+- AI proxy: `/.netlify/functions/api/ai/chat`
 
 ### 1.4 Test Backend Health Check
 
-Visit: `https://YOUR-BACKEND-URL.onrender.com/health`
+Visit: `https://genthrust-repairs.netlify.app/.netlify/functions/api/health`
 
 You should see:
 
@@ -74,33 +86,27 @@ You should see:
 
 ---
 
-## Step 2: Configure Netlify Environment Variables
+## Step 2: Configure Frontend Environment Variables
 
-### 2.1 Access Netlify Settings
+### 2.1 Add Frontend Environment Variables
 
-1. Go to https://app.netlify.com
-2. Select your site: **genthrust-repairs**
-3. Go to **Site Settings** → **Environment Variables**
-
-### 2.2 Add Environment Variables
-
-Click **"Add a variable"** and add each of these:
+Add the following **frontend** environment variables (if not already added from Step 1.2):
 
 | Variable Name                | Value                                                               |
 | ---------------------------- | ------------------------------------------------------------------- |
 | `VITE_CLIENT_ID`             | `ee8cb926-5dda-4bbf-9360-dd94d7c433e1`                              |
 | `VITE_TENANT_ID`             | `ddb0202c-cb5f-425e-891a-5666e58d9ad5`                              |
-| `VITE_BACKEND_URL`           | `https://YOUR-BACKEND-URL.onrender.com`                             |
-| `VITE_API_BASE_URL`          | `https://YOUR-BACKEND-URL.onrender.com/api`                         |
+| `VITE_BACKEND_URL`           | `https://genthrust-repairs.netlify.app/.netlify/functions/api`     |
+| `VITE_API_BASE_URL`          | `https://genthrust-repairs.netlify.app/.netlify/functions/api`     |
 | `VITE_SHAREPOINT_SITE_URL`   | `https://genthrustxvii.sharepoint.com/sites/PartsQuotationsWebsite` |
 | `VITE_EXCEL_FILE_NAME`       | `Book.xlsx`                                                         |
 | `VITE_EXCEL_TABLE_NAME`      | `Repairs`                                                           |
 | `VITE_SHOP_TABLE_NAME`       | `Table3`                                                            |
 | `VITE_INVENTORY_WORKBOOK_ID` | `01RD47DPWM335G2HPETNDZ5YGZIGVO4BYY`                                |
 
-**IMPORTANT:** Replace `YOUR-BACKEND-URL` with your actual Render URL from Step 1.3
+**IMPORTANT:** The backend URL points to Netlify Functions, not a separate backend server.
 
-**DO NOT ADD:** `VITE_ANTHROPIC_API_KEY` (security risk!)
+**DO NOT ADD:** `VITE_ANTHROPIC_API_KEY` (security risk - API key is stored in backend environment only!)
 
 ### 2.3 Trigger Redeploy
 
@@ -112,56 +118,58 @@ Click **"Add a variable"** and add each of these:
 
 ## Step 3: Commit and Push Deployment Files
 
-These files have been created for you:
+These files are configured for Netlify deployment:
 
 ```bash
-# Commit the new deployment files
-git add render.yaml netlify.toml repair-dashboard/.env.local backend/.env DEPLOYMENT_GUIDE.md
-git commit -m "feat: add production deployment configuration
+# Commit deployment updates
+git add netlify.toml netlify/functions/api.js repair-dashboard/.env.local backend/.env DEPLOYMENT_GUIDE.md
+git commit -m "feat: migrate to Netlify Functions deployment
 
-- Add render.yaml for backend deployment on Render.com
-- Add netlify.toml for frontend build configuration
-- Add .env.local for local development
-- Update backend/.env with proper configuration
-- Add comprehensive deployment guide"
-git push origin claude/analyze-ai-docs-019Nqh8DzBy4oQvPFZWTNVCp
+- Update netlify.toml for Netlify Functions configuration
+- Add netlify/functions/api.js serverless wrapper
+- Update DEPLOYMENT_GUIDE.md with Netlify Functions instructions
+- Configure environment variables for Aiven Cloud MySQL
+- Remove Render.com deployment files"
+git push origin main
 ```
 
 ---
 
-## Step 4: Database Options
+## Step 4: Database Configuration (Aiven Cloud MySQL)
 
-### Option A: Use Existing MySQL (Recommended if already set up)
+### Current Setup: Aiven Cloud MySQL
 
-**Requirements:**
+The project is configured to use **Aiven Cloud MySQL** for inventory data:
 
-- MySQL database must be accessible from the internet
-- Update `DB_HOST` in Render environment variables to your MySQL host
+**Connection Details:**
+- Host: `genthrust-inventory-genthrust2017.b.aivencloud.com`
+- Port: `27562`
+- User: `avnadmin`
+- Database: `genthrust_inventory`
+- SSL/TLS: **Required**
 
-**Security Considerations:**
+**Environment Variables (already configured in Step 1.2):**
+```bash
+DB_HOST=genthrust-inventory-genthrust2017.b.aivencloud.com
+DB_PORT=27562
+DB_USER=avnadmin
+DB_PASSWORD=your-aiven-password
+DB_NAME=genthrust_inventory
+DB_SSL_MODE=REQUIRED
+```
 
-- Ensure your MySQL server accepts connections from Render's IP range
-- Use strong passwords
-- Consider using MySQL SSL connections
+### Alternative: Local MySQL (Development Only)
 
-### Option B: Use Render PostgreSQL (Requires Migration)
-
-Render offers free PostgreSQL databases. To use this:
-
-1. In Render dashboard, create a new **PostgreSQL** database
-2. Note the connection details (host, user, password, database name)
-3. Update backend environment variables with PostgreSQL credentials
-4. Migrate your data from MySQL to PostgreSQL (requires schema conversion)
-
-**Note:** This requires code changes to support PostgreSQL instead of MySQL.
-
-### Option C: Keep MySQL Local (Development Only)
-
-If you don't have remote MySQL:
+For local development without Aiven:
 
 - AI features will work (uses Anthropic API)
-- **Inventory search will NOT work** (requires MySQL)
+- **Inventory search will NOT work** (requires cloud MySQL)
 - Excel/SharePoint features will work (uses Microsoft Graph API)
+
+**To use local MySQL for development:**
+1. Update `backend/.env` with local MySQL credentials
+2. Remove `DB_SSL_MODE` or set to `DISABLED`
+3. Ensure `DB_PORT` is `3306` (default MySQL port)
 
 ---
 
@@ -207,19 +215,21 @@ If you don't have remote MySQL:
 
 **Fix:**
 
-1. Check Render service is running: `https://YOUR-BACKEND-URL.onrender.com/health`
-2. Verify `ANTHROPIC_API_KEY` is set in Render environment
-3. Check `VITE_BACKEND_URL` in Netlify matches your Render URL
+1. Check Netlify Functions are deployed: `https://genthrust-repairs.netlify.app/.netlify/functions/api/health`
+2. Verify `ANTHROPIC_API_KEY` is set in Netlify environment variables
+3. Check `VITE_BACKEND_URL` in Netlify matches `/.netlify/functions/api`
+4. Check Netlify Functions logs for errors
 
 ### Issue: Inventory Search Not Working
 
-**Cause:** MySQL database not accessible
+**Cause:** Aiven MySQL database not accessible or credentials incorrect
 
 **Fix:**
 
-1. Verify MySQL is accessible from internet
-2. Check database credentials in Render environment
-3. Test connection: Try connecting to MySQL from Render shell
+1. Verify Aiven MySQL database is running (check Aiven console)
+2. Check database credentials in Netlify environment variables
+3. Ensure `DB_SSL_MODE=REQUIRED` is set
+4. Verify `DB_PORT=27562` (not the default 3306)
 
 ### Issue: Login Fails / Redirect Error
 
@@ -237,37 +247,51 @@ If you don't have remote MySQL:
 
 ## Free Tier Limitations
 
-### Render.com (Backend)
+### Netlify (Frontend + Backend Functions)
 
-- **Free tier:** 750 hours/month (enough for 1 service running 24/7)
-- **Spin down after 15 min inactivity** (first request after inactivity takes ~30s)
-- **512 MB RAM**
-- **Shared CPU**
-
-**Tip:** Upgrade to paid plan ($7/month) to avoid spin-down delays
-
-### Netlify (Frontend)
-
-- **Free tier:** 100 GB bandwidth/month
+**Free tier includes:**
+- **100 GB bandwidth/month**
 - **300 build minutes/month**
-- More than enough for your use case
+- **125,000 serverless function invocations/month**
+- **100 hours of serverless function runtime/month**
+
+**Limitations:**
+- Function execution time: Max 10 seconds per invocation (26 seconds on Pro plan)
+- Function memory: 1024 MB
+- Cold starts: Functions may take 1-2 seconds to warm up on first request
+
+**Tip:** Netlify's free tier is generous for most use cases. Upgrade to Pro ($19/month) if you need longer function timeouts or more invocations.
+
+### Aiven Cloud (MySQL Database)
+
+**Free tier includes:**
+- **1 free MySQL service** (limited resources)
+- **Automatic backups**
+- **SSL/TLS encryption**
+
+**Limitations:**
+- Storage: Limited on free tier
+- Compute: Shared resources
+
+**Tip:** Monitor your database usage in the Aiven console to ensure you stay within free tier limits.
 
 ---
 
 ## Next Steps
 
 1. **Set up Azure AD redirect URIs** for production domain
-2. **Configure CORS** in backend to allow Netlify domain
-3. **Set up monitoring** (optional): Use Render logs or external service
-4. **Database backup** (recommended): Set up automated MySQL backups
+2. **Configure CORS** in backend to allow Netlify domain (already configured in backend/app.js)
+3. **Set up monitoring** (optional): Use Netlify Functions logs or external service
+4. **Database backup** (recommended): Aiven provides automatic backups, verify they're enabled
 5. **Custom domain** (optional): Add your own domain to Netlify
 
 ---
 
-## Files Created
+## Deployment Files
 
-- ✅ `render.yaml` - Backend deployment configuration
-- ✅ `netlify.toml` - Frontend build and deployment configuration
+- ✅ `netlify.toml` - Netlify build and Functions configuration
+- ✅ `netlify/functions/api.js` - Serverless wrapper for Express backend
+- ✅ `backend/app.js` - Express application (deployed as Netlify Function)
 - ✅ `repair-dashboard/.env.local` - Local development environment variables
 - ✅ `backend/.env` - Backend environment variables (local)
 - ✅ `DEPLOYMENT_GUIDE.md` - This file
@@ -289,13 +313,15 @@ If you don't have remote MySQL:
 
 If you encounter issues not covered in this guide:
 
-1. Check Render logs: Dashboard → Your Service → Logs
+1. Check Netlify Functions logs: Dashboard → Functions → [Function Name] → Logs
 2. Check Netlify deploy logs: Dashboard → Deploys → [Latest Deploy] → Deploy log
 3. Check browser console for frontend errors (F12 → Console tab)
-4. Review backend health: `https://YOUR-BACKEND-URL.onrender.com/health`
+4. Review backend health: `https://genthrust-repairs.netlify.app/.netlify/functions/api/health`
+5. Check Aiven database status: Aiven console → Services → genthrust-inventory
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2025-11-20
-**Deployment Status:** Ready for production
+**Version:** 2.0
+**Last Updated:** 2025-11-24
+**Deployment Platform:** Netlify (Frontend + Functions) + Aiven Cloud (MySQL)
+**Deployment Status:** Migrated to serverless architecture
