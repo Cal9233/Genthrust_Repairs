@@ -1,4 +1,3 @@
-// backend/app.js
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -10,7 +9,6 @@ import repairOrderRoutes from './routes/repair-orders.js';
 dotenv.config();
 
 const app = express();
-// Note: We REMOVED "const PORT = ..." because Netlify decides the port now.
 
 // CORS configuration
 const corsOptions = {
@@ -23,23 +21,38 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
-// Request logging
+// Request logging (Helpful for debugging 404s)
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
-// Routes
-// IMPORTANT: Keep these exactly as they are. 
-// Netlify will pass the full URL (e.g., /api/inventory) to this router.
-app.use('/api/inventory', inventoryRoutes.default || inventoryRoutes);
-app.use('/api/ai-logs', aiLogsRoutes.default || aiLogsRoutes);
-app.use('/api/ai', aiRoutes.default || aiRoutes);
-app.use('/api/ros', repairOrderRoutes.default || repairOrderRoutes);
+// ----------------------------------------------------------------------
+// ROUTING CONFIGURATION (Fix for Netlify 404s)
+// ----------------------------------------------------------------------
 
-// Health check endpoint
+// 1. Create a Router to hold all API logic
+const apiRouter = express.Router();
+
+// 2. Mount your routes to this router (Note: We removed '/api' from here)
+apiRouter.use('/inventory', inventoryRoutes.default || inventoryRoutes);
+apiRouter.use('/ai-logs', aiLogsRoutes.default || aiLogsRoutes);
+apiRouter.use('/ai', aiRoutes.default || aiRoutes);
+apiRouter.use('/ros', repairOrderRoutes.default || repairOrderRoutes);
+
+// 3. Mount the Router to the App at MULTIPLE paths
+// This ensures it works whether Netlify sends the full path or the rewrite
+app.use(['/api', '/.netlify/functions/api'], apiRouter);
+
+// ----------------------------------------------------------------------
+
+// Health check endpoint (Available at /health and /api/health)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Genthrust Repairs API is running' });
+});
+// Also add it to the router so /api/health works
+apiRouter.get('/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Genthrust Repairs API is running (via Router)' });
 });
 
 // Error handling middleware
@@ -51,7 +64,4 @@ app.use((err, req, res, next) => {
   });
 });
 
-// --- CHANGE IS HERE ---
-// OLD: app.listen(...)  <-- DELETED
-// NEW: Export the app so Netlify can load it
 export default app;
