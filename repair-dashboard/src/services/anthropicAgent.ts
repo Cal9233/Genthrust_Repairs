@@ -261,7 +261,7 @@ export class AnthropicAgent {
    * @throws {Error} For network or parsing errors
    */
   private async callBackendAPI(payload: BackendAPIPayload): Promise<BackendAPIResponse> {
-    const endpoint = `${this.backendUrl}/api/ai/chat`;
+    const endpoint = `${this.backendUrl}/ai/chat`;
 
     try {
       const response = await fetch(endpoint, {
