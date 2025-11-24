@@ -1,6 +1,12 @@
 import serverless from 'serverless-http';
-import app from '../../backend/app.js'; 
+import app from '../../backend/app.js';
 
-// This "handler" export is what Netlify looks for.
-// It wraps your Express app so it works in the cloud.
-export const handler = serverless(app);
+// DEBUGGING LOG: See what "app" actually looks like in the logs
+console.log('Type of app:', typeof app);
+console.log('Is app.default defined?', !!app.default);
+
+// CRITICAL FIX: Unwrap the ES Module if it's wrapped
+// Netlify/Node often wraps "export default" in a .default property
+const expressApp = app.default || app;
+
+export const handler = serverless(expressApp);
