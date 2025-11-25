@@ -9,6 +9,85 @@ Complete chronological record of all major implementations, migrations, and impr
 
 ## Version History
 
+### v2.1.1 - Accessibility Enhancements for Search & Filters (2025-11-24)
+
+**Status:** ✅ Complete
+
+**Changes:**
+- Enhanced search input with WCAG 2.1 Level AA accessibility compliance
+- Added debounced ARIA live region announcements (500ms delay to prevent spam)
+- Implemented keyboard shortcuts for search focus (/ and Ctrl/Cmd+K)
+- Added smart empty state with helpful messaging when no results found
+- Improved screen reader experience with proper ARIA labels and descriptions
+
+**Accessibility Features:**
+
+**Search Input Enhancements** ():
+-  for screen reader context
+-  linking to detailed field list
+-  semantic HTML role
+- Screen reader-only help text listing all 10 searchable fields
+- Visual help text displayed during active search
+- Clear button (X icon) appears when searching
+- Escape key handler to clear search instantly
+- Keyboard shortcut hints in placeholder text
+
+**Empty State** ():
+- Large Search icon (40% opacity) for visual feedback
+- "No repair orders found" heading
+- "Try adjusting your search or filters" guidance
+- Centered layout spanning all 8 table columns
+- Proper semantic structure for screen readers
+
+**Live Region Announcements** ():
+-  for non-intrusive announcements
+-  waits for user to finish current action
+-  announces complete message
+- Debounced 500ms to prevent announcement spam during typing
+- Message format: "Found X repair orders matching 'query'"
+- Hidden from visual display with  class
+
+**Keyboard Shortcuts** ():
+- **/** key: Focus search input (when not in input/textarea)
+- **Ctrl+K / Cmd+K**: Focus search input (universal shortcut)
+- **Escape**: Clear search and results
+- Event listeners properly cleaned up on unmount
+
+**Files Modified:**
+-  - Enhanced search input with ARIA attributes, clear button, help text
+-  - Added empty state with Search icon and helpful guidance
+-  - Added useEffect hook for debouncing, keyboard shortcuts, ARIA live region
+
+**WCAG 2.1 Compliance:**
+- ✅ **1.3.1 Info and Relationships (Level A)** - Semantic HTML with proper ARIA roles
+- ✅ **2.1.1 Keyboard (Level A)** - All functionality accessible via keyboard
+- ✅ **2.4.3 Focus Order (Level A)** - Logical focus sequence maintained
+- ✅ **3.2.4 Consistent Identification (Level AA)** - Clear search button consistently labeled
+- ✅ **4.1.2 Name, Role, Value (Level A)** - Proper ARIA labels on all interactive elements
+- ✅ **4.1.3 Status Messages (Level AA)** - ARIA live regions for dynamic content
+
+**Screen Reader Experience:**
+1. User tabs to search input
+2. Screen reader announces: "Search repair orders, searchbox"
+3. User activates describedby: "Searches across 10 fields: RO number, shop name..."
+4. User types "duncan"
+5. After 500ms delay: "Found 5 repair orders matching 'duncan'"
+6. User presses Escape: Search clears, focus remains on input
+
+**Performance:**
+- Debounce prevents excessive DOM updates and screen reader spam
+- Single useEffect for keyboard shortcuts (cleanup on unmount)
+- Memoized filter results prevent unnecessary re-renders
+- Zero impact on existing search functionality
+
+**Backward Compatibility:**
+- All existing search functionality preserved
+- No breaking changes to props or interfaces
+- Works identically with both MySQL and Excel data sources
+- Enhanced features gracefully degrade if JavaScript disabled
+
+---
+
 ### v2.3.0 - Advanced Filter System with Multi-Select (2025-11-24)
 
 **Status:** ✅ Complete

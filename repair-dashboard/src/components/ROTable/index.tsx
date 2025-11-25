@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   useROs,
   useArchivedROs,
@@ -80,6 +80,7 @@ export function ROTable() {
 
   // Search and filter state
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Sort state
   const [sortColumn, setSortColumn] = useState<SortColumn>("roNumber");
@@ -118,6 +119,33 @@ export function ROTable() {
     if (!currentROs) return new Map();
     return buildShopAnalytics(currentROs);
   }, [currentROs]);
+  // Debounce search for ARIA live region (500ms delay)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  // Keyboard shortcuts: / and Ctrl/Cmd+K to focus search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Focus search on / key (not in input)
+      if (e.key === "/" && !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement).tagName)) {
+        e.preventDefault();
+        document.getElementById("ro-search")?.focus();
+      }
+      // Focus search on Ctrl+K or Cmd+K
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        document.getElementById("ro-search")?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Apply search, sort, and pagination
   const { filteredAndSorted, paginatedROs } = useMemo(() => {
@@ -427,7 +455,19 @@ export function ROTable() {
         onMarkAsSent={handleMarkAsSent}
         onRequestUpdates={handleRequestUpdates}
         onExportSelected={handleExportSelected}
-      />
+/>
+
+      {/* ARIA Live Region for Search Results */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {debouncedSearch && (
+          `Found ${filteredAndSorted.length} repair orders matching "${debouncedSearch}"`
+        )}
+      </div>
     </div>
   );
 }

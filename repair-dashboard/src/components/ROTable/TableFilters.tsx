@@ -29,7 +29,7 @@ interface ROTableFiltersProps {
   /** Current selected view */
   selectedView: string;
   /** Handler for view change */
-  onViewChange: (value: string) => void;
+  onValueChange: (value: string) => void;
   /** Quick filter toggles (boolean only - for backward compatibility with existing filter buttons) */
   filters: ROFilters;
   /** Handler for toggling individual filter */
@@ -105,15 +105,48 @@ export const ROTableFilters = memo<ROTableFiltersProps>(({
     <div className="space-y-3 sm:space-y-4">
       {/* Search and View Selection Row */}
       <div className="flex flex-col gap-3 sm:gap-4">
-        {/* Search Bar */}
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search ROs, shops, parts..."
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10 border-2 border-input focus:border-bright-blue focus:ring-4 focus:ring-bright-blue/10 focus:bg-bg-secondary rounded-xl transition-all duration-200 w-full"
-          />
+        {/* Search Bar with Enhanced Accessibility */}
+        <div className="space-y-2">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <Input
+              id="ro-search"
+              placeholder="Search across all fields... (press / or ⌘K)"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" && search) {
+                  e.preventDefault();
+                  onSearchChange("");
+                }
+              }}
+              className="pl-10 pr-10 border-2 border-input focus:border-bright-blue focus:ring-4 focus:ring-bright-blue/10 focus:bg-bg-secondary rounded-xl transition-all duration-200 w-full"
+              aria-label="Search repair orders"
+              aria-describedby="search-help-text"
+              role="searchbox"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => onSearchChange("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-accent"
+                aria-label="Clear search"
+                title="Clear search (Esc)"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {/* Screen reader help text */}
+          <p id="search-help-text" className="sr-only">
+            Searches across 10 fields: RO number, shop name, part description, serial number, part number, shop reference number, tracking number, required work, status, and notes
+          </p>
+          {/* Visual help text when searching */}
+          {search && (
+            <p className="text-xs text-muted-foreground">
+              Searching: RO #, Shop, Part, Serial #, Part #, Shop Ref #, Tracking #, Work, Status, Notes
+            </p>
+          )}
         </div>
 
         {/* View Selector and RO Count */}
