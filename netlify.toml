@@ -2,7 +2,7 @@
 
 [build]
   # Build command - runs in repair-dashboard directory
-  command = "cd repair-dashboard && npm install --include=dev && npm run build"
+  command = "cd repair-dashboard && npm install --include=dev && npm run build && cd ../backend && npm install"
 
   # Publish directory - where Vite outputs the built files
   publish = "repair-dashboard/dist"
@@ -15,7 +15,22 @@
   NODE_VERSION = "18"
   NPM_VERSION = "10"
 
-# SPA routing - redirect all routes to index.html for client-side routing
+# Netlify Functions configuration
+[functions]
+  # Directory containing serverless functions
+  directory = "netlify/functions"
+  # Use ESM modules
+  node_bundler = "esbuild"
+  # Include backend dependencies
+  included_files = ["backend/**"]
+
+# API routes - proxy to Netlify Functions (MUST come before SPA catch-all)
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# SPA routing - redirect all OTHER routes to index.html for client-side routing
 [[redirects]]
   from = "/*"
   to = "/index.html"
