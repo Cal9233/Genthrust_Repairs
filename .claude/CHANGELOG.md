@@ -9,6 +9,75 @@ Complete chronological record of all major implementations, migrations, and impr
 
 ## Version History
 
+### v2.3.0 - Advanced Filter System with Multi-Select (2025-11-24)
+
+**Status:** ✅ Complete
+
+**Changes:**
+- Added Advanced Filter system with shop exclusion and status inclusion filtering
+- Implemented multi-select dropdown for shops (EXCLUDE logic - hides selected shops)
+- Implemented multi-select status filter (INCLUDE logic - shows only selected or all if empty)
+- Added localStorage persistence for all filters across page refreshes
+- Created tooltip component (Radix UI) with explanatory hover text
+- Enhanced filter documentation with clarifying comments
+- All filters work seamlessly with existing search, sort, and pagination
+
+**Filter Logic:**
+- **Shop Exclusion:** Removes selected shops from view (e.g., hide "Internal Lab")
+- **Status Inclusion:** Shows only selected statuses (empty selection = show all)
+- **Combined Logic:** `(Text Search) AND (Not Excluded Shop) AND (Selected Status OR No Filter)`
+- **Active Filter Count:** Badge displays total active advanced filters
+- **localStorage Key:** `ro-filters-v1` for persistent state management
+
+**Files Created:**
+- `src/components/ROTable/AdvancedFiltersDropdown.tsx` - Multi-select filter dropdown component
+- `src/components/ui/tooltip.tsx` - Radix UI tooltip component (shadcn/ui pattern)
+- `src/utils/filterStorage.ts` - localStorage persistence utility with backward compatibility
+
+**Files Modified:**
+- `src/hooks/useROFilters.ts` - Extended Filters interface, added shop/status filter logic, localStorage integration
+- `src/components/ROTable/TableFilters.tsx` - Integrated AdvancedFiltersDropdown, added clarifying prop comments
+- `src/components/ROTable/index.tsx` - Passed ros data and filter functions to TableFilters
+- `package.json` & `package-lock.json` - Added `@radix-ui/react-tooltip@^1.1.6`
+
+**UI/UX Features:**
+- Dropdown button with dashed outline (matches existing design system)
+- Badge shows count of active filters (excludedShops.length + selectedStatuses.length)
+- Tooltip explains EXCLUDE vs INCLUDE logic on hover
+- Alphabetically sorted shop and status lists
+- Scrollable sections for long lists (max-height: 500px)
+- "Clear Advanced Filters" button (conditional, only shows when filters active)
+- Positioned below existing filter row (Overdue, Due This Week, High Value)
+
+**Performance:**
+- `useMemo` for unique shop/status extraction (only recalculates when ros changes)
+- Component memoization with `React.memo`
+- Efficient array filtering with proper dependency management
+- localStorage auto-save with minimal overhead
+
+**Edge Cases Handled:**
+- Empty RO arrays (shows "No shops/statuses available")
+- localStorage disabled/blocked (graceful fallback with console error)
+- Invalid stored data (validates structure with backward compatibility)
+- Empty filter arrays (properly excluded from activeFilterCount)
+- All shops excluded scenario (shows empty table as expected)
+- Null/undefined shop names (filtered out with `.filter(Boolean)`)
+
+**Validation:**
+- ✅ 38 validation checks passed (code quality, filter logic, localStorage, integration, UI/UX, performance, edge cases)
+- ✅ Zero TypeScript compilation errors
+- ✅ Zero runtime warnings
+- ✅ Dev server starts successfully
+- ✅ General-purpose agent comprehensive validation completed
+
+**Documentation:**
+- Added clarifying comments to `TableFilters.tsx` props interface
+- Explained dual filter prop pattern (ROFilters vs Filters)
+- Documented shop exclusion vs status inclusion logic
+- Comprehensive JSDoc comments on all new components
+
+---
+
 ### v2.2.0 - Microsoft 365 Reminder Integration & Business Rules Fix (2025-11-24)
 
 **Status:** ✅ Complete
