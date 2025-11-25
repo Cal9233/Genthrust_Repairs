@@ -92,7 +92,17 @@ const [showLogs, setShowLogs] = useState(false);
 **Purpose:** Sortable, filterable table of repair orders
 
 **Features:**
-- Multi-column search
+- **Global case-insensitive search** across 10 fields:
+  - RO Number
+  - Shop Name
+  - Part Description
+  - Serial Number
+  - Part Number
+  - Shop Reference Number
+  - Tracking Number
+  - Required Work
+  - Current Status
+  - Notes
 - Smart filters (overdue, high value, due this week, by shop)
 - Column sorting (click headers)
 - Row highlighting (overdue = red background)

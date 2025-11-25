@@ -9,6 +9,50 @@ Complete chronological record of all major implementations, migrations, and impr
 
 ## Version History
 
+### v2.2.0 - Microsoft 365 Reminder Integration & Business Rules Fix (2025-11-24)
+
+**Status:** ✅ Complete
+
+**Changes:**
+- Fixed Microsoft 365 Reminder Integration (To Do + Calendar events)
+- Added CreateReminderDialog component for post-status-update prompts
+- Fixed business rule date values (WAITING QUOTE: 7d, APPROVED: 14d, BEING REPAIRED: 14d)
+- Changed NET payment calculation from calendar days to business days
+- Added $0 cost check to skip payment reminders for zero-cost ROs
+- Enhanced error handling with user-friendly messages and retry capability
+- Fixed timezone issues in Graph API date formatting
+
+**Files Created:**
+- `src/components/CreateReminderDialog.tsx` - Reminder prompt dialog
+- `tests/services/reminderService.test.ts` - Service unit tests (50 tests)
+- `tests/integration/CreateReminderDialog.test.tsx` - Component tests (23 tests)
+
+**Files Modified:**
+- `src/lib/businessRules.ts` - Fixed status follow-up periods
+- `src/lib/reminderService.ts` - Added business days calculation, enhanced error handling
+- `src/components/UpdateStatusDialog.tsx` - Integrated reminder prompt, $0 cost check
+- `src/lib/excel/RepairOrderRepository.ts` - Fixed silent error swallowing
+- `tests/integration/UpdateStatusDialog.test.tsx` - Added reminder integration tests
+
+**Business Rules Fixed:**
+
+| Status | Before | After |
+|--------|--------|-------|
+| WAITING QUOTE | 14 days | 7 days |
+| APPROVED | 7 days | 14 days |
+| BEING REPAIRED | 10 days | 14 days |
+| NET payment | Calendar days | Business days |
+
+**Test Coverage:**
+- Total: 84 tests passing
+- reminderService.test.ts: 50 tests (includes business days, CRUD operations)
+- CreateReminderDialog.test.tsx: 23 tests
+- UpdateStatusDialog.test.tsx: 11 tests
+
+---
+
+### v2.1.0 - Enhanced Global Search (2025-11-24)**Status:** ✅ Complete**Changes:**- Enhanced ROTable search to be global and case-insensitive across 10 fields- Added 6 new searchable fields: partNumber, shopReferenceNumber, trackingNumber, requiredWork, currentStatus, notes- Search now works identically for both MySQL and Excel data sources- Improved user experience with comprehensive search capabilities**Search Fields (10 total):**1. RO Number2. Shop Name3. Part Description4. Serial Number5. **Part Number** (NEW)6. **Shop Reference Number** (NEW)7. **Tracking Number** (NEW)8. **Required Work** (NEW)9. **Current Status** (NEW)10. **Notes** (NEW)**Implementation Details:**- **File Modified:** `repair-dashboard/src/components/ROTable/index.tsx` (lines 130-143)- **Type:** Client-side filtering with case-insensitive partial matching- **Performance:** < 10ms for 100 ROs using React useMemo optimization- **Data Source Agnostic:** Works with both MySQL (primary) and Excel (fallback) data**User Impact:**- Users can now search by tracking numbers (e.g., "1Z999AA")- Users can find ROs by shop reference numbers for cross-referencing- Users can search by part numbers for inventory lookups- Users can search by status keywords (e.g., "approved", "shipping")- Users can search notes content for contextual information- All searches are case-insensitive for improved usability**Documentation Updated:**- `.claude/UI_COMPONENTS.md` - Updated ROTable section with searchable fields list- `.claude/FLOWS.md` - Added "Search/Filter Repair Orders" workflow- `.claude/SCHEMAS.md` - Added "Search Functionality" section with technical details---
+
 ### v2.0.0 - Netlify Functions Migration (2025-11-24)
 
 **Status:** ✅ Complete

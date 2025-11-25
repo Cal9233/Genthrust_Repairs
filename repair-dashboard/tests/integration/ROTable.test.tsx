@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '../test/test-utils';
+import { render, screen, waitFor } from './test/test-utils';
 import { ROTable } from '../../src/components/ROTable';
-import { mockRepairOrders, mockShops } from '../test/mocks';
+import { mockRepairOrders, mockShops } from './test/mocks';
 import * as useROsModule from '../../src/hooks/useROs';
 import * as useShopsModule from '../../src/hooks/useShops';
 import * as useROFiltersModule from '../../src/hooks/useROFilters';

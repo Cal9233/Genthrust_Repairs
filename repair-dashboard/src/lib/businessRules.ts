@@ -30,16 +30,16 @@ export function calculateNextUpdateDate(
       return addDays(baseDate, 3);
 
     case "WAITING QUOTE":
-      // Follow up in 14 days for quote
-      return addDays(baseDate, 14);
-
-    case "APPROVED":
-      // Follow up in 7 days to check repair start
+      // Follow up in 7 days for quote
       return addDays(baseDate, 7);
 
+    case "APPROVED":
+      // Follow up in 14 days to check repair start
+      return addDays(baseDate, 14);
+
     case "BEING REPAIRED":
-      // Follow up in 10 days for repair progress
-      return addDays(baseDate, 10);
+      // Follow up in 14 days for repair progress
+      return addDays(baseDate, 14);
 
     case "CURRENTLY BEING SHIPPED":
       // Follow up in 5 days to track inbound delivery

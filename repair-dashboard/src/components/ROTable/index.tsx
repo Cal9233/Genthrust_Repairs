@@ -133,7 +133,13 @@ export function ROTable() {
           String(ro.roNumber)?.toLowerCase().includes(search.toLowerCase()) ||
           String(ro.shopName)?.toLowerCase().includes(search.toLowerCase()) ||
           String(ro.partDescription)?.toLowerCase().includes(search.toLowerCase()) ||
-          String(ro.serialNumber)?.toLowerCase().includes(search.toLowerCase())
+          String(ro.serialNumber)?.toLowerCase().includes(search.toLowerCase()) ||
+          String(ro.partNumber)?.toLowerCase().includes(search.toLowerCase()) ||
+          String(ro.shopReferenceNumber)?.toLowerCase().includes(search.toLowerCase()) ||
+          String(ro.trackingNumber)?.toLowerCase().includes(search.toLowerCase()) ||
+          String(ro.requiredWork)?.toLowerCase().includes(search.toLowerCase()) ||
+          String(ro.currentStatus)?.toLowerCase().includes(search.toLowerCase()) ||
+          String(ro.notes)?.toLowerCase().includes(search.toLowerCase())
       );
     }
 
@@ -301,6 +307,9 @@ export function ROTable() {
         filteredCount={filteredAndSorted.length}
         showAddButton={selectedView === "active"}
         onClickAdd={() => setShowAddDialog(true)}
+        ros={currentROs || []}
+        fullFilters={filters}
+        setFilter={setFilter}
       />
 
       {/* Table Section */}

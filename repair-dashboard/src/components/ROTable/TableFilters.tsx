@@ -11,8 +11,12 @@ import {
   Clock,
   DollarSign,
   ClipboardList,
+  Info,
 } from "lucide-react";
 import type { ROFilters } from "./types";
+import type { RepairOrder } from "@/types";
+import type { Filters } from "@/hooks/useROFilters";
+import { AdvancedFiltersDropdown } from "./AdvancedFiltersDropdown";
 
 /**
  * Props for ROTableFilters component
@@ -26,7 +30,7 @@ interface ROTableFiltersProps {
   selectedView: string;
   /** Handler for view change */
   onViewChange: (value: string) => void;
-  /** Current filter state */
+  /** Quick filter toggles (boolean only - for backward compatibility with existing filter buttons) */
   filters: ROFilters;
   /** Handler for toggling individual filter */
   onToggleFilter: (filterKey: keyof ROFilters) => void;
@@ -42,6 +46,12 @@ interface ROTableFiltersProps {
   showAddButton: boolean;
   /** Handler for clicking "New RO" */
   onClickAdd?: () => void;
+  /** All repair orders (used to extract unique shop names and statuses for advanced filters) */
+  ros: RepairOrder[];
+  /** Complete filter state including advanced filters (excludedShops, selectedStatuses) */
+  fullFilters: Filters;
+  /** Handler for setting individual filter values (used by advanced filters for array updates) */
+  setFilter: (key: keyof Filters, value: any) => void;
 }
 
 /**
@@ -87,6 +97,9 @@ export const ROTableFilters = memo<ROTableFiltersProps>(({
   filteredCount,
   showAddButton,
   onClickAdd,
+  ros,
+  fullFilters,
+  setFilter,
 }) => {
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -203,6 +216,14 @@ export const ROTableFilters = memo<ROTableFiltersProps>(({
           <ClipboardList className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
           <span className="hidden sm:inline">Waiting Quote</span>
         </Button>
+
+        {/* Advanced Filters Dropdown */}
+        <AdvancedFiltersDropdown
+          ros={ros}
+          filters={fullFilters}
+          setFilter={setFilter}
+          clearFilters={onClearFilters}
+        />
 
         {/* Clear Filters Button */}
         {activeFilterCount > 0 && (

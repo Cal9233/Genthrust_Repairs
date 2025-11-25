@@ -553,9 +553,15 @@ export class RepairOrderRepository {
             invoiceDate: today,
             amount: cost,
             netDays
-          }).catch(() => {
-            // Failed to create payment due calendar event - non-critical error
-            // Don't throw - we don't want to fail the whole update if calendar creation fails
+          }).catch((error) => {
+            // Non-critical error - log but don't fail the status update
+            logger.warn('Failed to create payment due calendar event', {
+              error: error instanceof Error ? error.message : String(error),
+              roNumber,
+              shopName,
+              netDays,
+              cost
+            });
           });
         }
       }

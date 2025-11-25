@@ -81,7 +81,7 @@ export interface RepairOrder {
 18 → notes
 19 → lastDateUpdated
 20 → nextDateToUpdate
-21 → checked
+21 → archiveStatus
 ```
 
 **File Location:** `src/types/index.ts:10-40`
@@ -695,3 +695,40 @@ type ROTableRow = Pick<RepairOrder, 'roNumber' | 'shopName' | 'currentStatus' | 
 **Version:** 1.0
 **Last Updated:** 2025-11-17
 **Maintained by:** Cal9233/Claude Code
+
+
+## Search Functionality
+
+### ROTable Global Search
+
+**Implementation:** `src/components/ROTable/index.tsx` lines 130-143
+
+**Type:** Client-side filtering (case-insensitive, partial match)
+
+**Searchable Fields (10 total):**
+1. `roNumber` - RO number (e.g., "RO-12345")
+2. `shopName` - Shop/vendor name
+3. `partDescription` - Part description
+4. `serialNumber` - Serial number
+5. `partNumber` - Manufacturer part number
+6. `shopReferenceNumber` - Shop's internal RO reference
+7. `trackingNumber` - Shipping tracking number
+8. `requiredWork` - Work description
+9. `currentStatus` - Current status (e.g., "APPROVED", "SHIPPING")
+10. `notes` - Freeform notes
+
+**Behavior:**
+- Case-insensitive matching ("duncan" finds "Duncan Aviation")
+- Partial matching ("123" finds "RO-12345" or "PART-123-456")
+- Searches across ALL fields simultaneously
+- Returns RO if ANY field matches
+- Works identically for both MySQL and Excel data sources
+
+**Example Searches:**
+- "1Z999" → Finds all ROs with tracking numbers starting with "1Z999"
+- "approved" → Finds all ROs with status "APPROVED >>>>"
+- "Duncan" → Finds all ROs from "Duncan Aviation" shop
+- "123-456" → Finds ROs by part number "123-456-789"
+
+---
+

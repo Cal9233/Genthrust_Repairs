@@ -1,4 +1,4 @@
-import type { RepairOrder, Shop } from '../types';
+import type { RepairOrder, Shop } from '../../../src/types';
 import { vi } from 'vitest';
 
 // Mock repair orders

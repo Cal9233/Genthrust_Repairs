@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { RepairOrder } from "../types";
+import { loadFilters, saveFilters } from "../utils/filterStorage";
 
 export interface Filters {
   overdue: boolean;
@@ -7,6 +8,8 @@ export interface Filters {
   highValue: boolean;
   shop: string | null;
   waitingAction: boolean;
+  excludedShops: string[];
+  selectedStatuses: string[];
 }
 
 const HIGH_VALUE_THRESHOLD = 5000;
@@ -15,13 +18,24 @@ const HIGH_VALUE_THRESHOLD = 5000;
  * Hook to manage repair order filters
  */
 export function useROFilters(ros: RepairOrder[]) {
-  const [filters, setFilters] = useState<Filters>({
-    overdue: false,
-    dueThisWeek: false,
-    highValue: false,
-    shop: null,
-    waitingAction: false,
+  const [filters, setFilters] = useState<Filters>(() => {
+    // Load saved filters from localStorage on mount
+    const savedFilters = loadFilters();
+    return savedFilters ?? {
+      overdue: false,
+      dueThisWeek: false,
+      highValue: false,
+      shop: null,
+      waitingAction: false,
+      excludedShops: [],
+      selectedStatuses: [],
+    };
   });
+
+  // Auto-save filters to localStorage whenever they change
+  useEffect(() => {
+    saveFilters(filters);
+  }, [filters]);
 
   const filteredROs = useMemo(() => {
     let filtered = ros;
@@ -65,6 +79,20 @@ export function useROFilters(ros: RepairOrder[]) {
       );
     }
 
+    // Filter: Exclude Shops (hide selected shops)
+    if (filters.excludedShops.length > 0) {
+      filtered = filtered.filter(
+        (ro) => !filters.excludedShops.includes(ro.shopName)
+      );
+    }
+
+    // Filter: Selected Statuses (show only selected, or all if none selected)
+    if (filters.selectedStatuses.length > 0) {
+      filtered = filtered.filter((ro) =>
+        filters.selectedStatuses.includes(ro.currentStatus)
+      );
+    }
+
     return filtered;
   }, [ros, filters]);
 
@@ -79,12 +107,15 @@ export function useROFilters(ros: RepairOrder[]) {
       highValue: false,
       shop: null,
       waitingAction: false,
+      excludedShops: [],
+      selectedStatuses: [],
     });
   };
 
-  const activeFilterCount = Object.values(filters).filter(
-    (value) => value !== false && value !== null
-  ).length;
+  const activeFilterCount = Object.entries(filters).filter(([key, value]) => {
+    if (Array.isArray(value)) return value.length > 0;
+    return value !== false && value !== null;
+  }).length;
 
   return {
     filters,

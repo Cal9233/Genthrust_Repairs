@@ -23,10 +23,19 @@ import { calculateNextUpdateDate, formatDateForDisplay } from "../lib/businessRu
 import { Calendar, ArrowRight } from "lucide-react";
 import { ApprovalDialog } from "./ApprovalDialog";
 import { ArchiveDestinationDialog } from "./ArchiveDestinationDialog";
+import { CreateReminderDialog } from "./CreateReminderDialog";
 import { statusRequiresApproval, getFinalSheetForStatus, extractNetDays, EXCEL_SHEETS, type SheetConfig } from "@/config/excelSheets";
 import { reminderService } from "../lib/reminderService";
 import { toast } from "sonner";
 import { useLogger } from '@/utils/logger';
+
+interface ReminderPromptData {
+  roNumber: string;
+  shopName: string;
+  status: string;
+  nextDateToUpdate: Date;
+  partDescription: string;
+}
 
 interface UpdateStatusDialogProps {
   ro: RepairOrder;
@@ -67,6 +76,8 @@ export function UpdateStatusDialog({
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [showArchiveDestinationDialog, setShowArchiveDestinationDialog] = useState(false);
   const [pendingArchiveDestination, setPendingArchiveDestination] = useState<'PAID' | 'NET' | null>(null);
+  const [showReminderPrompt, setShowReminderPrompt] = useState(false);
+  const [reminderPromptData, setReminderPromptData] = useState<ReminderPromptData | null>(null);
   const updateStatus = useUpdateROStatus();
   const archiveRO = useArchiveRO();
 
@@ -116,10 +127,32 @@ export function UpdateStatusDialog({
       },
       {
         onSuccess: () => {
-          onClose();
+          // Calculate next update date to determine if we should prompt for reminder
+          const nextUpdate = calculateNextUpdateDate(status, new Date(), ro.terms);
+
+          if (nextUpdate) {
+            // Show reminder prompt dialog
+            setReminderPromptData({
+              roNumber: ro.roNumber,
+              shopName: ro.shopName,
+              status,
+              nextDateToUpdate: nextUpdate,
+              partDescription: ro.partDescription,
+            });
+            setShowReminderPrompt(true);
+          } else {
+            // No follow-up needed (e.g., PAYMENT SENT, BER) - close directly
+            onClose();
+          }
         },
       }
     );
+  };
+
+  const handleReminderPromptClose = () => {
+    setShowReminderPrompt(false);
+    setReminderPromptData(null);
+    onClose();
   };
 
   const handleArchiveDestinationChoice = (destination: 'PAID' | 'NET') => {
@@ -173,8 +206,8 @@ export function UpdateStatusDialog({
           },
           {
             onSuccess: async () => {
-              // Create NET payment reminder before archiving
-              if (isNetArchive && netDays && costValue) {
+              // Create NET payment reminder before archiving (skip for $0 cost ROs)
+              if (isNetArchive && netDays && costValue && costValue > 0) {
                 try {
                   await reminderService.createPaymentDueCalendarEvent({
                     roNumber: ro.roNumber,
@@ -183,7 +216,7 @@ export function UpdateStatusDialog({
                     amount: costValue,
                     netDays: netDays
                   });
-                  toast.success(`Created payment reminder for NET${netDays} (${netDays} days from today)`);
+                  toast.success(`Created payment reminder for NET${netDays} (${netDays} business days from today)`);
                 } catch (error) {
                   logger.error('Failed to create NET payment reminder', error as Error, {
                     roNumber: ro.roNumber,
@@ -365,6 +398,19 @@ export function UpdateStatusDialog({
         roNumber={ro.roNumber}
         onConfirm={handleArchiveDestinationChoice}
       />
+
+      {/* Reminder Prompt Dialog - shown after successful status update */}
+      {showReminderPrompt && reminderPromptData && (
+        <CreateReminderDialog
+          open={showReminderPrompt}
+          onClose={handleReminderPromptClose}
+          roNumber={reminderPromptData.roNumber}
+          shopName={reminderPromptData.shopName}
+          status={reminderPromptData.status}
+          nextDateToUpdate={reminderPromptData.nextDateToUpdate}
+          partDescription={reminderPromptData.partDescription}
+        />
+      )}
     </Dialog>
   );
 }

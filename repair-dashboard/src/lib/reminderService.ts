@@ -58,6 +58,57 @@ export class ReminderService {
     this.msalInstance = instance;
   }
 
+  /**
+   * Format a date for Microsoft Graph API
+   * Graph API expects ISO 8601 format: YYYY-MM-DDTHH:mm:ss
+   * When using timeZone property, we should NOT include the 'Z' suffix
+   * This ensures the time is interpreted in the specified timezone
+   */
+  private formatDateForGraph(date: Date): string {
+    // Format as local ISO string without timezone suffix
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  }
+
+  /**
+   * Get the user's local timezone name for Graph API
+   */
+  private getLocalTimeZone(): string {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      return 'UTC';
+    }
+  }
+
+  /**
+   * Add business days to a date (skips weekends)
+   * @param date - Start date
+   * @param days - Number of business days to add
+   * @returns New date after adding business days
+   */
+  private addBusinessDays(date: Date, days: number): Date {
+    const result = new Date(date);
+    let addedDays = 0;
+
+    while (addedDays < days) {
+      result.setDate(result.getDate() + 1);
+      const dayOfWeek = result.getDay();
+      // Skip Saturday (6) and Sunday (0)
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        addedDays++;
+      }
+    }
+
+    return result;
+  }
+
   private async getAccessToken(additionalScopes: string[] = []): Promise<string> {
     if (!this.msalInstance) {
       throw new Error("MSAL instance not set");
@@ -108,13 +159,51 @@ export class ReminderService {
 
     if (!response.ok) {
       const errorText = await response.text();
+      let errorDetails: any = {};
+
+      // Try to parse error response for more details
+      try {
+        errorDetails = JSON.parse(errorText);
+      } catch {
+        errorDetails = { rawError: errorText };
+      }
+
+      // Classify error for better user guidance
+      let userMessage: string;
+      switch (response.status) {
+        case 401:
+          userMessage = "Authentication expired. Please sign out and sign back in.";
+          break;
+        case 403:
+          userMessage = "Permission denied. Please ensure the app has access to your To Do and Calendar.";
+          break;
+        case 429:
+          userMessage = "Too many requests. Please wait a moment and try again.";
+          break;
+        case 400:
+          userMessage = "Invalid request. Please check the data and try again.";
+          break;
+        case 404:
+          userMessage = "Resource not found. The To Do list or Calendar may not exist.";
+          break;
+        default:
+          userMessage = `Microsoft service error (${response.status}). Please try again.`;
+      }
+
       logger.error(`${method} ${endpoint} failed`, new Error(errorText), {
         method,
         endpoint,
         status: response.status,
-        statusText: response.statusText
+        statusText: response.statusText,
+        errorCode: errorDetails?.error?.code,
+        errorMessage: errorDetails?.error?.message
       });
-      throw new Error(`Graph API error: ${response.status} ${response.statusText}`);
+
+      // Include status code in error for downstream handling
+      const error = new Error(userMessage);
+      (error as any).statusCode = response.status;
+      (error as any).canRetry = response.status === 429 || response.status >= 500;
+      throw error;
     }
 
     // DELETE requests return 204 No Content (empty body)
@@ -170,6 +259,11 @@ export class ReminderService {
     }
 
     const listId = await this.getDefaultToDoList(scopes);
+    const localTimeZone = this.getLocalTimeZone();
+
+    // Set due date to 9 AM local time for the reminder
+    const dueDateTime = new Date(data.dueDate);
+    dueDateTime.setHours(9, 0, 0, 0);
 
     const taskBody = {
       title: `[RO ${data.roNumber}] ${data.title}`,
@@ -178,13 +272,13 @@ export class ReminderService {
         contentType: "text",
       },
       dueDateTime: {
-        dateTime: data.dueDate.toISOString(),
-        timeZone: "UTC",
+        dateTime: this.formatDateForGraph(dueDateTime),
+        timeZone: localTimeZone,
       },
       importance: "high",
       reminderDateTime: {
-        dateTime: data.dueDate.toISOString(),
-        timeZone: "UTC",
+        dateTime: this.formatDateForGraph(dueDateTime),
+        timeZone: localTimeZone,
       },
     };
 
@@ -198,7 +292,8 @@ export class ReminderService {
     logger.info("Created To Do task", {
       roNumber: data.roNumber,
       title: data.title,
-      dueDate: data.dueDate.toISOString()
+      dueDate: this.formatDateForGraph(dueDateTime),
+      timeZone: localTimeZone
     });
   }
 
@@ -219,11 +314,13 @@ export class ReminderService {
       throw new Error("Service not initialized. Please refresh the page and try again.");
     }
 
+    const localTimeZone = this.getLocalTimeZone();
+
     const startDate = new Date(data.dueDate);
-    startDate.setHours(9, 0, 0, 0); // 9 AM
+    startDate.setHours(9, 0, 0, 0); // 9 AM local time
 
     const endDate = new Date(data.dueDate);
-    endDate.setHours(9, 30, 0, 0); // 9:30 AM
+    endDate.setHours(9, 30, 0, 0); // 9:30 AM local time
 
     const eventBody = {
       subject: `[REMINDER] RO ${data.roNumber} - ${data.title}`,
@@ -232,12 +329,12 @@ export class ReminderService {
         content: data.notes || `Follow up on repair order ${data.roNumber} for ${data.shopName}`,
       },
       start: {
-        dateTime: startDate.toISOString(),
-        timeZone: "UTC",
+        dateTime: this.formatDateForGraph(startDate),
+        timeZone: localTimeZone,
       },
       end: {
-        dateTime: endDate.toISOString(),
-        timeZone: "UTC",
+        dateTime: this.formatDateForGraph(endDate),
+        timeZone: localTimeZone,
       },
       showAs: "free",  // Doesn't block your calendar
       isReminderOn: true,
@@ -255,7 +352,8 @@ export class ReminderService {
     logger.info("Created Calendar event", {
       roNumber: data.roNumber,
       title: data.title,
-      startDate: startDate.toISOString()
+      startDate: this.formatDateForGraph(startDate),
+      timeZone: localTimeZone
     });
   }
 
@@ -573,13 +671,19 @@ export class ReminderService {
         this.defaultListId = await this.getDefaultToDoList(["Tasks.ReadWrite"]);
       }
 
+      const localTimeZone = this.getLocalTimeZone();
+
+      // Set to 9 AM local time on the new due date
+      const dueDateTime = new Date(newDueDate);
+      dueDateTime.setHours(9, 0, 0, 0);
+
       await this.callGraphAPI(
         `https://graph.microsoft.com/v1.0/me/todo/lists/${this.defaultListId}/tasks/${taskId}`,
         "PATCH",
         {
           dueDateTime: {
-            dateTime: newDueDate.toISOString(),
-            timeZone: "UTC"
+            dateTime: this.formatDateForGraph(dueDateTime),
+            timeZone: localTimeZone
           }
         },
         ["Tasks.ReadWrite"]
@@ -590,7 +694,7 @@ export class ReminderService {
     } catch (error: any) {
       logger.error('Error updating To Do task', error, {
         taskId,
-        newDueDate: newDueDate.toISOString()
+        newDueDate: this.formatDateForGraph(newDueDate)
       });
       return false;
     }
@@ -601,7 +705,9 @@ export class ReminderService {
    */
   async updateCalendarEventTime(eventId: string, newDate: Date): Promise<boolean> {
     try {
-      // Set to 9 AM on the new date
+      const localTimeZone = this.getLocalTimeZone();
+
+      // Set to 9 AM local time on the new date
       const startDate = new Date(newDate);
       startDate.setHours(9, 0, 0, 0);
 
@@ -613,12 +719,12 @@ export class ReminderService {
         "PATCH",
         {
           start: {
-            dateTime: startDate.toISOString(),
-            timeZone: "UTC"
+            dateTime: this.formatDateForGraph(startDate),
+            timeZone: localTimeZone
           },
           end: {
-            dateTime: endDate.toISOString(),
-            timeZone: "UTC"
+            dateTime: this.formatDateForGraph(endDate),
+            timeZone: localTimeZone
           }
         },
         ["Calendars.ReadWrite"]
@@ -629,7 +735,7 @@ export class ReminderService {
     } catch (error: any) {
       logger.error('Error updating Calendar event', error, {
         eventId,
-        newDate: newDate.toISOString()
+        newDate: this.formatDateForGraph(newDate)
       });
       return false;
     }
@@ -685,11 +791,12 @@ export class ReminderService {
         throw new Error("Service not initialized. Please refresh the page and try again.");
       }
 
-      // Calculate payment due date
-      const dueDate = new Date(data.invoiceDate);
-      dueDate.setDate(dueDate.getDate() + data.netDays);
+      const localTimeZone = this.getLocalTimeZone();
 
-      // Set to 9 AM on due date
+      // Calculate payment due date using business days (skip weekends)
+      const dueDate = this.addBusinessDays(new Date(data.invoiceDate), data.netDays);
+
+      // Set to 9 AM local time on due date
       const startDate = new Date(dueDate);
       startDate.setHours(9, 0, 0, 0);
 
@@ -697,18 +804,18 @@ export class ReminderService {
       endDate.setHours(9, 30, 0, 0); // 30-minute event
 
       const eventBody = {
-        subject: `💰 PAYMENT DUE: RO ${data.roNumber} - ${data.shopName}`,
+        subject: `PAYMENT DUE: RO ${data.roNumber} - ${data.shopName}`,
         body: {
           contentType: "text",
-          content: `Payment due for repair order ${data.roNumber}\n\nShop: ${data.shopName}\nAmount: $${data.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}\nTerms: NET ${data.netDays}\nInvoice Date: ${data.invoiceDate.toLocaleDateString()}\nDue Date: ${dueDate.toLocaleDateString()}`,
+          content: `Payment due for repair order ${data.roNumber}\n\nShop: ${data.shopName}\nAmount: $${data.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}\nTerms: NET ${data.netDays} (business days)\nInvoice Date: ${data.invoiceDate.toLocaleDateString()}\nDue Date: ${dueDate.toLocaleDateString()}`,
         },
         start: {
-          dateTime: startDate.toISOString(),
-          timeZone: "UTC",
+          dateTime: this.formatDateForGraph(startDate),
+          timeZone: localTimeZone,
         },
         end: {
-          dateTime: endDate.toISOString(),
-          timeZone: "UTC",
+          dateTime: this.formatDateForGraph(endDate),
+          timeZone: localTimeZone,
         },
         showAs: "busy",  // Block calendar time
         isReminderOn: true,
@@ -729,7 +836,8 @@ export class ReminderService {
         shopName: data.shopName,
         amount: data.amount,
         netDays: data.netDays,
-        dueDate: dueDate.toISOString()
+        dueDate: this.formatDateForGraph(dueDate),
+        timeZone: localTimeZone
       });
       return true;
 
