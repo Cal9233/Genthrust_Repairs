@@ -126,7 +126,7 @@ class RepairOrderService {
 
     try {
       const data = await this.apiRequest<any[]>(
-        `/api/ros?archiveStatus=${archiveStatus}`
+        `/ros?archiveStatus=${archiveStatus}`
       );
 
       const repairOrders = data.map(mapApiResponseToRepairOrder);
@@ -166,7 +166,7 @@ class RepairOrderService {
     logger.info('Fetching repair order', { id });
 
     try {
-      const data = await this.apiRequest<any>(`/api/ros/${id}`);
+      const data = await this.apiRequest<any>(`/ros/${id}`);
       return mapApiResponseToRepairOrder(data);
     } catch (error) {
       logger.error('Failed to fetch repair order', error, { id });
@@ -183,7 +183,7 @@ class RepairOrderService {
     try {
       const requestData = mapRepairOrderToApiRequest(ro);
 
-      const data = await this.apiRequest<any>('/api/ros', {
+      const data = await this.apiRequest<any>('/ros', {
         method: 'POST',
         body: JSON.stringify(requestData)
       });
@@ -211,7 +211,7 @@ class RepairOrderService {
     try {
       const requestData = mapRepairOrderToApiRequest(updates);
 
-      const data = await this.apiRequest<any>(`/api/ros/${id}`, {
+      const data = await this.apiRequest<any>(`/ros/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(requestData)
       });
@@ -285,7 +285,7 @@ class RepairOrderService {
 
     try {
       await this.apiRequest<{ success: boolean; message: string }>(
-        `/api/ros/${id}`,
+        `/ros/${id}`,
         { method: 'DELETE' }
       );
 
@@ -303,7 +303,7 @@ class RepairOrderService {
     logger.info('Fetching dashboard statistics');
 
     try {
-      const stats = await this.apiRequest<DashboardStats>('/api/ros/stats/dashboard');
+      const stats = await this.apiRequest<DashboardStats>('/ros/stats/dashboard');
 
       logger.info('Dashboard statistics fetched', stats);
 
