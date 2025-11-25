@@ -9,6 +9,103 @@ Complete chronological record of all major implementations, migrations, and impr
 
 ## Version History
 
+### v2.4.0 - Production API Route Fixes (2025-11-25)
+
+**Status:** ✅ Complete
+
+**Changes:**
+- Fixed Express route order collision causing 404 errors on `/stats/dashboard`
+- Removed duplicate `/api` prefix from all repairOrderService.ts endpoint calls
+- Added Netlify Functions configuration to netlify.toml
+- Fixed redirect order to prioritize API routes before SPA catch-all
+
+**Root Cause Analysis:**
+
+**Issue #1: Route Order Collision (Critical)**
+Express routes match in order. The `/:id` wildcard route was defined before `/stats/dashboard`:
+```javascript
+// BEFORE (broken)
+router.get('/:id', ...)           // Line 154 - catches "stats" as ID
+router.get('/stats/dashboard', ...)  // Line 273 - never reached!
+
+// AFTER (fixed)
+router.get('/stats/dashboard', ...)  // Specific routes first
+router.get('/:id', ...)              // Wildcard routes last
+```
+
+**Issue #2: Duplicate API Path Prefix**
+repairOrderService.ts was adding `/api` to endpoints, but API_BASE_URL already pointed to `/.netlify/functions/api`:
+```typescript
+// BEFORE: /.netlify/functions/api + /api/ros = /.netlify/functions/api/api/ros (404)
+const data = await this.apiRequest(`/api/ros?archiveStatus=${archiveStatus}`);
+
+// AFTER: /.netlify/functions/api + /ros = /.netlify/functions/api/ros (correct)
+const data = await this.apiRequest(`/ros?archiveStatus=${archiveStatus}`);
+```
+
+**Issue #3: Missing Netlify Functions Configuration**
+The netlify.toml was missing the `[functions]` section and the SPA catch-all redirect was intercepting API requests:
+```toml
+# ADDED: Functions configuration
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  included_files = ["backend/**"]
+
+# ADDED: API redirect BEFORE SPA catch-all
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# EXISTING: SPA catch-all (must come AFTER API redirect)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+```
+
+**Files Modified:**
+
+| File | Changes |
+|------|---------|
+| `backend/routes/repair-orders.js` | Moved `/stats/dashboard` route before `/:id` wildcard |
+| `repair-dashboard/src/services/repairOrderService.ts` | Removed `/api` prefix from all 6 endpoints |
+| `netlify.toml` | Added `[functions]` config, API redirect before SPA catch-all |
+
+**Endpoints Fixed:**
+- `GET /ros?archiveStatus=...` - List repair orders
+- `GET /ros/:id` - Get single repair order
+- `POST /ros` - Create repair order
+- `PATCH /ros/:id` - Update repair order
+- `DELETE /ros/:id` - Delete repair order
+- `GET /ros/stats/dashboard` - Dashboard statistics
+
+**Error Messages Before Fix:**
+```
+GET /.netlify/functions/api/ros/stats/dashboard → 404 (Not Found)
+[HybridDataService] Both MySQL and Excel failed for updateROStatus
+[RepairOrderService] API request failed - endpoint: '/api/ros/stats/dashboard'
+```
+
+**Commits:**
+- `4e3f76e` - fix: Route order collision causing 404s on dashboard stats
+- `4636ed4` - fix: Add Netlify Functions config and fix redirect order
+
+**Testing:**
+- ✅ Dashboard statistics load correctly
+- ✅ Repair order updates succeed
+- ✅ No more 404 errors in console
+- ✅ API routes properly proxied through Netlify Functions
+
+**Impact:**
+- Production RO updates now working
+- Dashboard statistics loading correctly
+- HybridDataService MySQL path succeeds (no Excel fallback needed)
+- All CRUD operations functional
+
+---
+
 ### v2.1.1 - Accessibility Enhancements for Search & Filters (2025-11-24)
 
 **Status:** ✅ Complete
