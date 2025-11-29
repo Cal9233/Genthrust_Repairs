@@ -9,6 +9,196 @@ Complete chronological record of all major implementations, migrations, and impr
 
 ## Version History
 
+### v2.5.0 - Delete RO by RO Number Refactor (2025-11-29)
+
+**Status:** 🔄 In Progress
+
+**Issue:** Delete Repair Order fails with Graph API 400 error
+
+**Error Screenshot Analysis:**
+```
+Failed to load resource: https://graph.microsoft.com/.../workbook/tables/Repairs/rows/itemAt(index=87)
+  responded with status 400
+
+[HybridDataService] "Both MySQL and Excel failed for deleteRepairOrder"
+  mysqlError: "Cannot delete Excel row via MySQL."
+  excelError: "Graph API error: 400 ..."
+```
+
+---
+
+#### Root Cause Analysis
+
+**Problem: ID System Mismatch Between Data Sources**
+
+The application has TWO incompatible ID systems:
+
+| Data Source | ID Format | Example | Where Set |
+|-------------|-----------|---------|-----------|
+| **MySQL** | Auto-increment integer | `"123"` | `repair-orders.js:81` → `id: row.id.toString()` |
+| **Excel** | Array index string | `"row-87"` | `RepairOrderRepository.ts:191` → `id: \`row-${index}\`` |
+
+**The Delete Flow Bug:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. UI Component (ROTable/index.tsx:432-439)                            │
+│     const rowIndex = parseInt(deletingRO.id.replace("row-", ""));       │
+│     deleteRO.mutate(rowIndex);                                          │
+│                                                                          │
+│     Problem: If id="123" (MySQL), rowIndex=123 (NOT an Excel index!)    │
+│              If id="row-87" (Excel), rowIndex=87 (correct)              │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  2. useDeleteRepairOrder Hook (useROs.ts:154-175)                       │
+│     mutationFn: (id: string) => hybridDataService.deleteRepairOrder(id) │
+│                                                                          │
+│     Problem: Type says string, but UI passes number (87 or 123)         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  3. HybridDataService (hybridDataService.ts:341-358)                    │
+│     deleteRepairOrder(idOrRowIndex: string | number)                    │
+│                                                                          │
+│     if (typeof idOrRowIndex === 'number'):                              │
+│        MySQL: throws "Cannot delete Excel row via MySQL" ← HAPPENS!     │
+│        Excel: calls excelService.deleteRepairOrder(87)                  │
+│                                                                          │
+│     if (typeof idOrRowIndex === 'string'):                              │
+│        MySQL: calls repairOrderService.deleteRepairOrder("123")         │
+│        Excel: throws "Cannot delete MySQL record via Excel"             │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  4. Excel Service (RepairOrderRepository.ts:574-587)                    │
+│     DELETE /drives/.../workbook/tables/Repairs/rows/itemAt(index=87)    │
+│                                                                          │
+│     Problem: Index 87 may be invalid because:                           │
+│     - Data came from MySQL (87 is MySQL ID, not Excel row index)        │
+│     - Excel table modified since fetch (index shifted/deleted)          │
+│     - Row 87 doesn't exist (table has fewer rows)                       │
+│                                                                          │
+│     Result: Graph API returns 400 Bad Request                           │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Why Both Sources Fail:**
+1. **MySQL branch fails first**: `typeof 87 === 'number'` → throws "Cannot delete Excel row via MySQL"
+2. **Falls to Excel branch**: Calls Graph API with index 87 → 400 error (invalid/stale index)
+
+---
+
+#### Solution: Use RO Number as Universal Identifier
+
+**Approach:** Use `roNumber` (e.g., "RO-38462") as the stable identifier for delete operations.
+- `roNumber` is unique across both MySQL and Excel
+- `roNumber` doesn't change when rows shift or data is fetched from different sources
+- Both MySQL and Excel can look up and delete by `roNumber`
+
+**Proposed Changes:**
+
+| File | Change |
+|------|--------|
+| `ROTable/index.tsx` | Pass `deletingRO.roNumber` instead of parsed index |
+| `useROs.ts` | Update `useDeleteRepairOrder` to accept `roNumber: string` |
+| `hybridDataService.ts` | Add `deleteRepairOrderByNumber(roNumber)` method |
+| `repairOrderService.ts` | Add `deleteByRONumber(roNumber)` method |
+| `repair-orders.js` | Add `DELETE /ros/by-number/:roNumber` endpoint |
+| `RepairOrderRepository.ts` | Add `deleteRepairOrderByRONumber(roNumber)` method |
+
+**New Delete Flow:**
+
+```
+UI: deleteRO.mutate("RO-38462")
+        │
+        ▼
+HybridDataService.deleteRepairOrderByNumber("RO-38462")
+        │
+        ├─► MySQL (primary): DELETE FROM active WHERE RO = "RO-38462"
+        │   - Searches all 4 tables (active, paid, net, returns)
+        │   - Deletes by roNumber (stable identifier)
+        │
+        └─► Excel (fallback):
+            1. Fetch current ROs
+            2. Find index where ro.roNumber === "RO-38462"
+            3. DELETE /rows/itemAt(index=foundIndex)
+```
+
+**Backward Compatibility:**
+- Keep existing `deleteRepairOrder(idOrRowIndex)` method
+- Add new `deleteRepairOrderByNumber(roNumber)` method
+- UI migrates to use new method
+- Old method remains for any legacy code paths
+
+---
+
+#### Files Analyzed
+
+| File | Purpose | Key Findings |
+|------|---------|--------------|
+| `hybridDataService.ts` | Hybrid MySQL/Excel logic | Type checking causes MySQL to throw for numbers |
+| `repairOrderService.ts` | MySQL API client | DELETE endpoint expects MySQL auto-increment ID |
+| `repair-orders.js` | Backend API routes | DELETE searches by `id` parameter, not `roNumber` |
+| `RepairOrderRepository.ts` | Excel CRUD operations | Delete uses array index from `itemAt(index=X)` |
+| `ROTable/index.tsx` | UI delete trigger | Parses "row-XX" format, fails for MySQL IDs |
+| `useROs.ts` | React Query hooks | `mutationFn` declares string but receives number |
+
+---
+
+#### TDD Test Plan
+
+Before implementing, create mock tests that simulate:
+1. Delete by roNumber via MySQL (primary path)
+2. Delete by roNumber via Excel (fallback path)
+3. MySQL failure → Excel fallback success
+4. Both sources fail → proper error handling
+5. RO not found scenarios
+6. Backward compatibility with old ID-based delete
+
+**Test Files to Create:**
+- `tests/services/hybridDataService.deleteByRONumber.test.ts`
+
+---
+
+#### Implementation Phases
+
+**Phase 1: TDD Tests** (Current)
+- Create comprehensive mock tests
+- Verify logic before implementation
+
+**Phase 2: Backend Changes**
+- Add `DELETE /ros/by-number/:roNumber` endpoint
+- Search all 4 tables by roNumber
+- Return success/not-found appropriately
+
+**Phase 3: Service Layer Changes**
+- Add `repairOrderService.deleteByRONumber()`
+- Add `hybridDataService.deleteRepairOrderByNumber()`
+- Add `excelService.deleteRepairOrderByRONumber()`
+
+**Phase 4: UI Changes**
+- Update `useDeleteRepairOrder` hook
+- Update `ROTable` delete handler
+- Pass `roNumber` instead of parsed index
+
+**Phase 5: Testing**
+- Run TDD tests
+- Manual testing in development
+- Production deployment
+
+---
+
+#### Related Documentation
+- `.claude/DATA_ACCESS.md` - Data access patterns
+- `.claude/ERROR_HANDLING.md` - Error handling system
+- `.claude/MODULES.md` - Module responsibilities
+
+---
+
 ### v2.4.0 - Production API Route Fixes (2025-11-25)
 
 **Status:** ✅ Complete
