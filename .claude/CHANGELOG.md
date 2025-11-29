@@ -9,6 +9,60 @@ Complete chronological record of all major implementations, migrations, and impr
 
 ## Version History
 
+### v2.6.0 - Update/Archive RO by RO Number Refactor (2025-11-29)
+
+**Status:** 🔄 In Progress
+
+**Issue:** Update and Archive operations fail due to ID system mismatch
+
+**Root Cause:** Same as v2.5.0 delete issue - MySQL uses auto-increment IDs while Excel uses row indices. The type-checking in hybridDataService causes routing failures.
+
+**Solution:** Apply same roNumber-based pattern established in v2.5.0 for delete operations.
+
+---
+
+#### Proposed Changes
+
+| File | Change |
+|------|--------|
+| `backend/routes/repair-orders.js` | Add `PATCH /ros/by-number/:roNumber`, `PATCH /ros/by-number/:roNumber/status`, `POST /ros/by-number/:roNumber/archive` |
+| `repairOrderService.ts` | Add `updateByRONumber()`, `updateStatusByRONumber()`, `archiveByRONumber()` methods |
+| `hybridDataService.ts` | Add `updateRepairOrderByNumber()`, `updateROStatusByNumber()`, `archiveRepairOrderByNumber()` methods |
+| `excelService.ts` | Add wrapper methods |
+| `RepairOrderRepository.ts` | Add Excel CRUD methods |
+| `useROs.ts` | Update hooks to accept roNumber |
+| UI components | Update to pass roNumber |
+
+---
+
+#### Implementation Phases
+
+**Phase 1: TDD Tests**
+- Create `tests/services/hybridDataService.updateByRONumber.test.ts`
+- Create `tests/services/hybridDataService.archiveByRONumber.test.ts`
+- Verify mock logic before implementation
+
+**Phase 2: Backend Endpoints**
+- Add `PATCH /ros/by-number/:roNumber`
+- Add `PATCH /ros/by-number/:roNumber/status`
+- Add `POST /ros/by-number/:roNumber/archive`
+
+**Phase 3: Service Layer**
+- Add methods to repairOrderService.ts
+- Add methods to hybridDataService.ts
+- Add methods to excelService.ts and repository
+
+**Phase 4: UI Layer**
+- Update useROs.ts hooks
+- Update ROTable and dialog components
+
+**Phase 5: Testing & Verification**
+- Run all tests
+- Manual testing
+- TypeScript compilation check
+
+---
+
 ### v2.5.0 - Delete RO by RO Number Refactor (2025-11-29)
 
 **Status:** ✅ Complete
