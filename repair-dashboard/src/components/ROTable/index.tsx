@@ -414,9 +414,18 @@ export function ROTable() {
           <DialogHeader>
             <DialogTitle>Delete Repair Order</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete RO{" "}
-              <strong>{deletingRO?.roNumber}</strong>? This action cannot be
-              undone.
+              {deletingRO?.roNumber && deletingRO.roNumber.trim() !== '' ? (
+                <>
+                  Are you sure you want to delete RO{" "}
+                  <strong>{deletingRO.roNumber}</strong>? This action cannot be
+                  undone.
+                </>
+              ) : (
+                <span className="text-red-600">
+                  This repair order has no RO number assigned. It cannot be deleted through the UI.
+                  Please delete it directly from the database or assign an RO number first.
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -431,6 +440,12 @@ export function ROTable() {
               variant="destructive"
               onClick={() => {
                 if (deletingRO) {
+                  // Check if roNumber exists - can't delete ROs without roNumber
+                  if (!deletingRO.roNumber || deletingRO.roNumber.trim() === '') {
+                    toast.error("Cannot delete: This repair order has no RO number. Please add an RO number first or delete it directly from the database.");
+                    setDeletingRO(undefined);
+                    return;
+                  }
                   // Use roNumber as universal identifier (works with both MySQL and Excel)
                   deleteRO.mutate(deletingRO.roNumber, {
                     onSuccess: () => {
@@ -439,8 +454,8 @@ export function ROTable() {
                   });
                 }
               }}
-              disabled={deleteRO.isPending}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={deleteRO.isPending || !deletingRO?.roNumber || deletingRO.roNumber.trim() === ''}
+              className="bg-red-600 hover:bg-red-700 text-white disabled:bg-gray-400"
             >
               {deleteRO.isPending ? "Deleting..." : "Delete"}
             </Button>
