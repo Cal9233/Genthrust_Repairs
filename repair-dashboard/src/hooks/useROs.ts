@@ -27,18 +27,24 @@ export function useUpdateROStatus() {
 
   return useMutation({
     mutationFn: ({
-      id,
+      roNumber,
       status,
       notes,
       cost,
       deliveryDate,
     }: {
-      id: string;
+      roNumber: string;
       status: string;
       notes?: string;
       cost?: number;
       deliveryDate?: Date;
-    }) => hybridDataService.updateROStatus(id, status, notes, cost, deliveryDate),
+    }) => {
+      // Validate roNumber before calling API
+      if (!roNumber || roNumber.trim() === '') {
+        return Promise.reject(new Error('RO number is required for status update'));
+      }
+      return hybridDataService.updateROStatusByNumber(roNumber, status, notes, cost, deliveryDate);
+    },
     onSuccess: async (updatedRO) => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
@@ -110,22 +116,28 @@ export function useUpdateRepairOrder() {
 
   return useMutation({
     mutationFn: ({
-      id,
+      roNumber,
       data,
     }: {
-      id: string;
+      roNumber: string;
       data: {
-        roNumber: string;
-        shopName: string;
-        partNumber: string;
-        serialNumber: string;
-        partDescription: string;
-        requiredWork: string;
+        roNumber?: string;
+        shopName?: string;
+        partNumber?: string;
+        serialNumber?: string;
+        partDescription?: string;
+        requiredWork?: string;
         estimatedCost?: number;
         terms?: string;
         shopReferenceNumber?: string;
       };
-    }) => hybridDataService.updateRepairOrder(id, data),
+    }) => {
+      // Validate roNumber before calling API
+      if (!roNumber || roNumber.trim() === '') {
+        return Promise.reject(new Error('RO number is required for update'));
+      }
+      return hybridDataService.updateRepairOrderByNumber(roNumber, data);
+    },
     onSuccess: (updatedRO) => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
@@ -185,15 +197,15 @@ export function useBulkUpdateStatus() {
       roNumbers: string[];
       newStatus: string;
     }) => {
-      // Get all ROs to find IDs
+      // Get all ROs for returning affected ROs after updates
       const allROs = await hybridDataService.getRepairOrders('ACTIVE');
 
-      // Update each RO
+      // Update each RO by roNumber (no need to find IDs anymore)
       const updates = roNumbers.map((roNumber) => {
-        const ro = allROs.find((r) => r.roNumber === roNumber);
-        if (!ro) throw new Error(`RO ${roNumber} not found`);
-
-        return hybridDataService.updateROStatus(ro.id, newStatus);
+        if (!roNumber || roNumber.trim() === '') {
+          throw new Error('Empty RO number in bulk update');
+        }
+        return hybridDataService.updateROStatusByNumber(roNumber, newStatus);
       });
 
       await Promise.all(updates);
@@ -232,12 +244,16 @@ export function useArchiveRO() {
 
   return useMutation({
     mutationFn: ({
-      id,
+      roNumber,
       targetSheetName,
     }: {
-      id: string;
+      roNumber: string;
       targetSheetName: string;
     }) => {
+      // Validate roNumber before calling API
+      if (!roNumber || roNumber.trim() === '') {
+        return Promise.reject(new Error('RO number is required for archive'));
+      }
       // Map sheet names to archiveStatus
       const statusMap: Record<string, 'PAID' | 'NET' | 'RETURNED'> = {
         'Paid': 'PAID',
@@ -245,7 +261,7 @@ export function useArchiveRO() {
         'Returns': 'RETURNED'
       };
       const archiveStatus = statusMap[targetSheetName] || 'PAID';
-      return hybridDataService.archiveRepairOrder(id, archiveStatus);
+      return hybridDataService.archiveRepairOrderByNumber(roNumber, archiveStatus);
     },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });

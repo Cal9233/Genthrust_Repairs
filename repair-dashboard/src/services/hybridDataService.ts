@@ -381,6 +381,107 @@ class HybridDataService {
   }
 
   /**
+   * Update repair order by RO number (universal identifier)
+   * This method uses roNumber as a universal identifier that works across both MySQL and Excel.
+   * MySQL first, Excel fallback pattern is maintained.
+   *
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   * @param data - Partial repair order data to update
+   */
+  async updateRepairOrderByNumber(roNumber: string, data: Partial<RepairOrder>): Promise<RepairOrder> {
+    // Validate roNumber
+    if (!roNumber || roNumber.trim() === '') {
+      throw new Error('RO number is required');
+    }
+
+    const { data: updatedRO } = await this.executeWithFallback({
+      mysql: async () => {
+        return repairOrderService.updateByRONumber(roNumber, data);
+      },
+      excel: async () => {
+        return excelService.updateRepairOrderByRONumber(roNumber, data);
+      },
+      operationName: `updateRepairOrderByNumber(${roNumber})`,
+    });
+
+    return updatedRO;
+  }
+
+  /**
+   * Update RO status by RO number (universal identifier)
+   * This method uses roNumber as a universal identifier that works across both MySQL and Excel.
+   * MySQL first, Excel fallback pattern is maintained.
+   *
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   * @param status - New status
+   * @param notes - Optional status notes
+   * @param cost - Optional cost update
+   * @param deliveryDate - Optional delivery date
+   */
+  async updateROStatusByNumber(
+    roNumber: string,
+    status: string,
+    notes?: string,
+    cost?: number,
+    deliveryDate?: Date
+  ): Promise<RepairOrder> {
+    // Validate inputs
+    if (!roNumber || roNumber.trim() === '') {
+      throw new Error('RO number is required');
+    }
+    if (!status || status.trim() === '') {
+      throw new Error('Status is required');
+    }
+
+    const { data: updatedRO } = await this.executeWithFallback({
+      mysql: async () => {
+        return repairOrderService.updateStatusByRONumber(roNumber, status, notes, cost, deliveryDate);
+      },
+      excel: async () => {
+        return excelService.updateROStatusByRONumber(roNumber, status, notes, cost, deliveryDate);
+      },
+      operationName: `updateROStatusByNumber(${roNumber})`,
+    });
+
+    return updatedRO;
+  }
+
+  /**
+   * Archive repair order by RO number (universal identifier)
+   * This method uses roNumber as a universal identifier that works across both MySQL and Excel.
+   * MySQL first, Excel fallback pattern is maintained.
+   *
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   * @param archiveStatus - Target archive status ('PAID' | 'NET' | 'RETURNED')
+   */
+  async archiveRepairOrderByNumber(
+    roNumber: string,
+    archiveStatus: 'PAID' | 'NET' | 'RETURNED'
+  ): Promise<RepairOrder> {
+    // Validate inputs
+    if (!roNumber || roNumber.trim() === '') {
+      throw new Error('RO number is required');
+    }
+
+    const validStatuses = ['PAID', 'NET', 'RETURNED'];
+    if (!validStatuses.includes(archiveStatus)) {
+      throw new Error(`Invalid archive status: ${archiveStatus}. Must be one of: ${validStatuses.join(', ')}`);
+    }
+
+    const { data: archivedRO } = await this.executeWithFallback({
+      mysql: async () => {
+        return repairOrderService.archiveByRONumber(roNumber, archiveStatus);
+      },
+      excel: async () => {
+        return excelService.archiveRepairOrderByRONumber(roNumber, archiveStatus);
+      },
+      operationName: `archiveRepairOrderByNumber(${roNumber})`,
+    });
+
+    return archivedRO;
+  }
+
+  /**
    * Archive repair order with fallback
    */
   async archiveRepairOrder(

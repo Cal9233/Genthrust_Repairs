@@ -112,14 +112,18 @@ export function UpdateStatusDialog({
   };
 
   const performStatusUpdate = () => {
-    const rowIndex = parseInt(ro.id.replace("row-", ""));
-
     const costValue = cost ? parseFloat(cost.replace(/[^0-9.]/g, "")) : undefined;
     const deliveryDateValue = deliveryDate ? new Date(deliveryDate) : undefined;
 
+    // Validate roNumber before calling API
+    if (!ro.roNumber || ro.roNumber.trim() === '') {
+      toast.error('Cannot update: RO number is empty');
+      return;
+    }
+
     updateStatus.mutate(
       {
-        rowIndex,
+        roNumber: ro.roNumber,
         status,
         notes,
         cost: costValue,
@@ -161,9 +165,14 @@ export function UpdateStatusDialog({
   };
 
   const handleApprovalResponse = async (approved: boolean) => {
-    const rowIndex = parseInt(ro.id.replace("row-", ""));
     const costValue = cost ? parseFloat(cost.replace(/[^0-9.]/g, "")) : undefined;
     const deliveryDateValue = deliveryDate ? new Date(deliveryDate) : undefined;
+
+    // Validate roNumber before calling API
+    if (!ro.roNumber || ro.roNumber.trim() === '') {
+      toast.error('Cannot update: RO number is empty');
+      return;
+    }
 
     if (approved) {
       // User confirmed they received the part - determine destination
@@ -198,7 +207,7 @@ export function UpdateStatusDialog({
 
         updateStatus.mutate(
           {
-            rowIndex,
+            roNumber: ro.roNumber,
             status,
             notes,
             cost: costValue,
@@ -230,9 +239,8 @@ export function UpdateStatusDialog({
               // After updating status (and creating reminder if needed), archive the RO
               archiveRO.mutate(
                 {
-                  rowIndex,
+                  roNumber: ro.roNumber,
                   targetSheetName: targetSheet!.sheetName,
-                  targetTableName: targetSheet!.tableName,
                 },
                 {
                   onSuccess: () => {

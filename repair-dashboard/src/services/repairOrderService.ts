@@ -320,6 +320,108 @@ class RepairOrderService {
   }
 
   /**
+   * Update repair order by RO number (universal identifier)
+   * Searches all tables to find and update the RO
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   * @param updates - Partial repair order data to update
+   */
+  async updateByRONumber(roNumber: string, updates: Partial<RepairOrder>): Promise<RepairOrder> {
+    logger.info('Updating repair order by RO number', { roNumber, updates });
+
+    try {
+      const requestData = mapRepairOrderToApiRequest(updates);
+
+      const data = await this.apiRequest<any>(
+        `/ros/by-number/${encodeURIComponent(roNumber)}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(requestData)
+        }
+      );
+
+      logger.info('Repair order updated by RO number', { roNumber });
+      return mapApiResponseToRepairOrder(data);
+    } catch (error) {
+      logger.error('Failed to update repair order by RO number', error, { roNumber });
+      throw error;
+    }
+  }
+
+  /**
+   * Update repair order status by RO number (universal identifier)
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   * @param status - New status
+   * @param notes - Optional status notes
+   * @param cost - Optional cost update
+   * @param deliveryDate - Optional delivery date
+   */
+  async updateStatusByRONumber(
+    roNumber: string,
+    status: string,
+    notes?: string,
+    cost?: number,
+    deliveryDate?: Date
+  ): Promise<RepairOrder> {
+    logger.info('Updating repair order status by RO number', {
+      roNumber,
+      status,
+      notes,
+      cost,
+      deliveryDate
+    });
+
+    try {
+      const data = await this.apiRequest<any>(
+        `/ros/by-number/${encodeURIComponent(roNumber)}/status`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            status,
+            notes,
+            cost,
+            deliveryDate: deliveryDate ? formatDate(deliveryDate) : undefined
+          })
+        }
+      );
+
+      logger.info('Repair order status updated by RO number', { roNumber, status });
+      return mapApiResponseToRepairOrder(data);
+    } catch (error) {
+      logger.error('Failed to update repair order status by RO number', error, { roNumber });
+      throw error;
+    }
+  }
+
+  /**
+   * Archive repair order by RO number (universal identifier)
+   * Moves the RO to the specified archive table
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   * @param archiveStatus - Target archive status ('PAID' | 'NET' | 'RETURNED')
+   */
+  async archiveByRONumber(
+    roNumber: string,
+    archiveStatus: 'PAID' | 'NET' | 'RETURNED'
+  ): Promise<RepairOrder> {
+    logger.info('Archiving repair order by RO number', { roNumber, archiveStatus });
+
+    try {
+      const data = await this.apiRequest<any>(
+        `/ros/by-number/${encodeURIComponent(roNumber)}/archive`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ archiveStatus })
+        }
+      );
+
+      logger.info('Repair order archived by RO number', { roNumber, archiveStatus });
+      return mapApiResponseToRepairOrder(data);
+    } catch (error) {
+      logger.error('Failed to archive repair order by RO number', error, { roNumber });
+      throw error;
+    }
+  }
+
+  /**
    * Get dashboard statistics
    */
   async getDashboardStats(): Promise<DashboardStats> {

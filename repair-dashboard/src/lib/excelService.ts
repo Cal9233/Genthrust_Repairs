@@ -379,6 +379,57 @@ class ExcelService {
   }
 
   /**
+   * Update a repair order by RO number (universal identifier)
+   * Searches all repair orders to find the one with matching roNumber, then updates by index
+   *
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   * @param data - Partial repair order data to update
+   * @throws Error if the repair order is not found
+   */
+  async updateRepairOrderByRONumber(roNumber: string, data: Partial<RepairOrder>): Promise<RepairOrder> {
+    const repository = await this.getRepairOrderRepository();
+    return repository.updateRepairOrderByRONumber(roNumber, data);
+  }
+
+  /**
+   * Update RO status by RO number (universal identifier)
+   * Searches all repair orders to find the one with matching roNumber, then updates status
+   *
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   * @param status - New status
+   * @param statusNotes - Optional status notes
+   * @param cost - Optional cost update
+   * @param deliveryDate - Optional delivery date
+   * @throws Error if the repair order is not found
+   */
+  async updateROStatusByRONumber(
+    roNumber: string,
+    status: string,
+    statusNotes?: string,
+    cost?: number,
+    deliveryDate?: Date
+  ): Promise<RepairOrder> {
+    const repository = await this.getRepairOrderRepository();
+    return repository.updateROStatusByRONumber(roNumber, status, statusNotes, cost, deliveryDate);
+  }
+
+  /**
+   * Archive a repair order by RO number (universal identifier)
+   * Searches all repair orders to find the one with matching roNumber, then archives by updating status
+   *
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   * @param archiveStatus - Target archive status ('PAID' | 'NET' | 'RETURNED')
+   * @throws Error if the repair order is not found
+   */
+  async archiveRepairOrderByRONumber(
+    roNumber: string,
+    archiveStatus: 'PAID' | 'NET' | 'RETURNED'
+  ): Promise<RepairOrder> {
+    const repository = await this.getRepairOrderRepository();
+    return repository.archiveRepairOrderByRONumber(roNumber, archiveStatus);
+  }
+
+  /**
    * Move an RO from the active sheet to a final archive sheet
    */
   async moveROToArchive(

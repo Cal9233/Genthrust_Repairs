@@ -353,10 +353,443 @@ router.post('/', async (req, res) => {
 });
 
 /**
+ * Update repair order by RO number (universal identifier)
+ * PATCH /api/ros/by-number/:roNumber
+ *
+ * NOTE: This route MUST be defined BEFORE the /:id route
+ * Otherwise Express will treat "by-number" as an :id parameter
+ */
+router.patch('/by-number/:roNumber', async (req, res) => {
+  try {
+    const { roNumber } = req.params;
+    const updates = req.body;
+
+    console.log(`[RO API] Updating repair order by RO number: ${roNumber}`);
+
+    // Validate roNumber
+    if (!roNumber || roNumber.trim() === '') {
+      return res.status(400).json({
+        error: 'RO number is required',
+        message: 'The roNumber parameter cannot be empty'
+      });
+    }
+
+    // Find which table the RO is currently in
+    let currentTable = null;
+    let currentArchiveStatus = null;
+    let currentRow = null;
+
+    for (const [archiveStatus, tableName] of Object.entries(ARCHIVE_TABLE_MAP)) {
+      const query = buildSelectQuery(tableName) + ` WHERE RO = ?`;
+      const [rows] = await pool.query(query, [roNumber]);
+
+      if (rows.length > 0) {
+        currentTable = tableName;
+        currentArchiveStatus = archiveStatus;
+        currentRow = rows[0];
+        break;
+      }
+    }
+
+    if (!currentTable) {
+      return res.status(404).json({
+        error: 'Repair order not found',
+        message: `No repair order found with RO number: ${roNumber}`
+      });
+    }
+
+    // Check if archiveStatus is changing
+    const newArchiveStatus = updates.archiveStatus || currentArchiveStatus;
+    const newTable = ARCHIVE_TABLE_MAP[newArchiveStatus];
+
+    if (newTable !== currentTable) {
+      // ARCHIVE OPERATION: Move row to different table
+      console.log(`[RO API] Moving RO from ${currentTable} to ${newTable}`);
+
+      // Start transaction
+      const connection = await pool.getConnection();
+      await connection.beginTransaction();
+
+      try {
+        // Merge current data with updates
+        const mergedData = {
+          ...currentRow,
+          ...updates
+        };
+
+        // Insert into new table
+        await connection.query(
+          `INSERT INTO ${newTable} (
+            RO, DATE_MADE, SHOP_NAME, PART, SERIAL,
+            PART_DESCRIPTION, REQ_WORK, DATE_DROPPED_OFF, ESTIMATED_COST, FINAL_COST,
+            TERMS, SHOP_REF, ESTIMATED_DELIVERY_DATE, CURENT_STATUS,
+            CURENT_STATUS_DATE, GENTHRUST_STATUS, SHOP_STATUS, TRACKING_NUMBER_PICKING_UP, NOTES,
+            LAST_DATE_UPDATED, NEXT_DATE_TO_UPDATE
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            mergedData.roNumber,
+            formatDateForMySQL(mergedData.dateMade),
+            mergedData.shopName,
+            mergedData.partNumber || null,
+            mergedData.serialNumber || null,
+            mergedData.partDescription,
+            mergedData.requiredWork || null,
+            formatDateForMySQL(mergedData.dateDroppedOff),
+            mergedData.estimatedCost || null,
+            mergedData.finalCost || null,
+            mergedData.terms || null,
+            mergedData.shopReferenceNumber || null,
+            formatDateForMySQL(mergedData.estimatedDeliveryDate),
+            updates.currentStatus || mergedData.currentStatus,
+            formatDateForMySQL(updates.currentStatusDate || mergedData.currentStatusDate),
+            updates.genThrustStatus || mergedData.genThrustStatus || null,
+            updates.shopStatus || mergedData.shopStatus || null,
+            updates.trackingNumber || mergedData.trackingNumber || null,
+            updates.notes || mergedData.notes || null,
+            formatDateForMySQL(new Date()),
+            formatDateForMySQL(updates.nextDateToUpdate || mergedData.nextDateToUpdate)
+          ]
+        );
+
+        // Delete from old table
+        await connection.query(`DELETE FROM ${currentTable} WHERE RO = ?`, [roNumber]);
+
+        await connection.commit();
+        connection.release();
+
+        // Fetch the moved RO
+        const query = buildSelectQuery(newTable) + ` WHERE RO = ?`;
+        const [movedRO] = await pool.query(query, [roNumber]);
+
+        console.log(`[RO API] Successfully moved RO ${roNumber} from ${currentTable} to ${newTable}`);
+        res.json(mapRowToRepairOrder(movedRO[0], newArchiveStatus));
+      } catch (error) {
+        await connection.rollback();
+        connection.release();
+        throw error;
+      }
+    } else {
+      // REGULAR UPDATE: Same table
+      const fields = [];
+      const values = [];
+
+      // Map camelCase field names to Excel column names
+      const fieldMap = {
+        roNumber: 'RO',
+        dateMade: 'DATE_MADE',
+        shopName: 'SHOP_NAME',
+        partNumber: 'PART',
+        serialNumber: 'SERIAL',
+        partDescription: 'PART_DESCRIPTION',
+        requiredWork: 'REQ_WORK',
+        dateDroppedOff: 'DATE_DROPPED_OFF',
+        estimatedCost: 'ESTIMATED_COST',
+        finalCost: 'FINAL_COST',
+        terms: 'TERMS',
+        shopReferenceNumber: 'SHOP_REF',
+        estimatedDeliveryDate: 'ESTIMATED_DELIVERY_DATE',
+        currentStatus: 'CURENT_STATUS',
+        currentStatusDate: 'CURENT_STATUS_DATE',
+        genThrustStatus: 'GENTHRUST_STATUS',
+        shopStatus: 'SHOP_STATUS',
+        trackingNumber: 'TRACKING_NUMBER_PICKING_UP',
+        notes: 'NOTES',
+        lastDateUpdated: 'LAST_DATE_UPDATED',
+        nextDateToUpdate: 'NEXT_DATE_TO_UPDATE'
+      };
+
+      Object.keys(updates).forEach(key => {
+        if (fieldMap[key] && key !== 'archiveStatus') {
+          fields.push(`${fieldMap[key]} = ?`);
+
+          // Handle date fields
+          if (key.includes('Date') || key === 'dateMade') {
+            values.push(formatDateForMySQL(updates[key]));
+          }
+          // Handle numeric fields
+          else if (key === 'estimatedCost' || key === 'finalCost') {
+            values.push(updates[key] ? parseFloat(updates[key]) : null);
+          }
+          // All other fields
+          else {
+            values.push(updates[key]);
+          }
+        }
+      });
+
+      // Always update lastDateUpdated even if no other fields
+      fields.push('LAST_DATE_UPDATED = ?');
+      values.push(formatDateForMySQL(new Date()));
+
+      // Add roNumber to end of values array for WHERE clause
+      values.push(roNumber);
+
+      // Execute update
+      await pool.query(
+        `UPDATE ${currentTable} SET ${fields.join(', ')} WHERE RO = ?`,
+        values
+      );
+
+      // Fetch updated RO
+      const query = buildSelectQuery(currentTable) + ` WHERE RO = ?`;
+      const [updatedRO] = await pool.query(query, [roNumber]);
+
+      console.log(`[RO API] Updated repair order: ${roNumber} in ${currentTable} table`);
+      res.json(mapRowToRepairOrder(updatedRO[0], currentArchiveStatus));
+    }
+  } catch (error) {
+    console.error('[RO API] Update repair order by number error:', error);
+    res.status(500).json({ error: 'Database error', message: error.message });
+  }
+});
+
+/**
+ * Update repair order status by RO number (universal identifier)
+ * PATCH /api/ros/by-number/:roNumber/status
+ *
+ * Request body:
+ * - status: string (required) - New status
+ * - notes: string (optional) - Status update notes
+ * - cost: number (optional) - Cost (updates finalCost for final statuses)
+ * - deliveryDate: Date (optional) - Estimated delivery date
+ */
+router.patch('/by-number/:roNumber/status', async (req, res) => {
+  try {
+    const { roNumber } = req.params;
+    const { status, notes, cost, deliveryDate } = req.body;
+
+    console.log(`[RO API] Updating status for RO: ${roNumber} to ${status}`);
+
+    // Validate inputs
+    if (!roNumber || roNumber.trim() === '') {
+      return res.status(400).json({
+        error: 'RO number is required',
+        message: 'The roNumber parameter cannot be empty'
+      });
+    }
+
+    if (!status || status.trim() === '') {
+      return res.status(400).json({
+        error: 'Status is required',
+        message: 'The status field cannot be empty'
+      });
+    }
+
+    // Find which table the RO is currently in
+    let currentTable = null;
+    let currentArchiveStatus = null;
+    let currentRow = null;
+
+    for (const [archiveStatus, tableName] of Object.entries(ARCHIVE_TABLE_MAP)) {
+      const query = buildSelectQuery(tableName) + ` WHERE RO = ?`;
+      const [rows] = await pool.query(query, [roNumber]);
+
+      if (rows.length > 0) {
+        currentTable = tableName;
+        currentArchiveStatus = archiveStatus;
+        currentRow = rows[0];
+        break;
+      }
+    }
+
+    if (!currentTable) {
+      return res.status(404).json({
+        error: 'Repair order not found',
+        message: `No repair order found with RO number: ${roNumber}`
+      });
+    }
+
+    // Build update fields
+    const fields = [
+      'CURENT_STATUS = ?',
+      'CURENT_STATUS_DATE = ?',
+      'LAST_DATE_UPDATED = ?'
+    ];
+    const values = [
+      status,
+      formatDateForMySQL(new Date()),
+      formatDateForMySQL(new Date())
+    ];
+
+    // Add notes if provided (append to existing)
+    if (notes) {
+      const existingNotes = currentRow.notes || '';
+      const updatedNotes = existingNotes ? `${existingNotes}\n${notes}` : notes;
+      fields.push('NOTES = ?');
+      values.push(updatedNotes);
+    }
+
+    // Add cost if provided
+    if (cost !== undefined) {
+      // For final statuses (PAID, SHIPPING), update FINAL_COST
+      const isFinalStatus = status.includes('PAID') || status.includes('SHIPPING');
+      if (isFinalStatus) {
+        fields.push('FINAL_COST = ?');
+      } else {
+        fields.push('ESTIMATED_COST = ?');
+      }
+      values.push(parseFloat(cost));
+    }
+
+    // Add delivery date if provided
+    if (deliveryDate) {
+      fields.push('ESTIMATED_DELIVERY_DATE = ?');
+      values.push(formatDateForMySQL(deliveryDate));
+    }
+
+    // Add roNumber to WHERE clause
+    values.push(roNumber);
+
+    // Execute update
+    await pool.query(
+      `UPDATE ${currentTable} SET ${fields.join(', ')} WHERE RO = ?`,
+      values
+    );
+
+    // Fetch updated RO
+    const query = buildSelectQuery(currentTable) + ` WHERE RO = ?`;
+    const [updatedRO] = await pool.query(query, [roNumber]);
+
+    console.log(`[RO API] Updated status for RO: ${roNumber} to ${status}`);
+    res.json(mapRowToRepairOrder(updatedRO[0], currentArchiveStatus));
+  } catch (error) {
+    console.error('[RO API] Update RO status by number error:', error);
+    res.status(500).json({ error: 'Database error', message: error.message });
+  }
+});
+
+/**
+ * Archive repair order by RO number (universal identifier)
+ * POST /api/ros/by-number/:roNumber/archive
+ *
+ * Request body:
+ * - archiveStatus: 'PAID' | 'NET' | 'RETURNED' (required)
+ *
+ * This operation moves the RO from its current table to the target archive table
+ */
+router.post('/by-number/:roNumber/archive', async (req, res) => {
+  try {
+    const { roNumber } = req.params;
+    const { archiveStatus } = req.body;
+
+    console.log(`[RO API] Archiving RO: ${roNumber} to ${archiveStatus}`);
+
+    // Validate inputs
+    if (!roNumber || roNumber.trim() === '') {
+      return res.status(400).json({
+        error: 'RO number is required',
+        message: 'The roNumber parameter cannot be empty'
+      });
+    }
+
+    const validArchiveStatuses = ['PAID', 'NET', 'RETURNED'];
+    if (!archiveStatus || !validArchiveStatuses.includes(archiveStatus)) {
+      return res.status(400).json({
+        error: 'Invalid archive status',
+        message: `archiveStatus must be one of: ${validArchiveStatuses.join(', ')}`
+      });
+    }
+
+    // Find which table the RO is currently in
+    let currentTable = null;
+    let currentArchiveStatus = null;
+    let currentRow = null;
+
+    for (const [status, tableName] of Object.entries(ARCHIVE_TABLE_MAP)) {
+      const query = buildSelectQuery(tableName) + ` WHERE RO = ?`;
+      const [rows] = await pool.query(query, [roNumber]);
+
+      if (rows.length > 0) {
+        currentTable = tableName;
+        currentArchiveStatus = status;
+        currentRow = rows[0];
+        break;
+      }
+    }
+
+    if (!currentTable) {
+      return res.status(404).json({
+        error: 'Repair order not found',
+        message: `No repair order found with RO number: ${roNumber}`
+      });
+    }
+
+    const targetTable = ARCHIVE_TABLE_MAP[archiveStatus];
+
+    // If already in target table, just return current row
+    if (currentTable === targetTable) {
+      console.log(`[RO API] RO ${roNumber} already in ${targetTable}, returning current data`);
+      return res.json(mapRowToRepairOrder(currentRow, archiveStatus));
+    }
+
+    // Start transaction to move row between tables
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // Insert into target table
+      await connection.query(
+        `INSERT INTO ${targetTable} (
+          RO, DATE_MADE, SHOP_NAME, PART, SERIAL,
+          PART_DESCRIPTION, REQ_WORK, DATE_DROPPED_OFF, ESTIMATED_COST, FINAL_COST,
+          TERMS, SHOP_REF, ESTIMATED_DELIVERY_DATE, CURENT_STATUS,
+          CURENT_STATUS_DATE, GENTHRUST_STATUS, SHOP_STATUS, TRACKING_NUMBER_PICKING_UP, NOTES,
+          LAST_DATE_UPDATED, NEXT_DATE_TO_UPDATE
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          currentRow.roNumber,
+          formatDateForMySQL(currentRow.dateMade),
+          currentRow.shopName,
+          currentRow.partNumber || null,
+          currentRow.serialNumber || null,
+          currentRow.partDescription,
+          currentRow.requiredWork || null,
+          formatDateForMySQL(currentRow.dateDroppedOff),
+          currentRow.estimatedCost || null,
+          currentRow.finalCost || null,
+          currentRow.terms || null,
+          currentRow.shopReferenceNumber || null,
+          formatDateForMySQL(currentRow.estimatedDeliveryDate),
+          currentRow.currentStatus,
+          formatDateForMySQL(currentRow.currentStatusDate),
+          currentRow.genThrustStatus || null,
+          currentRow.shopStatus || null,
+          currentRow.trackingNumber || null,
+          currentRow.notes || null,
+          formatDateForMySQL(new Date()),
+          formatDateForMySQL(currentRow.nextDateToUpdate)
+        ]
+      );
+
+      // Delete from source table
+      await connection.query(`DELETE FROM ${currentTable} WHERE RO = ?`, [roNumber]);
+
+      await connection.commit();
+      connection.release();
+
+      // Fetch the archived RO from target table
+      const query = buildSelectQuery(targetTable) + ` WHERE RO = ?`;
+      const [archivedRO] = await pool.query(query, [roNumber]);
+
+      console.log(`[RO API] Archived RO ${roNumber} from ${currentTable} to ${targetTable}`);
+      res.json(mapRowToRepairOrder(archivedRO[0], archiveStatus));
+    } catch (error) {
+      await connection.rollback();
+      connection.release();
+      throw error;
+    }
+  } catch (error) {
+    console.error('[RO API] Archive RO by number error:', error);
+    res.status(500).json({ error: 'Database error', message: error.message });
+  }
+});
+
+/**
  * Update repair order (including archiveStatus for archiving)
  * PATCH /api/ros/:id
  *
  * NOTE: Changing archiveStatus moves the row to a different table
+ * @deprecated Use PATCH /api/ros/by-number/:roNumber instead
  */
 router.patch('/:id', async (req, res) => {
   try {

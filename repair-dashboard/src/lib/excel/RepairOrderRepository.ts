@@ -625,6 +625,180 @@ export class RepairOrderRepository {
   }
 
   /**
+   * Update a repair order by RO number (universal identifier)
+   * Searches all repair orders to find the one with matching roNumber, then updates by index
+   *
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   * @param data - Partial repair order data to update
+   * @throws Error if the repair order is not found
+   */
+  async updateRepairOrderByRONumber(roNumber: string, data: {
+    roNumber?: string;
+    shopName?: string;
+    partNumber?: string;
+    serialNumber?: string;
+    partDescription?: string;
+    requiredWork?: string;
+    estimatedCost?: number;
+    terms?: string;
+    shopReferenceNumber?: string;
+    archiveStatus?: 'ACTIVE' | 'PAID' | 'NET' | 'RETURNED';
+  }): Promise<RepairOrder> {
+    logger.info('Updating repair order by RO number', { roNumber, data });
+
+    // First, get all repair orders to find the one with matching roNumber
+    const repairOrders = await this.getRepairOrders();
+    const targetRO = repairOrders.find(ro => ro.roNumber === roNumber);
+
+    if (!targetRO) {
+      const errorMsg = `Repair order ${roNumber} not found in Excel`;
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Extract the row index from the id (format: "row-{index}")
+    const rowIndex = parseInt(targetRO.id.replace('row-', ''), 10);
+
+    if (isNaN(rowIndex)) {
+      const errorMsg = `Invalid row ID format for RO ${roNumber}: ${targetRO.id}`;
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    logger.info('Found repair order, updating by row index', { roNumber, rowIndex });
+
+    // Update by the found row index
+    await this.updateRepairOrder(rowIndex, data);
+
+    // Return the updated RO (merge updates with existing data)
+    const updatedRO: RepairOrder = {
+      ...targetRO,
+      ...data,
+      lastDateUpdated: new Date(),
+    };
+
+    logger.info('Repair order updated successfully by RO number', { roNumber, rowIndex });
+    return updatedRO;
+  }
+
+  /**
+   * Update RO status by RO number (universal identifier)
+   * Searches all repair orders to find the one with matching roNumber, then updates status
+   *
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   * @param status - New status
+   * @param statusNotes - Optional status notes
+   * @param cost - Optional cost update
+   * @param deliveryDate - Optional delivery date
+   * @throws Error if the repair order is not found
+   */
+  async updateROStatusByRONumber(
+    roNumber: string,
+    status: string,
+    statusNotes?: string,
+    cost?: number,
+    deliveryDate?: Date
+  ): Promise<RepairOrder> {
+    logger.info('Updating RO status by RO number', { roNumber, status });
+
+    // First, get all repair orders to find the one with matching roNumber
+    const repairOrders = await this.getRepairOrders();
+    const targetRO = repairOrders.find(ro => ro.roNumber === roNumber);
+
+    if (!targetRO) {
+      const errorMsg = `Repair order ${roNumber} not found in Excel`;
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Extract the row index from the id (format: "row-{index}")
+    const rowIndex = parseInt(targetRO.id.replace('row-', ''), 10);
+
+    if (isNaN(rowIndex)) {
+      const errorMsg = `Invalid row ID format for RO ${roNumber}: ${targetRO.id}`;
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    logger.info('Found repair order, updating status by row index', { roNumber, rowIndex, status });
+
+    // Update status by the found row index
+    await this.updateROStatus(rowIndex, status, statusNotes, cost, deliveryDate);
+
+    // Return the updated RO
+    const updatedRO: RepairOrder = {
+      ...targetRO,
+      currentStatus: status,
+      currentStatusDate: new Date(),
+      lastDateUpdated: new Date(),
+      ...(statusNotes && { notes: `${targetRO.notes}\n${statusNotes}`.trim() }),
+      ...(cost !== undefined && { finalCost: cost }),
+      ...(deliveryDate && { estimatedDeliveryDate: deliveryDate }),
+    };
+
+    logger.info('RO status updated successfully by RO number', { roNumber, rowIndex, status });
+    return updatedRO;
+  }
+
+  /**
+   * Archive a repair order by RO number (universal identifier)
+   * Searches all repair orders to find the one with matching roNumber, then archives by updating status
+   *
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   * @param archiveStatus - Target archive status ('PAID' | 'NET' | 'RETURNED')
+   * @throws Error if the repair order is not found
+   */
+  async archiveRepairOrderByRONumber(
+    roNumber: string,
+    archiveStatus: 'PAID' | 'NET' | 'RETURNED'
+  ): Promise<RepairOrder> {
+    logger.info('Archiving repair order by RO number', { roNumber, archiveStatus });
+
+    // First, get all repair orders to find the one with matching roNumber
+    const repairOrders = await this.getRepairOrders();
+    const targetRO = repairOrders.find(ro => ro.roNumber === roNumber);
+
+    if (!targetRO) {
+      const errorMsg = `Repair order ${roNumber} not found in Excel`;
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Extract the row index from the id (format: "row-{index}")
+    const rowIndex = parseInt(targetRO.id.replace('row-', ''), 10);
+
+    if (isNaN(rowIndex)) {
+      const errorMsg = `Invalid row ID format for RO ${roNumber}: ${targetRO.id}`;
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    logger.info('Found repair order, archiving by row index', { roNumber, rowIndex, archiveStatus });
+
+    // Map archiveStatus to sheet/table names
+    const archiveMap: Record<string, { sheet: string; table: string }> = {
+      'PAID': { sheet: 'Paid', table: 'Paid' },
+      'NET': { sheet: 'NET', table: 'NET' },
+      'RETURNED': { sheet: 'Returns', table: 'Returns' },
+    };
+
+    const { sheet, table } = archiveMap[archiveStatus];
+
+    // Move to archive
+    await this.moveROToArchive(rowIndex, sheet, table);
+
+    // Return the archived RO
+    const archivedRO: RepairOrder = {
+      ...targetRO,
+      archiveStatus,
+      lastDateUpdated: new Date(),
+    };
+
+    logger.info('Repair order archived successfully by RO number', { roNumber, rowIndex, archiveStatus });
+    return archivedRO;
+  }
+
+  /**
    * Archive an RO by updating its archiveStatus field
    * (Previously moved rows to separate sheets - now just updates the status)
    *
