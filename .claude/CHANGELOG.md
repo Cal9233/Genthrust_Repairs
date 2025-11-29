@@ -11,7 +11,7 @@ Complete chronological record of all major implementations, migrations, and impr
 
 ### v2.6.0 - Update/Archive RO by RO Number Refactor (2025-11-29)
 
-**Status:** 🔄 In Progress
+**Status:** ✅ Complete
 
 **Issue:** Update and Archive operations fail due to ID system mismatch
 
@@ -21,45 +21,46 @@ Complete chronological record of all major implementations, migrations, and impr
 
 ---
 
-#### Proposed Changes
+#### Files Modified
 
-| File | Change |
-|------|--------|
-| `backend/routes/repair-orders.js` | Add `PATCH /ros/by-number/:roNumber`, `PATCH /ros/by-number/:roNumber/status`, `POST /ros/by-number/:roNumber/archive` |
-| `repairOrderService.ts` | Add `updateByRONumber()`, `updateStatusByRONumber()`, `archiveByRONumber()` methods |
-| `hybridDataService.ts` | Add `updateRepairOrderByNumber()`, `updateROStatusByNumber()`, `archiveRepairOrderByNumber()` methods |
-| `excelService.ts` | Add wrapper methods |
-| `RepairOrderRepository.ts` | Add Excel CRUD methods |
-| `useROs.ts` | Update hooks to accept roNumber |
-| UI components | Update to pass roNumber |
+| File | Changes |
+|------|---------|
+| `backend/routes/repair-orders.js` | Added `PATCH /ros/by-number/:roNumber`, `PATCH /ros/by-number/:roNumber/status`, `POST /ros/by-number/:roNumber/archive` endpoints |
+| `repair-dashboard/src/services/repairOrderService.ts` | Added `updateByRONumber()`, `updateStatusByRONumber()`, `archiveByRONumber()` methods |
+| `repair-dashboard/src/services/hybridDataService.ts` | Added `updateRepairOrderByNumber()`, `updateROStatusByNumber()`, `archiveRepairOrderByNumber()` methods |
+| `repair-dashboard/src/lib/excelService.ts` | Added wrapper methods for roNumber-based operations |
+| `repair-dashboard/src/lib/excel/RepairOrderRepository.ts` | Added Excel CRUD methods by roNumber |
+| `repair-dashboard/src/hooks/useROs.ts` | Updated `useUpdateROStatus`, `useUpdateRepairOrder`, `useArchiveRO`, `useBulkUpdateStatus` hooks to accept roNumber |
+| `repair-dashboard/src/components/UpdateStatusDialog.tsx` | Updated to pass roNumber instead of parsed rowIndex |
+
+#### Test Files
+
+- `tests/services/hybridDataService.updateByRONumber.test.ts` (36 tests)
+- `tests/services/hybridDataService.archiveByRONumber.test.ts` (32 tests)
+
+All 68 tests pass successfully.
 
 ---
 
-#### Implementation Phases
+#### Backend Endpoints Added
 
-**Phase 1: TDD Tests**
-- Create `tests/services/hybridDataService.updateByRONumber.test.ts`
-- Create `tests/services/hybridDataService.archiveByRONumber.test.ts`
-- Verify mock logic before implementation
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/ros/by-number/:roNumber` | PATCH | Update RO by roNumber (searches all 4 tables) |
+| `/ros/by-number/:roNumber/status` | PATCH | Update RO status with optional notes, cost, deliveryDate |
+| `/ros/by-number/:roNumber/archive` | POST | Archive RO to PAID/NET/RETURNED (uses transactions) |
 
-**Phase 2: Backend Endpoints**
-- Add `PATCH /ros/by-number/:roNumber`
-- Add `PATCH /ros/by-number/:roNumber/status`
-- Add `POST /ros/by-number/:roNumber/archive`
+#### Backward Compatibility
 
-**Phase 3: Service Layer**
-- Add methods to repairOrderService.ts
-- Add methods to hybridDataService.ts
-- Add methods to excelService.ts and repository
+- Legacy methods (`updateRepairOrder`, `updateROStatus`, `archiveRepairOrder`) marked as `@deprecated` but retained
+- New roNumber-based methods added alongside
+- UI migrated to use new methods
+- Empty roNumber validation added to prevent API calls with empty values
 
-**Phase 4: UI Layer**
-- Update useROs.ts hooks
-- Update ROTable and dialog components
+#### Commits
 
-**Phase 5: Testing & Verification**
-- Run all tests
-- Manual testing
-- TypeScript compilation check
+- `3b07711` - test: Add TDD tests for update/archive by roNumber (v2.6.0)
+- `f8fd8b7` - feat: Implement update/archive by roNumber (v2.6.0)
 
 ---
 
