@@ -11,7 +11,7 @@ Complete chronological record of all major implementations, migrations, and impr
 
 ### v2.5.0 - Delete RO by RO Number Refactor (2025-11-29)
 
-**Status:** 🔄 In Progress
+**Status:** ✅ Complete
 
 **Issue:** Delete Repair Order fails with Graph API 400 error
 
@@ -189,6 +189,37 @@ Before implementing, create mock tests that simulate:
 - Run TDD tests
 - Manual testing in development
 - Production deployment
+
+---
+
+#### Implementation Complete (2025-11-29)
+
+**Files Modified:**
+
+| File | Changes |
+|------|---------|
+| `backend/routes/repair-orders.js` | Added `DELETE /ros/by-number/:roNumber` endpoint (searches all 4 tables) |
+| `repair-dashboard/src/services/repairOrderService.ts` | Added `deleteByRONumber(roNumber)` method with URL encoding |
+| `repair-dashboard/src/services/hybridDataService.ts` | Added `deleteRepairOrderByNumber(roNumber)` with MySQL→Excel fallback |
+| `repair-dashboard/src/lib/excelService.ts` | Added `deleteRepairOrderByRONumber(roNumber)` wrapper |
+| `repair-dashboard/src/lib/excel/RepairOrderRepository.ts` | Added `deleteRepairOrderByRONumber(roNumber)` - finds by roNumber, deletes by index |
+| `repair-dashboard/src/hooks/useROs.ts` | Updated `useDeleteRepairOrder` mutation to accept `roNumber: string` |
+| `repair-dashboard/src/components/ROTable/index.tsx` | Changed `deleteRO.mutate(rowIndex)` → `deleteRO.mutate(deletingRO.roNumber)` |
+
+**Tests:**
+- TDD test suite: `tests/services/hybridDataService.deleteByRONumber.test.ts`
+- 30 tests covering all scenarios (MySQL success, Excel fallback, both fail, not found, edge cases)
+- All tests passing ✅
+
+**Backward Compatibility:**
+- Old `deleteRepairOrder(idOrRowIndex)` methods marked as `@deprecated` but retained
+- New `deleteRepairOrderByNumber(roNumber)` methods added alongside
+- UI migrated to use new method
+- No breaking changes to existing API consumers
+
+**Commits:**
+- `0496ca0` - test: Add TDD tests for delete RO by roNumber (v2.5.0)
+- `[pending]` - feat: Implement delete RO by roNumber (v2.5.0)
 
 ---
 

@@ -359,10 +359,23 @@ class ExcelService {
 
   /**
    * Delete a repair order
+   * @deprecated Use deleteRepairOrderByRONumber() instead for reliable cross-source deletion
    */
   async deleteRepairOrder(rowIndex: number): Promise<void> {
     const repository = await this.getRepairOrderRepository();
     return repository.deleteRepairOrder(rowIndex);
+  }
+
+  /**
+   * Delete a repair order by RO number (universal identifier)
+   * Searches all repair orders to find the one with matching roNumber, then deletes by index
+   *
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   * @throws Error if the repair order is not found
+   */
+  async deleteRepairOrderByRONumber(roNumber: string): Promise<void> {
+    const repository = await this.getRepairOrderRepository();
+    return repository.deleteRepairOrderByRONumber(roNumber);
   }
 
   /**

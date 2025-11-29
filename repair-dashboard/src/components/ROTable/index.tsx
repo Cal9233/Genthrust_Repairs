@@ -431,8 +431,8 @@ export function ROTable() {
               variant="destructive"
               onClick={() => {
                 if (deletingRO) {
-                  const rowIndex = parseInt(deletingRO.id.replace("row-", ""));
-                  deleteRO.mutate(rowIndex, {
+                  // Use roNumber as universal identifier (works with both MySQL and Excel)
+                  deleteRO.mutate(deletingRO.roNumber, {
                     onSuccess: () => {
                       setDeletingRO(undefined);
                     },

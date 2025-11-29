@@ -536,8 +536,52 @@ router.patch('/:id', async (req, res) => {
 });
 
 /**
+ * Delete repair order by RO number (universal identifier)
+ * DELETE /api/ros/by-number/:roNumber
+ *
+ * NOTE: This route MUST be defined BEFORE the /:id route
+ * Otherwise Express will treat "by-number" as an :id parameter
+ */
+router.delete('/by-number/:roNumber', async (req, res) => {
+  try {
+    const { roNumber } = req.params;
+
+    console.log(`[RO API] Deleting repair order by RO number: ${roNumber}`);
+
+    // Search all tables for the RO by roNumber
+    for (const [archiveStatus, tableName] of Object.entries(ARCHIVE_TABLE_MAP)) {
+      const [existing] = await pool.query(
+        `SELECT id FROM ${tableName} WHERE RO = ?`,
+        [roNumber]
+      );
+
+      if (existing.length > 0) {
+        // Delete the RO
+        await pool.query(`DELETE FROM ${tableName} WHERE RO = ?`, [roNumber]);
+
+        console.log(`[RO API] Deleted repair order: ${roNumber} from ${tableName} table`);
+        return res.json({
+          success: true,
+          message: `Repair order ${roNumber} deleted successfully from ${archiveStatus}`
+        });
+      }
+    }
+
+    return res.status(404).json({
+      error: 'Repair order not found',
+      message: `No repair order found with RO number: ${roNumber}`
+    });
+  } catch (error) {
+    console.error('[RO API] Delete repair order by number error:', error);
+    res.status(500).json({ error: 'Database error', message: error.message });
+  }
+});
+
+/**
  * Delete repair order (permanent delete)
  * DELETE /api/ros/:id
+ *
+ * @deprecated Use DELETE /api/ros/by-number/:roNumber instead
  */
 router.delete('/:id', async (req, res) => {
   try {

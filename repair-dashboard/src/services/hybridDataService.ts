@@ -337,6 +337,7 @@ class HybridDataService {
 
   /**
    * Delete repair order with fallback
+   * @deprecated Use deleteRepairOrderByNumber() instead for reliable cross-source deletion
    */
   async deleteRepairOrder(idOrRowIndex: string | number): Promise<void> {
     const isExcelRowIndex = typeof idOrRowIndex === 'number';
@@ -355,6 +356,27 @@ class HybridDataService {
         return excelService.deleteRepairOrder(idOrRowIndex as number);
       },
       operationName: 'deleteRepairOrder',
+    });
+  }
+
+  /**
+   * Delete repair order by RO number (universal identifier)
+   * This method uses roNumber as a universal identifier that works across both MySQL and Excel.
+   * MySQL first, Excel fallback pattern is maintained.
+   *
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   */
+  async deleteRepairOrderByNumber(roNumber: string): Promise<void> {
+    await this.executeWithFallback({
+      mysql: async () => {
+        await repairOrderService.deleteByRONumber(roNumber);
+        return undefined;
+      },
+      excel: async () => {
+        await excelService.deleteRepairOrderByRONumber(roNumber);
+        return undefined;
+      },
+      operationName: `deleteRepairOrderByNumber(${roNumber})`,
     });
   }
 

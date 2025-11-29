@@ -279,6 +279,7 @@ class RepairOrderService {
 
   /**
    * Delete repair order (permanent delete)
+   * @deprecated Use deleteByRONumber() instead for reliable cross-source deletion
    */
   async deleteRepairOrder(id: string): Promise<void> {
     logger.info('Deleting repair order', { id });
@@ -292,6 +293,28 @@ class RepairOrderService {
       logger.info('Repair order deleted', { id });
     } catch (error) {
       logger.error('Failed to delete repair order', error, { id });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete repair order by RO number (universal identifier)
+   * Searches all tables (active, paid, net, returns) to find and delete the RO
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   */
+  async deleteByRONumber(roNumber: string): Promise<{ success: boolean; message: string }> {
+    logger.info('Deleting repair order by RO number', { roNumber });
+
+    try {
+      const result = await this.apiRequest<{ success: boolean; message: string }>(
+        `/ros/by-number/${encodeURIComponent(roNumber)}`,
+        { method: 'DELETE' }
+      );
+
+      logger.info('Repair order deleted by RO number', { roNumber, result });
+      return result;
+    } catch (error) {
+      logger.error('Failed to delete repair order by RO number', error, { roNumber });
       throw error;
     }
   }

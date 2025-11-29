@@ -570,6 +570,7 @@ export class RepairOrderRepository {
 
   /**
    * Delete a repair order
+   * @deprecated Use deleteRepairOrderByRONumber() instead for reliable cross-source deletion
    */
   async deleteRepairOrder(rowIndex: number): Promise<void> {
     logger.info('Deleting repair order', { rowIndex });
@@ -584,6 +585,43 @@ export class RepairOrderRepository {
 
       logger.info('Repair order deleted successfully', { rowIndex });
     });
+  }
+
+  /**
+   * Delete a repair order by RO number (universal identifier)
+   * Searches all repair orders to find the one with matching roNumber, then deletes by index
+   *
+   * @param roNumber - The unique RO number (e.g., "RO-00001")
+   * @throws Error if the repair order is not found
+   */
+  async deleteRepairOrderByRONumber(roNumber: string): Promise<void> {
+    logger.info('Deleting repair order by RO number', { roNumber });
+
+    // First, get all repair orders to find the one with matching roNumber
+    const repairOrders = await this.getRepairOrders();
+    const targetRO = repairOrders.find(ro => ro.roNumber === roNumber);
+
+    if (!targetRO) {
+      const errorMsg = `Repair order ${roNumber} not found in Excel`;
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Extract the row index from the id (format: "row-{index}")
+    const rowIndex = parseInt(targetRO.id.replace('row-', ''), 10);
+
+    if (isNaN(rowIndex)) {
+      const errorMsg = `Invalid row ID format for RO ${roNumber}: ${targetRO.id}`;
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    logger.info('Found repair order, deleting by row index', { roNumber, rowIndex });
+
+    // Delete by the found row index
+    await this.deleteRepairOrder(rowIndex);
+
+    logger.info('Repair order deleted successfully by RO number', { roNumber, rowIndex });
   }
 
   /**

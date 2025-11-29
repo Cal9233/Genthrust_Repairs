@@ -155,20 +155,20 @@ export function useDeleteRepairOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => hybridDataService.deleteRepairOrder(id),
-    onSuccess: async () => {
+    mutationFn: (roNumber: string) => hybridDataService.deleteRepairOrderByNumber(roNumber),
+    onSuccess: async (_data, roNumber) => {
       queryClient.invalidateQueries({ queryKey: ["ros"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
 
       // Invalidate all analytics cache on delete (we don't know which shop was affected)
       analyticsCache.invalidateAll();
-      logger.debug('All analytics cache invalidated after RO deletion');
+      logger.debug('All analytics cache invalidated after RO deletion', { roNumber });
 
       toast.success("Repair order deleted successfully");
     },
-    onError: (error) => {
-      logger.error("Delete error", error);
+    onError: (error, roNumber) => {
+      logger.error("Delete error", error, { roNumber });
       toast.error("Failed to delete repair order");
     },
   });
